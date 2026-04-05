@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Suren Pastries — Cart</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--accent:#C8502A;--gold:#D4A853;--dark:#1A1A1A;--cream:#FAF7F2;--muted:#7A7570;--border:#E8E4DF;--surface:#fff;--success:#25D366}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark)}
+
+nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);letter-spacing:1.5px}
+.nav-links{display:flex;gap:4px}
+.nl{background:none;border:none;color:rgba(255,255,255,0.6);font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;transition:all 0.2s}
+.nl:hover,.nl.active{color:#fff;background:rgba(255,255,255,0.1)}
+.back-btn{display:flex;align-items:center;gap:6px;color:rgba(255,255,255,0.6);text-decoration:none;font-size:13px;transition:color 0.2s}
+.back-btn:hover{color:#fff}
+
+/* PAGE */
+.page{max-width:1000px;margin:0 auto;padding:32px}
+.page-title{font-family:'Playfair Display',serif;font-size:28px;margin-bottom:6px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+
+/* LAYOUT */
+.cart-layout{display:grid;grid-template-columns:1fr 360px;gap:28px;align-items:flex-start}
+@media(max-width:760px){.cart-layout{grid-template-columns:1fr}}
+
+/* CART ITEMS */
+.items-card{background:var(--surface);border-radius:16px;border:1px solid var(--border);overflow:hidden}
+.items-card-head{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.items-card-head h3{font-weight:500;font-size:16px}
+.clear-btn{font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.clear-btn:hover{color:var(--accent)}
+
+.cart-item{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;transition:background 0.15s}
+.cart-item:last-child{border-bottom:none}
+.cart-item:hover{background:#FFFAF7}
+.ci-emoji{width:52px;height:52px;background:#FFF8F0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.ci-info{flex:1}
+.ci-name{font-weight:500;font-size:15px;margin-bottom:3px}
+.ci-note{font-size:12px;color:var(--muted)}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.ci-price{font-weight:700;font-size:16px;color:var(--accent)}
+.qty-ctrl{display:flex;align-items:center;gap:8px;background:var(--cream);border-radius:20px;padding:4px 8px}
+.qb{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-family:'DM Sans',sans-serif}
+.qb:hover{background:var(--dark);color:#fff;border-color:var(--dark)}
+.qn{font-weight:600;font-size:14px;min-width:22px;text-align:center}
+.del-btn{background:none;border:none;cursor:pointer;font-size:16px;opacity:0.3;transition:opacity 0.2s;padding:4px}
+.del-btn:hover{opacity:1}
+
+/* EMPTY STATE */
+.empty{padding:64px 24px;text-align:center}
+.empty-big{font-size:56px;margin-bottom:16px}
+.empty h3{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:8px}
+.empty p{font-size:14px;color:var(--muted);margin-bottom:24px}
+.empty .btn-p{background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:12px 28px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+
+/* ORDER SUMMARY */
+.summary-card{background:var(--surface);border-radius:16px;border:1px solid var(--border);padding:24px;position:sticky;top:80px}
+.sum-title{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:20px}
+.sum-row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);padding:7px 0}
+.sum-divider{height:1px;background:var(--border);margin:12px 0}
+.sum-total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:8px 0 0}
+.sum-total-num{color:var(--accent)}
+
+/* COUPON */
+.coupon-row{display:flex;gap:8px;margin:20px 0}
+.coupon-input{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border 0.2s}
+.coupon-input:focus{border-color:var(--accent)}
+.coupon-btn{background:var(--dark);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.coupon-btn:hover{background:var(--accent)}
+
+/* CHECKOUT BUTTONS */
+.checkout-stack{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.co-btn{padding:15px;border-radius:10px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s}
+.co-online{background:var(--accent);color:#fff}
+.co-online:hover{background:#a83e1e;transform:translateY(-1px)}
+.co-wa{background:var(--success);color:#fff}
+.co-wa:hover{background:#1da851;transform:translateY(-1px)}
+
+/* MODAL OVERLAY */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:20px;padding:40px;max-width:420px;width:90%;text-align:center;animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes popIn{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-icon{font-size:56px;margin-bottom:16px}
+.modal-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:8px}
+.modal-sub{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px}
+.modal-btn{background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:13px 32px;border-radius:8px;cursor:pointer;transition:all 0.2s;width:100%}
+.modal-btn:hover{background:#a83e1e}
+
+/* NOTE */
+.delivery-note{background:#FFF8F0;border:1px solid #FFD9BF;border-radius:10px;padding:14px;margin-top:16px;font-size:12px;color:#7A4020;line-height:1.6}
+/* ── SMOOTH TRANSITIONS ── */
+body{opacity:0;animation:fadeInPage 0.4s ease-out forwards}
+body.fade-out{animation:fadeOutPage 0.25s ease-in forwards}
+@keyframes fadeInPage{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOutPage{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="landing.html" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="landing.html">Home</a>
+    <a class="nl" href="menu.html">Menu</a>
+    <a class="nl" href="details.html">About</a>
+  </div>
+  <a class="back-btn" href="menu.html">← Back to menu</a>
+</nav>
+
+<div class="page">
+  <div class="page-title">Your order</div>
+  <div class="page-sub" id="item-count">Loading...</div>
+
+  <div class="cart-layout">
+    <!-- LEFT: Items -->
+    <div>
+      <div class="items-card" id="items-card">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+
+    <!-- RIGHT: Summary -->
+    <div>
+      <div class="summary-card" id="summary-card" style="display:none">
+        <div class="sum-title">Order summary</div>
+        <div class="sum-row"><span>Subtotal</span><span id="subtotal">₹0</span></div>
+        <div class="sum-row"><span>Delivery fee</span><span id="delivery">₹40</span></div>
+        <div class="sum-row"><span>Tax (5%)</span><span id="tax">₹0</span></div>
+        <div id="discount-row" class="sum-row" style="display:none;color:#25A35A"><span>Discount</span><span id="discount-val">−₹0</span></div>
+        <div class="sum-divider"></div>
+        <div class="sum-total"><span>Total</span><span class="sum-total-num" id="total">₹0</span></div>
+
+        <div class="coupon-row">
+          <input class="coupon-input" type="text" id="coupon" placeholder="Promo code" />
+          <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
+        </div>
+
+        <div class="checkout-stack">
+          <button class="co-btn co-wa" onclick="checkout('whatsapp')">💬 Order via WhatsApp</button>
+        </div>
+
+        <div class="delivery-note">
+          🚀 <strong>Free delivery</strong> on orders above ₹499. Estimated arrival: <strong>25–35 min</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon">✅</div>
+    <div class="modal-title" id="modal-title">Order placed!</div>
+    <div class="modal-sub" id="modal-sub">Your order has been confirmed. We'll get it ready right away!</div>
+    <button class="modal-btn" onclick="closeModal()">Back to home</button>
+  </div>
+</div>
+
+<script>
+let cart=JSON.parse(localStorage.getItem('surenPastriesCart')) || [];
+let discountAmt=0;
+
+function save(){localStorage.setItem('surenPastriesCart',JSON.stringify(cart));localStorage.setItem('cartCount',cart.reduce((s,i)=>s+i.qty,0));}
+
+function render(){
+  const card=document.getElementById('items-card');
+  const sum=document.getElementById('summary-card');
+  const count=cart.reduce((s,i)=>s+i.qty,0);
+  document.getElementById('item-count').textContent=count?`${count} item${count>1?'s':''} in your cart`:'Your cart is empty';
+
+  if(!cart.length){
+    card.innerHTML=`<div class="empty"><div class="empty-big">🛒</div><h3>Your cart is empty</h3><p>Add some delicious items from our menu</p><a class="btn-p" href="menu.html">Browse menu</a></div>`;
+    sum.style.display='none';return;
+  }
+  sum.style.display='block';
+  card.innerHTML=`
+    <div class="items-card-head"><h3>Items (${count})</h3><button class="clear-btn" onclick="clearCart()">Clear all</button></div>
+    ${cart.map(i=>`
+      <div class="cart-item">
+        <div class="ci-emoji">${i.emoji}</div>
+        <div class="ci-info">
+          <div class="ci-name">${i.name}</div>
+          <div class="ci-note">₹${i.price} each</div>
+        </div>
+        <div class="ci-right">
+          <div class="ci-price">₹${i.price*i.qty}</div>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="change(${i.id},-1)">−</button>
+            <div class="qn">${i.qty}</div>
+            <button class="qb" onclick="change(${i.id},1)">+</button>
+          </div>
+        </div>
+        <button class="del-btn" onclick="remove(${i.id})">🗑</button>
+      </div>
+    `).join('')}
+  `;
+  updateSummary();
+}
+function updateSummary(){
+  const sub=cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const delivery=sub>=499?0:40;
+  const tax=Math.round(sub*0.05);
+  const total=sub+delivery+tax-discountAmt;
+  document.getElementById('subtotal').textContent='₹'+sub;
+  document.getElementById('delivery').textContent=delivery===0?'FREE':'₹'+delivery;
+  document.getElementById('tax').textContent='₹'+tax;
+  document.getElementById('total').textContent='₹'+total;
+  if(discountAmt){
+    document.getElementById('discount-row').style.display='flex';
+    document.getElementById('discount-val').textContent='−₹'+discountAmt;
+  }
+}
+function change(id,d){
+  const i=cart.find(x=>x.id===id);
+  if(!i)return;
+  i.qty+=d;
+  if(i.qty<=0)cart=cart.filter(x=>x.id!==id);
+  save();render();
+}
+function remove(id){cart=cart.filter(x=>x.id!==id);save();render();}
+function clearCart(){cart=[];save();render();}
+function applyCoupon(){
+  const v=document.getElementById('coupon').value.trim().toUpperCase();
+  if(v==='SUREN20'){discountAmt=Math.round(cart.reduce((s,i)=>s+i.price*i.qty,0)*0.2);updateSummary();alert('20% discount applied!');}
+  else if(v==='FLAT50'){discountAmt=50;updateSummary();alert('₹50 discount applied!');}
+  else alert('Invalid promo code. Try SUREN20 or FLAT50');
+}
+function checkout(method){
+  const overlay=document.getElementById('overlay');
+  if(method==='online'){
+    document.getElementById('modal-icon').textContent='💳';
+    document.getElementById('modal-title').textContent='Payment successful!';
+    document.getElementById('modal-sub').textContent='Thank you! Your order is confirmed and will be delivered in 25–35 minutes.';
+  } else {
+    document.getElementById('modal-icon').textContent='💬';
+    document.getElementById('modal-title').textContent='Redirecting to WhatsApp!';
+    document.getElementById('modal-sub').textContent='Your order summary has been prepared. Complete your order on WhatsApp for instant confirmation.';
+  }
+  overlay.classList.add('show');
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  cart=[];save();render();
+  location.href='landing.html';
+}
+render();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('a').forEach(a=>{
+    const h=a.getAttribute('href');
+    if(h&&h.endsWith('.html')&&a.target!=='_blank'){
+      a.addEventListener('click',e=>{
+        e.preventDefault();
+        document.body.classList.add('fade-out');
+        setTimeout(()=>window.location.href=h,250);
+      });
+    }
+  });
+});
+window.addEventListener('pageshow',e=>{if(e.persisted)document.body.classList.remove('fade-out');});
+</script>
+</body>
+</html>
