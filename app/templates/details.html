@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — About{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/details.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav>
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links" style="align-items: center;">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl active" href="{{ url_for('main.about') }}">About</a>
+    <a href="{{ url_for('main.cart') }}" class="cart-btn" id="nav-cart" style="display:none; margin-left:8px;">🛒 Cart <div class="cbadge" id="ccount">0</div></a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Since 2008</div>
+  <h1 class="hero-title">About <em>Suren Pastries</em></h1>
+  <p class="hero-sub">A family-owned kitchen crafting authentic South Indian flavours with love, tradition and the finest local ingredients.</p>
+  <div class="hero-row">
+    <div class="hero-stat"><div class="hs-num">15+</div><div class="hs-label">Years open</div></div>
+    <div class="hero-stat"><div class="hs-num">50k+</div><div class="hs-label">Happy guests</div></div>
+    <div class="hero-stat"><div class="hs-num">4.9★</div><div class="hs-label">Rating</div></div>
+    <div class="hero-stat"><div class="hs-num">80+</div><div class="hs-label">Menu items</div></div>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- LOCATION + HOURS -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-label">Location</div>
+      <div class="map-box">📍<span>{{ content('address_short', 'Kurmannapalem, Gajuwaka') }}</span></div>
+      <div class="info-row">
+        <div class="ir-icon">🏠</div>
+        <div class="ir-body">
+          <div class="ir-label">Address</div>
+          <div class="ir-text">{{ content('address_full', 'Kurmannapalem, Gajuwaka,<br>Andhra Pradesh 530046')|safe }}</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-icon">🚌</div>
+        <div class="ir-body">
+          <div class="ir-label">Nearby</div>
+          <div class="ir-text">5 min from Vizianagaram Bus Stand · Near Old Fort Junction</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-icon">🅿️</div>
+        <div class="ir-body">
+          <div class="ir-label">Parking</div>
+          <div class="ir-text">Free parking available for up to 30 vehicles</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Opening hours</div>
+      <div class="open-badge"><div class="open-dot"></div> Open now</div>
+      <div class="hours-table">
+        <div class="hour-row"><span class="hour-day">Monday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row"><span class="hour-day">Tuesday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row"><span class="hour-day">Wednesday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row"><span class="hour-day">Thursday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row today"><span class="hour-day">Friday ← Today</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row"><span class="hour-day">Saturday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+        <div class="hour-row"><span class="hour-day">Sunday</span><span class="hour-time">7:00 AM – 10:00 PM</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACT + ABOUT -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-label">Contact us</div>
+      <div class="info-row">
+        <div class="ir-icon">📞</div>
+        <div class="ir-body">
+          <div class="ir-label">Phone</div>
+          <div class="ir-text"><a class="ir-link" href="tel:{{ content('phone', '09032717635') }}">{{ content('phone_display', '090327 17635') }}</a></div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-icon">✉️</div>
+        <div class="ir-body">
+          <div class="ir-label">Email</div>
+          <div class="ir-text"><a class="ir-link" href="mailto:{{ content('email', 'hello@surenpastries.in') }}">{{ content('email', 'hello@surenpastries.in') }}</a></div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-icon">💬</div>
+        <div class="ir-body">
+          <div class="ir-label">WhatsApp order</div>
+          <div class="ir-text"><a class="ir-link" href="https://wa.me/{{ content('whatsapp', '919032717635') }}">{{ content('phone_display', '090327 17635') }}</a></div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="ir-icon">📘</div>
+        <div class="ir-body">
+          <div class="ir-label">Social</div>
+          <div class="ir-text">@surenpastries.bakery on Instagram &amp; Facebook</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Our story</div>
+      <div class="card-title">Cooking with heart since 2008</div>
+      <div class="about-text">What started as a small family kitchen in Vizianagaram has grown into one of the city's most beloved dining destinations.</div>
+      <div class="about-accent">"Every dish we make carries a story — of tradition, family, and the love of good food."</div>
+      <div class="about-text">We source our spices from local farms, our produce from trusted suppliers, and our recipes from generations of culinary wisdom. Nothing artificial. Nothing frozen. Just honest, delicious food.</div>
+    </div>
+  </div>
+
+  <!-- TEAM -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-label">Meet the team</div>
+    <div class="team-grid">
+      <div class="team-card"><div class="team-avatar">👨‍🍳</div><div class="team-name">Ravi Kumar</div><div class="team-role">Head Chef & Founder</div></div>
+      <div class="team-card"><div class="team-avatar">👩‍🍳</div><div class="team-name">Lakshmi Devi</div><div class="team-role">Executive Chef</div></div>
+      <div class="team-card"><div class="team-avatar">👨‍💼</div><div class="team-name">Arjun Rao</div><div class="team-role">Restaurant Manager</div></div>
+      <div class="team-card"><div class="team-avatar">👩‍💼</div><div class="team-name">Priya Sharma</div><div class="team-role">Customer Experience</div></div>
+    </div>
+  </div>
+
+  <!-- REVIEWS -->
+  <div class="card-label" style="margin-bottom:16px">What guests say</div>
+  <div class="reviews-grid" style="margin-bottom:28px">
+    <div class="review-card">
+      <div class="rev-stars">★★★★★</div>
+      <div class="rev-text">"The biryani here is absolutely phenomenal. Nothing in the city comes close. A true hidden gem!"</div>
+      <div class="rev-author">Sanjay M.</div>
+      <div class="rev-date">March 2026</div>
+    </div>
+    <div class="review-card">
+      <div class="rev-stars">★★★★★</div>
+      <div class="rev-text">"Family dinner every Sunday at Suren Pastries. The butter chicken and naan combo is unbeatable!"</div>
+      <div class="rev-author">Padma R.</div>
+      <div class="rev-date">February 2026</div>
+    </div>
+    <div class="review-card">
+      <div class="rev-stars">★★★★☆</div>
+      <div class="rev-text">"Great flavours, warm ambiance. The WhatsApp ordering feature is super convenient. Will be back!"</div>
+      <div class="rev-author">Kiran T.</div>
+      <div class="rev-date">March 2026</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-bar">
+    <div>
+      <div class="cta-title">Ready to taste the difference?</div>
+      <div class="cta-sub">Browse our menu and place your order in seconds</div>
+    </div>
+    <a class="cta-btn" href="{{ url_for('main.menu') }}">Order now →</a>
+  </div>
+
+</div>
+{% endblock %}
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/cart-widget.js') }}"></script>
+<script>updateFC();</script>
+{% endblock %}

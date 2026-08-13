@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Suren Pastries — Cart</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/cart.css">
+</head>
+<body>
+
+<nav>
+  <a href="landing.html" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="landing.html">Home</a>
+    <a class="nl" href="menu.html">Menu</a>
+    <a class="nl" href="about.html">About</a>
+  </div>
+  <a class="back-btn" href="menu.html">← Back to menu</a>
+</nav>
+
+<div class="page">
+  <div class="page-title">Your order</div>
+  <div class="page-sub" id="item-count">Loading...</div>
+
+  <div class="cart-layout">
+    <div><div class="items-card" id="items-card"></div></div>
+    <div>
+      <div class="summary-card" id="summary-card" style="display:none">
+        <div class="sum-title">Order summary</div>
+        <div class="sum-row"><span>Subtotal</span><span id="subtotal">₹0</span></div>
+        <div class="sum-row"><span>Delivery fee</span><span id="delivery">₹40</span></div>
+        <div class="sum-row"><span>Tax (5%)</span><span id="tax">₹0</span></div>
+        <div id="discount-row" class="sum-row" style="display:none;color:#25A35A"><span>Discount</span><span id="discount-val">−₹0</span></div>
+        <div class="sum-divider"></div>
+        <div class="sum-total"><span>Total</span><span class="sum-total-num" id="total">₹0</span></div>
+
+        <div class="coupon-row">
+          <input class="coupon-input" type="text" id="coupon" placeholder="Promo code" />
+          <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
+        </div>
+
+        <div class="checkout-stack">
+          <button class="co-btn co-wa" onclick="checkout('whatsapp')">💬 Order via WhatsApp</button>
+          <button class="co-btn co-online" onclick="checkout('online')">💳 Pay online</button>
+        </div>
+
+        <div class="delivery-note">
+          🚀 <strong>Free delivery</strong> on orders above ₹499. Estimated arrival: <strong>25–35 min</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon">✅</div>
+    <div class="modal-title" id="modal-title">Order placed!</div>
+    <div class="modal-sub" id="modal-sub">Your order has been confirmed. We'll get it ready right away!</div>
+    <button class="modal-btn" onclick="closeModal()">Back to home</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+  window.MENU_URL = 'menu.html';
+  window.HOME_URL = 'landing.html';
+  window.FREE_DELIVERY_THRESHOLD = 499;
+  window.DELIVERY_FEE = 40;
+  window.TAX_RATE = 0.05;
+</script>
+<script src="js/cart.js"></script>
+<script src="js/transitions.js"></script>
+</body>
+</html>
