@@ -17,6 +17,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+    # Set this on Render, visit /api/bootstrap?key=<this value> once to seed
+    # the database without needing shell access.
+    SEED_KEY = os.environ.get("SEED_KEY", "")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me-now")
 
     # The static frontend's origin, e.g. https://your-username.github.io

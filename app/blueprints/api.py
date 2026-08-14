@@ -25,6 +25,60 @@ def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
 
 
+
+@api_bp.route("/bootstrap")
+def bootstrap():
+    seed_key = current_app.config.get("SEED_KEY")
+    if not seed_key:
+        return error("SEED_KEY is not set on the server.", 403)
+    if request.args.get("key") != seed_key:
+        return error("Wrong or missing ?key=... parameter.", 403)
+
+    from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent
+    from scripts.seed import MENU_DATA, DEFAULT_CONTENT
+
+    db.create_all()
+    log = []
+
+    username = current_app.config["ADMIN_USERNAME"]
+    password = current_app.config["ADMIN_PASSWORD"]
+    user = AdminUser.query.filter_by(username=username).first()
+    if user is None:
+        user = AdminUser(username=username)
+        user.set_password(password)
+        db.session.add(user)
+        log.append(f"Created admin user '{username}'.")
+    else:
+        user.set_password(password)
+        log.append(f"Admin user '{username}' already existed — password reset.")
+
+    if MenuItem.query.count() == 0:
+        for order, (cat_name, items) in enumerate(MENU_DATA.items()):
+            category = Category(name=cat_name, sort_order=order)
+            db.session.add(category)
+            db.session.flush()
+            for item in items:
+                db.session.add(MenuItem(category_id=category.id, is_available=True, **item))
+        log.append(f"Seeded {sum(len(v) for v in MENU_DATA.values())} menu items across {len(MENU_DATA)} categories.")
+    else:
+        log.append("Menu already has items — skipped.")
+
+    if Coupon.query.count() == 0:
+        db.session.add(Coupon(code="SUREN20", description="20% off your order", discount_type="percent", value=20, active=True))
+        db.session.add(Coupon(code="FLAT50", description="₹50 off your order", discount_type="flat", value=50, active=True))
+        log.append("Seeded starter coupons SUREN20 and FLAT50.")
+    else:
+        log.append("Coupons already exist — skipped.")
+
+    for key, value in DEFAULT_CONTENT.items():
+        if SiteContent.query.get(key) is None:
+            db.session.add(SiteContent(key=key, value=value))
+    log.append("Ensured default site content is present.")
+
+    db.session.commit()
+    return jsonify({"ok": True, "log": log})
+
+
 # ───────────────────────── auth (JSON, for the static frontend) ─────────────────────────
 
 @api_bp.route("/auth/login", methods=["POST"])
