@@ -14,6 +14,7 @@ from app.models import (
     ORDER_CHANNELS,
     ORDER_STATUSES,
     SiteContent,
+    TeamMember,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -25,20 +26,38 @@ def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
 
 
+# ───────────────────────── one-time remote bootstrap ─────────────────────────
+# Lets you seed the database by visiting a URL in the browser, for platforms
+# (like Render's free tier) that don't give shell access. Protected by the
+# SEED_KEY environment variable — set it on Render, visit this URL once,
+# then remove the env var (or leave it, it's a no-op once already seeded).
 
 @api_bp.route("/bootstrap")
 def bootstrap():
     seed_key = current_app.config.get("SEED_KEY")
     if not seed_key:
-        return error("SEED_KEY is not set on the server.", 403)
+        return error("SEED_KEY is not set on the server — add it in Render's Environment tab first.", 403)
     if request.args.get("key") != seed_key:
         return error("Wrong or missing ?key=... parameter.", 403)
 
-    from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent
-    from scripts.seed import MENU_DATA, DEFAULT_CONTENT
+    from sqlalchemy import text
 
-    db.create_all()
+    from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent, TeamMember
+    from scripts.seed import MENU_DATA, DEFAULT_CONTENT, TEAM_DATA
+
+    db.create_all()  # creates any brand-new tables (e.g. team_members)
     log = []
+
+    # Additive schema migration — safe to re-run, adds columns that were
+    # introduced after the table already existed on this database.
+    for stmt in [
+        "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_data TEXT",
+    ]:
+        db.session.execute(text(stmt))
+    db.session.commit()
+    log.append("Schema up to date (in_stock, is_special, image_data columns present).")
 
     username = current_app.config["ADMIN_USERNAME"]
     password = current_app.config["ADMIN_PASSWORD"]
@@ -50,7 +69,7 @@ def bootstrap():
         log.append(f"Created admin user '{username}'.")
     else:
         user.set_password(password)
-        log.append(f"Admin user '{username}' already existed — password reset.")
+        log.append(f"Admin user '{username}' already existed — password reset from env.")
 
     if MenuItem.query.count() == 0:
         for order, (cat_name, items) in enumerate(MENU_DATA.items()):
@@ -61,14 +80,21 @@ def bootstrap():
                 db.session.add(MenuItem(category_id=category.id, is_available=True, **item))
         log.append(f"Seeded {sum(len(v) for v in MENU_DATA.values())} menu items across {len(MENU_DATA)} categories.")
     else:
-        log.append("Menu already has items — skipped.")
+        log.append("Menu already has items — skipped menu seeding.")
 
     if Coupon.query.count() == 0:
         db.session.add(Coupon(code="SUREN20", description="20% off your order", discount_type="percent", value=20, active=True))
         db.session.add(Coupon(code="FLAT50", description="₹50 off your order", discount_type="flat", value=50, active=True))
         log.append("Seeded starter coupons SUREN20 and FLAT50.")
     else:
-        log.append("Coupons already exist — skipped.")
+        log.append("Coupons already exist — skipped coupon seeding.")
+
+    if TeamMember.query.count() == 0:
+        for order, member in enumerate(TEAM_DATA):
+            db.session.add(TeamMember(sort_order=order, **member))
+        log.append(f"Seeded {len(TEAM_DATA)} team members.")
+    else:
+        log.append("Team members already exist — skipped team seeding.")
 
     for key, value in DEFAULT_CONTENT.items():
         if SiteContent.query.get(key) is None:
@@ -122,12 +148,18 @@ def public_content():
 @api_bp.route("/specials")
 def public_specials():
     items = (
-        MenuItem.query.filter(MenuItem.tag != "", MenuItem.is_available.is_(True))
+        MenuItem.query.filter(MenuItem.is_special.is_(True), MenuItem.is_available.is_(True))
         .order_by(MenuItem.id)
-        .limit(4)
+        .limit(8)
         .all()
     )
     return jsonify([i.to_dict() for i in items])
+
+
+@api_bp.route("/team")
+def public_team():
+    members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
+    return jsonify([m.to_dict() for m in members])
 
 
 # ───────────────────────── public: menu ─────────────────────────
@@ -342,6 +374,9 @@ def admin_menu_collection():
         tag=(payload.get("tag") or "").strip(),
         category_id=category.id,
         is_available=True,
+        in_stock=bool(payload.get("in_stock", True)),
+        is_special=bool(payload.get("is_special", False)),
+        image_data=(payload.get("image") or None),
     )
     db.session.add(item)
     db.session.commit()
@@ -376,6 +411,12 @@ def admin_menu_item(item_id):
             db.session.add(category)
             db.session.flush()
         item.category_id = category.id
+    if "in_stock" in payload:
+        item.in_stock = bool(payload["in_stock"])
+    if "is_special" in payload:
+        item.is_special = bool(payload["is_special"])
+    if "image" in payload:
+        item.image_data = payload["image"] or None
 
     db.session.commit()
     return jsonify({"ok": True, "item": {**item.to_dict(), "category_id": item.category_id}})
@@ -388,6 +429,24 @@ def admin_toggle_menu_item(item_id):
     item.is_available = not item.is_available
     db.session.commit()
     return jsonify({"ok": True, "is_available": item.is_available})
+
+
+@api_bp.route("/admin/menu/<int:item_id>/stock", methods=["POST"])
+@login_required
+def admin_toggle_stock(item_id):
+    item = MenuItem.query.get_or_404(item_id)
+    item.in_stock = not item.in_stock
+    db.session.commit()
+    return jsonify({"ok": True, "in_stock": item.in_stock})
+
+
+@api_bp.route("/admin/menu/<int:item_id>/special", methods=["POST"])
+@login_required
+def admin_toggle_special(item_id):
+    item = MenuItem.query.get_or_404(item_id)
+    item.is_special = not item.is_special
+    db.session.commit()
+    return jsonify({"ok": True, "is_special": item.is_special})
 
 
 # ── Coupons / Offers ──
@@ -475,3 +534,53 @@ def admin_content():
         SiteContent.set(key, value)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+# ── Team / Chefs ──
+
+@api_bp.route("/admin/team", methods=["GET", "POST"])
+@login_required
+def admin_team_collection():
+    if request.method == "GET":
+        members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
+        return jsonify([m.to_dict() for m in members])
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return error("Name is required.")
+
+    member = TeamMember(
+        name=name,
+        role=(payload.get("role") or "").strip(),
+        avatar_emoji=(payload.get("avatar") or "👤").strip() or "👤",
+        photo_data=(payload.get("photo") or None),
+        sort_order=TeamMember.query.count(),
+    )
+    db.session.add(member)
+    db.session.commit()
+    return jsonify({"ok": True, "member": member.to_dict()}), 201
+
+
+@api_bp.route("/admin/team/<int:member_id>", methods=["PUT", "DELETE"])
+@login_required
+def admin_team_member(member_id):
+    member = TeamMember.query.get_or_404(member_id)
+
+    if request.method == "DELETE":
+        db.session.delete(member)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    payload = request.get_json(silent=True) or {}
+    if "name" in payload:
+        member.name = payload["name"].strip()
+    if "role" in payload:
+        member.role = payload["role"].strip()
+    if "avatar" in payload:
+        member.avatar_emoji = payload["avatar"].strip() or member.avatar_emoji
+    if "photo" in payload:
+        member.photo_data = payload["photo"] or None
+
+    db.session.commit()
+    return jsonify({"ok": True, "member": member.to_dict()})
