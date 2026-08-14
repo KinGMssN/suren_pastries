@@ -9,6 +9,7 @@ function setTab(name, el) {
   if (name === 'orders') loadOrders();
   if (name === 'menu') loadMenuEditor();
   if (name === 'offers') loadOffers();
+  if (name === 'team') loadTeam();
   if (name === 'content') loadContent();
 }
 
@@ -24,6 +25,10 @@ async function api(path, opts) {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
+  if (res.status === 401) {
+    window.location.href = '/admin/login';
+    throw new Error('Session expired');
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
@@ -102,6 +107,25 @@ async function updateOrderStatus(id, status) {
 // ───────────────────────── menu editor ─────────────────────────
 let editingItemId = null;
 let knownCategories = new Set();
+let pendingImageData = null;   // base64 data URI staged from the file input, or null to keep existing
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('mi-image-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingImageData = await fileToBase64(file);
+  const preview = document.getElementById('mi-image-preview');
+  preview.src = pendingImageData;
+  preview.style.display = 'block';
+});
 
 async function loadMenuEditor() {
   const grid = document.getElementById('menu-editor-grid');
@@ -118,15 +142,22 @@ async function loadMenuEditor() {
     }
     grid.innerHTML = items.map(i => `
       <div class="me-card">
-        <div class="me-emoji">${i.emoji}</div>
+        ${i.image ? `<img src="${i.image}" alt="${i.name}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${i.emoji}</div>`}
         <div class="me-info">
-          <div class="me-name">${i.name} ${i.is_available ? '' : '<span style="color:var(--muted);font-weight:400">(hidden)</span>'}</div>
+          <div class="me-name">
+            ${i.name}
+            ${i.is_available ? '' : '<span style="color:var(--muted);font-weight:400">(hidden)</span>'}
+            ${i.in_stock ? '' : '<span style="color:#B3261E;font-weight:400">(out of stock)</span>'}
+            ${i.is_special ? '<span style="color:var(--accent);font-weight:400">★ special</span>' : ''}
+          </div>
           <div class="me-cat">${i.category || 'Uncategorized'}${i.tag ? ' · ' + i.tag : ''}</div>
           <div class="me-price">₹${i.price}</div>
         </div>
         <div class="me-actions">
           <button class="me-btn" onclick='openEditModal(${JSON.stringify(i)})'>Edit</button>
           <button class="me-btn" onclick="toggleAvailability(${i.id})">${i.is_available ? 'Hide' : 'Show'}</button>
+          <button class="me-btn" onclick="toggleStock(${i.id})">${i.in_stock ? 'Mark out of stock' : 'Mark in stock'}</button>
+          <button class="me-btn" onclick="toggleSpecial(${i.id})">${i.is_special ? 'Unset special' : 'Set as special'}</button>
           <button class="me-btn me-del" onclick="deleteMenuItem(${i.id})">Delete</button>
         </div>
       </div>
@@ -138,12 +169,18 @@ async function loadMenuEditor() {
 
 function showModal() {
   editingItemId = null;
+  pendingImageData = null;
   document.getElementById('menu-modal-title').textContent = 'Add menu item';
   ['id', 'name', 'price', 'description', 'category', 'tag', 'emoji'].forEach(f => document.getElementById('mi-' + f).value = '');
+  document.getElementById('mi-image-file').value = '';
+  document.getElementById('mi-image-preview').style.display = 'none';
+  document.getElementById('mi-in-stock').checked = true;
+  document.getElementById('mi-is-special').checked = false;
   document.getElementById('modal').classList.add('show');
 }
 function openEditModal(item) {
   editingItemId = item.id;
+  pendingImageData = null;
   document.getElementById('menu-modal-title').textContent = 'Edit menu item';
   document.getElementById('mi-id').value = item.id;
   document.getElementById('mi-name').value = item.name;
@@ -152,6 +189,12 @@ function openEditModal(item) {
   document.getElementById('mi-category').value = item.category || '';
   document.getElementById('mi-tag').value = item.tag || '';
   document.getElementById('mi-emoji').value = item.emoji || '';
+  document.getElementById('mi-image-file').value = '';
+  const preview = document.getElementById('mi-image-preview');
+  if (item.image) { preview.src = item.image; preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; }
+  document.getElementById('mi-in-stock').checked = item.in_stock !== false;
+  document.getElementById('mi-is-special').checked = !!item.is_special;
   document.getElementById('modal').classList.add('show');
 }
 function hideModal() { document.getElementById('modal').classList.remove('show'); }
@@ -164,7 +207,10 @@ async function submitMenuItem() {
     category: document.getElementById('mi-category').value.trim(),
     tag: document.getElementById('mi-tag').value.trim(),
     emoji: document.getElementById('mi-emoji').value.trim() || '🍽️',
+    in_stock: document.getElementById('mi-in-stock').checked,
+    is_special: document.getElementById('mi-is-special').checked,
   };
+  if (pendingImageData) payload.image = pendingImageData;
   if (!payload.name || !payload.category || !payload.price) {
     toast('Name, category and price are required'); return;
   }
@@ -183,6 +229,14 @@ async function submitMenuItem() {
 
 async function toggleAvailability(id) {
   try { await api(`/menu/${id}/toggle`, { method: 'POST' }); loadMenuEditor(); }
+  catch (err) { toast(err.message); }
+}
+async function toggleStock(id) {
+  try { await api(`/menu/${id}/stock`, { method: 'POST' }); loadMenuEditor(); }
+  catch (err) { toast(err.message); }
+}
+async function toggleSpecial(id) {
+  try { await api(`/menu/${id}/special`, { method: 'POST' }); loadMenuEditor(); }
   catch (err) { toast(err.message); }
 }
 async function deleteMenuItem(id) {
@@ -253,6 +307,98 @@ async function deleteCoupon(id) {
   catch (err) { toast(err.message); }
 }
 document.getElementById('couponModal').addEventListener('click', e => { if (e.target === document.getElementById('couponModal')) hideCouponModal(); });
+
+// ───────────────────────── team / chefs ─────────────────────────
+let editingTeamId = null;
+let pendingPhotoData = null;
+
+document.getElementById('tm-photo-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingPhotoData = await fileToBase64(file);
+  const preview = document.getElementById('tm-photo-preview');
+  preview.src = pendingPhotoData;
+  preview.style.display = 'block';
+});
+
+async function loadTeam() {
+  const grid = document.getElementById('team-editor-grid');
+  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
+  try {
+    const team = await api('/team');
+    if (!team.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);border:1px dashed var(--border);border-radius:12px">No team members added yet.</div>`;
+      return;
+    }
+    grid.innerHTML = team.map(m => `
+      <div class="me-card">
+        ${m.photo ? `<img src="${m.photo}" alt="${m.name}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${m.avatar}</div>`}
+        <div class="me-info">
+          <div class="me-name">${m.name}</div>
+          <div class="me-cat">${m.role || ''}</div>
+        </div>
+        <div class="me-actions">
+          <button class="me-btn" onclick='openEditTeamModal(${JSON.stringify(m)})'>Edit</button>
+          <button class="me-btn me-del" onclick="deleteTeamMember(${m.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Could not load the team</div>`;
+  }
+}
+
+function showTeamModal() {
+  editingTeamId = null;
+  pendingPhotoData = null;
+  document.getElementById('team-modal-title').textContent = 'Add team member';
+  ['id', 'name', 'role', 'avatar'].forEach(f => document.getElementById('tm-' + f).value = '');
+  document.getElementById('tm-photo-file').value = '';
+  document.getElementById('tm-photo-preview').style.display = 'none';
+  document.getElementById('teamModal').classList.add('show');
+}
+function openEditTeamModal(member) {
+  editingTeamId = member.id;
+  pendingPhotoData = null;
+  document.getElementById('team-modal-title').textContent = 'Edit team member';
+  document.getElementById('tm-id').value = member.id;
+  document.getElementById('tm-name').value = member.name;
+  document.getElementById('tm-role').value = member.role || '';
+  document.getElementById('tm-avatar').value = member.avatar || '';
+  document.getElementById('tm-photo-file').value = '';
+  const preview = document.getElementById('tm-photo-preview');
+  if (member.photo) { preview.src = member.photo; preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; }
+  document.getElementById('teamModal').classList.add('show');
+}
+function hideTeamModal() { document.getElementById('teamModal').classList.remove('show'); }
+
+async function submitTeamMember() {
+  const payload = {
+    name: document.getElementById('tm-name').value.trim(),
+    role: document.getElementById('tm-role').value.trim(),
+    avatar: document.getElementById('tm-avatar').value.trim() || '👤',
+  };
+  if (pendingPhotoData) payload.photo = pendingPhotoData;
+  if (!payload.name) { toast('Name is required'); return; }
+  try {
+    if (editingTeamId) {
+      await api(`/team/${editingTeamId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Team member updated');
+    } else {
+      await api('/team', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Team member added!');
+    }
+    hideTeamModal();
+    loadTeam();
+  } catch (err) { toast(err.message); }
+}
+async function deleteTeamMember(id) {
+  if (!confirm('Remove this team member?')) return;
+  try { await api(`/team/${id}`, { method: 'DELETE' }); toast('Team member removed'); loadTeam(); }
+  catch (err) { toast(err.message); }
+}
+document.getElementById('teamModal').addEventListener('click', e => { if (e.target === document.getElementById('teamModal')) hideTeamModal(); });
 
 // ───────────────────────── site content ─────────────────────────
 const CONTENT_FIELDS = [
