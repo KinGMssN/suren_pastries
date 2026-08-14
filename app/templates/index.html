@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Loading{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}">
+<style>html,body{height:100%;overflow:hidden}body{opacity:1;animation:none}</style>
+{% endblock %}
+{% block body %}
+<div class="bg">
+  <div class="particle p1"></div>
+  <div class="particle p2"></div>
+  <div class="particle p3"></div>
+</div>
+
+<div class="loader">
+  <div class="plate-ring">
+    <div class="ring-outer"></div>
+    <div class="ring-inner"></div>
+    <div class="plate-center">🍽️</div>
+  </div>
+  <div class="logo-wrap"><div class="logo">SUREN PASTRIES</div></div>
+  <div class="tagline">Fine dining experience</div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill"></div></div>
+    <div class="progress-label">Preparing your experience</div>
+    <div class="progress-pct" id="pct">0%</div>
+  </div>
+  <div class="dots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>
+  let p = 0;
+  const pct = document.getElementById('pct');
+  const iv = setInterval(() => {
+    p = Math.min(p + Math.random() * 4, 100);
+    pct.textContent = Math.floor(p) + '%';
+    if (p >= 100) {
+      clearInterval(iv);
+      pct.textContent = '100%';
+      setTimeout(() => {
+        document.body.classList.add('done');
+        setTimeout(() => location.href = "{{ url_for('main.home') }}", 500);
+      }, 400);
+    }
+  }, 60);
+</script>
+{% endblock %}

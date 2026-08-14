@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Menu{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav>
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links" style="align-items: center;">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl active" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl" href="{{ url_for('main.about') }}">About</a>
+    <a href="{{ url_for('main.cart') }}" class="cart-btn" id="nav-cart" style="display:none; margin-left:8px;">🛒 Cart <div class="cbadge" id="ccount">0</div></a>
+  </div>
+</nav>
+
+<div class="menu-head">
+  <div class="mh-left">
+    <div class="mh-eyebrow">What's cooking</div>
+    <div class="mh-title">Our Menu</div>
+    <div class="mh-sub">Freshly prepared dishes, crafted daily</div>
+  </div>
+  <div class="search-box">
+    <div class="search-icon">🔍</div>
+    <input type="text" id="search" placeholder="Search dishes..." oninput="renderItems()"/>
+  </div>
+</div>
+
+<div class="tabs-bar" id="tabs"></div>
+<div class="items-area" id="items-area">
+  <div class="empty"><div class="empty-icon">⏳</div><p>Loading the menu…</p></div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
+{% endblock %}

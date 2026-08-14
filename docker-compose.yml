@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: suren_pastries_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: suren_user
+      POSTGRES_PASSWORD: suren_pass
+      POSTGRES_DB: suren_pastries
+    ports:
+      - "5432:5432"
+    volumes:
+      - suren_pg_data:/var/lib/postgresql/data
+
+volumes:
+  suren_pg_data:
