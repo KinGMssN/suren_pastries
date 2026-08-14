@@ -139,7 +139,7 @@
       }
       grid.innerHTML = specials.map(d => `
         <div class="dish-card">
-          <div class="dish-img">${d.emoji}</div>
+          <div class="dish-img" ${d.image ? 'style="padding:0;overflow:hidden"' : ''}>${d.image ? `<img src="${d.image}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover"/>` : d.emoji}</div>
           <div class="dish-body">
             ${d.tag ? `<div class="dish-tag">${d.tag}</div>` : ''}
             <div class="dish-name">${d.name}</div>
