@@ -22,6 +22,7 @@
       <button class="sb-link" data-tab="menu" onclick="setTab('menu',this)"><span class="sb-icon">🍽️</span>Menu</button>
       <div class="sb-section">Settings</div>
       <button class="sb-link" data-tab="offers" onclick="setTab('offers',this)"><span class="sb-icon">🎉</span>Offers</button>
+      <button class="sb-link" data-tab="team" onclick="setTab('team',this)"><span class="sb-icon">👥</span>Team</button>
       <button class="sb-link" data-tab="content" onclick="setTab('content',this)"><span class="sb-icon">📝</span>Content</button>
       <button class="sb-link" onclick="location.href='../landing.html'"><span class="sb-icon">🌐</span>View site</button>
     </div>
@@ -94,6 +95,11 @@
       </div>
     </div>
 
+    <div class="tab-content" id="tab-team">
+      <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" onclick="showTeamModal()">+ Add team member</button></div>
+      <div class="menu-editor-grid" id="team-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
+    </div>
+
     <div class="tab-content" id="tab-content">
       <div class="top-bar"><div class="page-title">Site content</div><button class="btn-sm btn-primary" onclick="saveContent()">Save changes</button></div>
       <div style="display:grid;gap:16px">
@@ -146,7 +152,22 @@
       </div>
       <div class="form-group"><label class="form-label">Tag (optional)</label><input class="form-input" id="mi-tag" placeholder="Popular, Spicy..."/></div>
     </div>
-    <div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="mi-emoji" placeholder="🍛"/></div>
+    <div class="form-group"><label class="form-label">Emoji (used when no photo is uploaded)</label><input class="form-input" id="mi-emoji" placeholder="🍛"/></div>
+    <div class="form-group">
+      <label class="form-label">Photo (PNG/JPG, optional — overrides the emoji)</label>
+      <input class="form-input" type="file" id="mi-image-file" accept="image/png,image/jpeg"/>
+      <img id="mi-image-preview" style="display:none;max-width:120px;border-radius:8px;margin-top:8px"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;display:flex">
+        <input type="checkbox" id="mi-in-stock" style="width:auto"/>
+        <label class="form-label" style="margin:0" for="mi-in-stock">In stock</label>
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;display:flex">
+        <input type="checkbox" id="mi-is-special" style="width:auto"/>
+        <label class="form-label" style="margin:0" for="mi-is-special">Today's special</label>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn-sm btn-outline" onclick="hideModal()">Cancel</button>
       <button class="btn-sm btn-primary" onclick="submitMenuItem()">Save item</button>
@@ -169,6 +190,27 @@
     <div class="modal-footer">
       <button class="btn-sm btn-outline" onclick="hideCouponModal()">Cancel</button>
       <button class="btn-sm btn-primary" onclick="submitCoupon()">Create offer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="teamModal">
+  <div class="modal">
+    <h3 id="team-modal-title">Add team member</h3>
+    <input type="hidden" id="tm-id"/>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="tm-name" placeholder="e.g. Ravi Kumar"/></div>
+      <div class="form-group"><label class="form-label">Role</label><input class="form-input" id="tm-role" placeholder="Head Chef & Founder"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Avatar emoji (used when no photo is uploaded)</label><input class="form-input" id="tm-avatar" placeholder="👨‍🍳"/></div>
+    <div class="form-group">
+      <label class="form-label">Photo (PNG/JPG, optional — overrides the avatar)</label>
+      <input class="form-input" type="file" id="tm-photo-file" accept="image/png,image/jpeg"/>
+      <img id="tm-photo-preview" style="display:none;max-width:100px;border-radius:50%;margin-top:8px"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-outline" onclick="hideTeamModal()">Cancel</button>
+      <button class="btn-sm btn-primary" onclick="submitTeamMember()">Save</button>
     </div>
   </div>
 </div>
