@@ -13,11 +13,10 @@ def index():
 
 @main_bp.route("/home")
 def home():
-    # A handful of "chef's specials" for the landing page preview strip.
     specials = (
-        MenuItem.query.filter(MenuItem.tag != "", MenuItem.is_available.is_(True))
+        MenuItem.query.filter(MenuItem.is_special.is_(True), MenuItem.is_available.is_(True))
         .order_by(MenuItem.id)
-        .limit(4)
+        .limit(8)
         .all()
     )
     return render_template("landing.html", specials=specials)
