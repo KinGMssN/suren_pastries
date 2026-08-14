@@ -46,7 +46,10 @@ class MenuItem(db.Model):
     price = db.Column(db.Integer, nullable=False)  # stored in rupees, whole numbers
     emoji = db.Column(db.String(10), default="🍽️")
     tag = db.Column(db.String(40), default="")
-    is_available = db.Column(db.Boolean, default=True, nullable=False)
+    is_available = db.Column(db.Boolean, default=True, nullable=False)  # hidden from menu entirely when False
+    in_stock = db.Column(db.Boolean, default=True, nullable=False)      # shown but not orderable when False
+    is_special = db.Column(db.Boolean, default=False, nullable=False)   # featured on landing page "Chef's specials"
+    image_data = db.Column(db.Text, nullable=True)  # base64 data URI (data:image/png;base64,...), overrides emoji when set
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -57,9 +60,32 @@ class MenuItem(db.Model):
             "desc": self.description,
             "price": self.price,
             "emoji": self.emoji,
+            "image": self.image_data or None,
             "tag": self.tag or None,
             "category": self.category.name if self.category else None,
             "is_available": self.is_available,
+            "in_stock": self.in_stock,
+            "is_special": self.is_special,
+        }
+
+
+class TeamMember(db.Model):
+    __tablename__ = "team_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    role = db.Column(db.String(120), default="")
+    avatar_emoji = db.Column(db.String(10), default="👤")
+    photo_data = db.Column(db.Text, nullable=True)  # base64 data URI, overrides avatar_emoji when set
+    sort_order = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "role": self.role,
+            "avatar": self.avatar_emoji,
+            "photo": self.photo_data or None,
         }
 
 
