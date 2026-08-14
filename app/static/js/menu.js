@@ -59,17 +59,23 @@ function renderItems() {
   }
 }
 function itemHTML(i) {
-  return `<div class="item">
-    <div class="item-emoji">${i.emoji}</div>
+  const media = i.image
+    ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${i.image}" alt="${i.name}" style="width:100%;height:100%;object-fit:cover"/></div>`
+    : `<div class="item-emoji">${i.emoji}</div>`;
+  const outOfStock = i.in_stock === false;
+  return `<div class="item" style="${outOfStock ? 'opacity:.55' : ''}">
+    ${media}
     <div class="item-body">
       <div class="item-top">
         <div class="item-name">${i.name}</div>
-        ${i.tag ? `<div class="item-tag">${i.tag}</div>` : ''}
+        ${outOfStock ? `<div class="item-tag" style="background:#7A7570">Out of stock</div>` : (i.tag ? `<div class="item-tag">${i.tag}</div>` : '')}
       </div>
       <div class="item-desc">${i.desc || ''}</div>
       <div class="item-foot">
         <div class="price">₹${i.price}</div>
-        <button class="add-btn" onclick='addCart(event, ${i.id}, ${JSON.stringify(i.name)}, ${i.price}, ${JSON.stringify(i.emoji)})'>+ Add</button>
+        ${outOfStock
+          ? `<button class="add-btn" disabled style="opacity:.5;cursor:not-allowed">Unavailable</button>`
+          : `<button class="add-btn" onclick='addCart(event, ${i.id}, ${JSON.stringify(i.name)}, ${i.price}, ${JSON.stringify(i.emoji)})'>+ Add</button>`}
       </div>
     </div>
   </div>`;
