@@ -8,6 +8,9 @@ from app.models import (
     AdminUser,
     Category,
     Coupon,
+    Customer,
+    CustomerAddress,
+    DeliveryPerson,
     MenuItem,
     Order,
     OrderItem,
@@ -54,6 +57,13 @@ def bootstrap():
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_data TEXT",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address VARCHAR(300) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_city VARCHAR(80) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_pincode VARCHAR(12) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_person_id INTEGER REFERENCES delivery_people(id)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_collected BOOLEAN NOT NULL DEFAULT FALSE",
     ]:
         db.session.execute(text(stmt))
     db.session.commit()
@@ -160,6 +170,118 @@ def public_specials():
 def public_team():
     members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
     return jsonify([m.to_dict() for m in members])
+
+
+# ───────────────────────── customer accounts (phone-based, no password yet) ─────────────────────────
+# NOTE: this is intentionally lightweight — phone number only, no OTP/password
+# verification. A real auth step can replace /customer/login later without
+# changing the address/order-history endpoints below it.
+
+def _normalize_phone(raw):
+    return "".join(ch for ch in (raw or "") if ch.isdigit())[-10:]
+
+
+@api_bp.route("/customer/login", methods=["POST"])
+def customer_login():
+    payload = request.get_json(silent=True) or {}
+    phone = _normalize_phone(payload.get("phone"))
+    name = (payload.get("name") or "").strip()
+
+    if len(phone) != 10:
+        return error("Enter a valid 10-digit phone number.")
+    if not name:
+        return error("Name is required.")
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if customer is None:
+        customer = Customer(phone=phone, name=name)
+        db.session.add(customer)
+    else:
+        customer.name = name  # keep the name up to date on repeat logins
+    db.session.commit()
+    return jsonify({"ok": True, "customer": customer.to_dict()})
+
+
+def _get_customer_or_404(phone):
+    phone = _normalize_phone(phone)
+    customer = Customer.query.filter_by(phone=phone).first()
+    return customer
+
+
+@api_bp.route("/customer/addresses", methods=["GET", "POST"])
+def customer_addresses():
+    phone = request.args.get("phone") if request.method == "GET" else (request.get_json(silent=True) or {}).get("phone")
+    customer = _get_customer_or_404(phone)
+    if not customer:
+        return error("Please log in first.", 404)
+
+    if request.method == "GET":
+        return jsonify([a.to_dict() for a in customer.addresses])
+
+    payload = request.get_json(silent=True) or {}
+    address_line = (payload.get("address_line") or "").strip()
+    if not address_line:
+        return error("Address is required.")
+
+    if payload.get("is_default"):
+        CustomerAddress.query.filter_by(customer_id=customer.id).update({"is_default": False})
+
+    addr = CustomerAddress(
+        customer_id=customer.id,
+        label=(payload.get("label") or "Home").strip() or "Home",
+        address_line=address_line,
+        city=(payload.get("city") or "").strip(),
+        pincode=(payload.get("pincode") or "").strip(),
+        is_default=bool(payload.get("is_default")) or len(customer.addresses) == 0,
+    )
+    db.session.add(addr)
+    db.session.commit()
+    return jsonify({"ok": True, "address": addr.to_dict()}), 201
+
+
+@api_bp.route("/customer/addresses/<int:address_id>", methods=["PUT", "DELETE"])
+def customer_address_detail(address_id):
+    addr = CustomerAddress.query.get_or_404(address_id)
+
+    if request.method == "DELETE":
+        db.session.delete(addr)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    payload = request.get_json(silent=True) or {}
+    if "label" in payload:
+        addr.label = payload["label"].strip() or addr.label
+    if "address_line" in payload:
+        addr.address_line = payload["address_line"].strip()
+    if "city" in payload:
+        addr.city = payload["city"].strip()
+    if "pincode" in payload:
+        addr.pincode = payload["pincode"].strip()
+    if payload.get("is_default"):
+        CustomerAddress.query.filter_by(customer_id=addr.customer_id).update({"is_default": False})
+        addr.is_default = True
+
+    db.session.commit()
+    return jsonify({"ok": True, "address": addr.to_dict()})
+
+
+@api_bp.route("/customer/orders")
+def customer_orders():
+    customer = _get_customer_or_404(request.args.get("phone"))
+    if not customer:
+        return error("Please log in first.", 404)
+
+    orders = (
+        Order.query.filter_by(customer_id=customer.id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    result = []
+    for o in orders:
+        d = o.to_dict()
+        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
+        result.append(d)
+    return jsonify(result)
 
 
 # ───────────────────────── public: menu ─────────────────────────

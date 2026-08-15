@@ -12,6 +12,7 @@
     <a class="nav-link" href="{{ url_for('main.menu') }}">Menu</a>
     <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
     <a class="nav-cta" href="{{ url_for('main.menu') }}">Order Now</a>
+    <a class="nav-link" id="nav-account" href="{{ url_for('main.login') }}">Login</a>
     <a href="{{ url_for('main.cart') }}" class="cart-btn" id="nav-cart" style="display:none">🛒 Cart <div class="cbadge" id="ccount">0</div></a>
   </div>
 </nav>
@@ -136,6 +137,7 @@
 
 {% block page_js %}
 <script src="{{ url_for('static', filename='js/cart-widget.js') }}"></script>
+<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script>
   window.addEventListener('scroll', () => {
     document.getElementById('nav').classList.toggle('scrolled', scrollY > 60);

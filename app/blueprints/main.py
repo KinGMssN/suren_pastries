@@ -36,3 +36,13 @@ def about():
 @main_bp.route("/cart")
 def cart():
     return render_template("cart.html")
+
+
+@main_bp.route("/login")
+def login():
+    return render_template("login.html")
+
+
+@main_bp.route("/account")
+def account():
+    return render_template("account.html")
