@@ -142,23 +142,25 @@ async function loadMenuEditor() {
       return;
     }
     grid.innerHTML = items.map(i => `
-      <div class="me-card">
-        ${i.image ? `<img src="${i.image}" alt="${i.name}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${i.emoji}</div>`}
-        <div class="me-info">
-          <div class="me-name">
-            ${i.name}
-            ${i.is_available ? '' : '<span style="color:var(--muted);font-weight:400">(hidden)</span>'}
-            ${i.in_stock ? '' : '<span style="color:#B3261E;font-weight:400">(out of stock)</span>'}
-            ${i.is_special ? '<span style="color:var(--accent);font-weight:400">★ special</span>' : ''}
+     <div class="me-card">
+        <div class="me-card-top">
+          ${i.image ? `<img src="${i.image}" alt="${i.name}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${i.emoji}</div>`}
+          <div class="me-info">
+            <div class="me-name">
+              ${i.name}
+              ${i.is_available ? '' : '<span style="color:var(--muted);font-weight:400"> (hidden)</span>'}
+              ${i.in_stock ? '' : '<span style="color:#B3261E;font-weight:400"> (out of stock)</span>'}
+              ${i.is_special ? '<span style="color:var(--accent);font-weight:400"> ★ special</span>' : ''}
+            </div>
+            <div class="me-cat">${i.category || 'Uncategorized'}${i.tag ? ' · ' + i.tag : ''}</div>
+            <div class="me-price">₹${i.price}</div>
           </div>
-          <div class="me-cat">${i.category || 'Uncategorized'}${i.tag ? ' · ' + i.tag : ''}</div>
-          <div class="me-price">₹${i.price}</div>
         </div>
         <div class="me-actions">
           <button class="me-btn" onclick='openEditModal(${JSON.stringify(i)})'>Edit</button>
           <button class="me-btn" onclick="toggleAvailability(${i.id})">${i.is_available ? 'Hide' : 'Show'}</button>
-          <button class="me-btn" onclick="toggleStock(${i.id})">${i.in_stock ? 'Mark out of stock' : 'Mark in stock'}</button>
-          <button class="me-btn" onclick="toggleSpecial(${i.id})">${i.is_special ? 'Unset special' : 'Set as special'}</button>
+          <button class="me-btn" onclick="toggleStock(${i.id})">${i.in_stock ? 'Out of stock' : 'In stock'}</button>
+          <button class="me-btn" onclick="toggleSpecial(${i.id})">${i.is_special ? 'Unset special' : 'Set special'}</button>
           <button class="me-btn me-del" onclick="deleteMenuItem(${i.id})">Delete</button>
         </div>
       </div>
@@ -332,7 +334,7 @@ async function loadTeam() {
       return;
     }
     grid.innerHTML = team.map(m => `
-      <div class="me-card">
+     <div class="me-card">
         ${m.photo ? `<img src="${m.photo}" alt="${m.name}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${m.avatar}</div>`}
         <div class="me-info">
           <div class="me-name">${m.name}</div>
