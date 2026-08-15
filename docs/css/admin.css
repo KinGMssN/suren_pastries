@@ -136,7 +136,13 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 .me-edit{background:var(--cream);color:var(--dark)}
 .me-edit:hover{background:var(--dark);color:#fff}
 .me-del{background:#FEE8E8;color:#B71C1C}
-.me-del:hover{background:#B71C1C;color:#fff})}
+.me-del:hover{background:#B71C1C;color:#fff}
+.toggle-switch{position:relative;width:36px;height:20px;cursor:pointer}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.ts-slider{position:absolute;inset:0;background:#ccc;border-radius:20px;transition:0.3s}
+.ts-slider::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.3s}
+.toggle-switch input:checked+.ts-slider{background:var(--accent)}
+.toggle-switch input:checked+.ts-slider::before{transform:translateX(16px)}
 
 /* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center}
