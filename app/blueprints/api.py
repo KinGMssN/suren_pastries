@@ -389,6 +389,7 @@ def admin_menu_item(item_id):
     item = MenuItem.query.get_or_404(item_id)
 
     if request.method == "DELETE":
+        OrderItem.query.filter_by(menu_item_id=item.id).update({"menu_item_id": None})
         db.session.delete(item)
         db.session.commit()
         return jsonify({"ok": True})
