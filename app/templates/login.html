@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Log In{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav class="site-nav">
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl" href="{{ url_for('main.about') }}">About</a>
+  </div>
+</nav>
+
+<div class="acct-page">
+  <div class="acct-card" style="max-width:420px;margin:60px auto">
+    <div class="acct-icon">👋</div>
+    <h1 class="acct-title">Welcome</h1>
+    <p class="acct-sub">Log in with your phone number to save addresses and track your orders.</p>
+
+    <div id="login-error" class="acct-error" style="display:none"></div>
+
+    <form onsubmit="customerLogin(event)">
+      <label class="acct-label">Phone number</label>
+      <input class="acct-input" type="tel" id="login-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}"/>
+      <label class="acct-label">Your name</label>
+      <input class="acct-input" type="text" id="login-name" placeholder="Full name" required/>
+      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Continue</button>
+    </form>
+    <p class="acct-note">No OTP for now — just your phone number and name. We'll add verification later.</p>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>
+  window.AFTER_LOGIN_URL = "{{ url_for('main.account') }}";
+</script>
+<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
+{% endblock %}

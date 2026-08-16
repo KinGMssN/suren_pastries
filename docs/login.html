@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Suren Pastries — Log In</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/account.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="landing.html" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="landing.html">Home</a>
+    <a class="nl" href="menu.html">Menu</a>
+    <a class="nl" href="about.html">About</a>
+  </div>
+</nav>
+
+<div class="acct-page">
+  <div class="acct-card" style="max-width:420px;margin:60px auto">
+    <div class="acct-icon">👋</div>
+    <h1 class="acct-title">Welcome</h1>
+    <p class="acct-sub">Log in with your phone number to save addresses and track your orders.</p>
+
+    <div id="login-error" class="acct-error" style="display:none"></div>
+
+    <form onsubmit="customerLogin(event)">
+      <label class="acct-label">Phone number</label>
+      <input class="acct-input" type="tel" id="login-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}"/>
+      <label class="acct-label">Your name</label>
+      <input class="acct-input" type="text" id="login-name" placeholder="Full name" required/>
+      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Continue</button>
+    </form>
+    <p class="acct-note">No OTP for now — just your phone number and name. We'll add verification later.</p>
+  </div>
+</div>
+
+<script>
+  window.AFTER_LOGIN_URL = 'account.html';
+</script>
+<script src="js/config.js"></script>
+<script src="js/customer.js"></script>
+<script src="js/transitions.js"></script>
+</body>
+</html>
