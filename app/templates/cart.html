@@ -2,6 +2,7 @@
 {% block title %}Suren Pastries — Cart{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/cart.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
 {% endblock %}
 {% block body %}
 
@@ -39,10 +40,7 @@
           <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
         </div>
 
-        <div class="checkout-stack">
-          <button class="co-btn co-wa" onclick="checkout('whatsapp')">💬 Order via WhatsApp</button>
-          <button class="co-btn co-online" onclick="checkout('online')">💳 Pay online</button>
-        </div>
+                <div id="checkout-area"></div>
 
         <div class="delivery-note">
           🚀 <strong>Free delivery</strong> on orders above ₹499. Estimated arrival: <strong>25–35 min</strong>
@@ -65,9 +63,12 @@
 <script>
   window.MENU_URL = "{{ url_for('main.menu') }}";
   window.HOME_URL = "{{ url_for('main.home') }}";
+  window.LOGIN_URL = "{{ url_for('main.login') }}";
+  window.ACCOUNT_URL = "{{ url_for('main.account') }}";
   window.FREE_DELIVERY_THRESHOLD = 499;
   window.DELIVERY_FEE = 40;
   window.TAX_RATE = 0.05;
 </script>
+<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 {% endblock %}

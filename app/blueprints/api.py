@@ -324,16 +324,28 @@ def apply_coupon():
 # ───────────────────────── public: checkout ─────────────────────────
 
 @api_bp.route("/checkout", methods=["POST"])
+
 def checkout():
     payload = request.get_json(silent=True) or {}
     cart_items = payload.get("items") or []
     channel = payload.get("channel", "whatsapp")
     coupon_code = (payload.get("coupon_code") or "").strip().upper() or None
-    customer_name = (payload.get("customer_name") or "Guest").strip()[:120]
-    customer_phone = (payload.get("customer_phone") or "").strip()[:30]
+    phone = _normalize_phone(payload.get("phone"))
+    address_id = payload.get("address_id")
 
     if not cart_items:
         return error("Your cart is empty.")
+    if len(phone) != 10:
+        return error("Please log in to place an order.", 401)
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if not customer:
+        return error("Please log in to place an order.", 401)
+
+    address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
+    if not address:
+        return error("Please select a delivery address.")
+
     if channel not in ORDER_CHANNELS:
         channel = "whatsapp"
 
@@ -352,10 +364,14 @@ def checkout():
 
     order = Order(
         order_number=Order.generate_order_number(),
-        customer_name=customer_name or "Guest",
-        customer_phone=customer_phone,
+        customer_name=customer.name or "Guest",
+        customer_phone=customer.phone,
+        customer_id=customer.id,
         channel=channel,
         status="pending",
+        delivery_address=address.address_line,
+        delivery_city=address.city,
+        delivery_pincode=address.pincode,
         subtotal=subtotal,
         delivery_fee=delivery_fee,
         tax=tax,
@@ -365,7 +381,7 @@ def checkout():
     )
     db.session.add(order)
     db.session.flush()  # get order.id before adding items
-
+    
     for i in cart_items:
         db.session.add(
             OrderItem(

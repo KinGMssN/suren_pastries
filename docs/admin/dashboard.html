@@ -1,16 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Suren Pastries — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="../css/admin.css">
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Admin{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <style>body{opacity:1;animation:none}</style>
-</head>
-<body>
+{% endblock %}
+{% block body %}
 
 <div class="admin-layout">
+
   <div class="sidebar">
     <div class="sb-logo">
       <div class="sb-logo-title">SUREN PASTRIES</div>
@@ -25,39 +22,63 @@
       <button class="sb-link" data-tab="offers" onclick="setTab('offers',this)"><span class="sb-icon">🎉</span>Offers</button>
       <button class="sb-link" data-tab="team" onclick="setTab('team',this)"><span class="sb-icon">👥</span>Team</button>
       <button class="sb-link" data-tab="content" onclick="setTab('content',this)"><span class="sb-icon">📝</span>Content</button>
-      <button class="sb-link" onclick="location.href='../landing.html'"><span class="sb-icon">🌐</span>View site</button>
+      <button class="sb-link" onclick="location.href='{{ url_for('main.home') }}'"><span class="sb-icon">🌐</span>View site</button>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
         <div class="sb-avatar">👨‍💼</div>
-        <div><div class="sb-name" id="sb-username">…</div><div class="sb-role">Super admin</div></div>
+        <div><div class="sb-name">{{ current_user.username }}</div><div class="sb-role">Super admin</div></div>
       </div>
-      <a class="sb-link" style="margin-top:4px;display:flex" href="#" id="logout-link"><span class="sb-icon">🚪</span>Logout</a>
+      <a class="sb-link" style="margin-top:4px;display:flex" href="{{ url_for('admin.logout') }}"><span class="sb-icon">🚪</span>Logout</a>
     </div>
   </div>
 
   <div class="main">
 
+    <!-- DASHBOARD -->
     <div class="tab-content active" id="tab-dashboard">
       <div class="top-bar">
         <div class="page-title">Dashboard</div>
-        <div class="top-actions"><button class="btn-sm btn-primary" onclick="setTab('menu', document.querySelector('[data-tab=menu]'))">+ Add item</button></div>
+        <div class="top-actions">
+          <button class="btn-sm btn-primary" onclick="setTab('menu', document.querySelector('[data-tab=menu]'))">+ Add item</button>
+        </div>
       </div>
+
       <div class="stats-grid">
-        <div class="stat-card"><div class="sc-label">Total revenue</div><div class="sc-num" style="color:var(--accent)" id="stat-revenue">₹0</div><div class="sc-change" id="stat-revenue-sub">No data yet</div></div>
-        <div class="stat-card"><div class="sc-label">Total orders</div><div class="sc-num" id="stat-orders">0</div><div class="sc-change" id="stat-orders-sub">No data yet</div></div>
-        <div class="stat-card"><div class="sc-label">Pending orders</div><div class="sc-num" id="stat-pending">0</div><div class="sc-change">Needs attention</div></div>
-        <div class="stat-card"><div class="sc-label">Active menu items</div><div class="sc-num" id="stat-menu">0</div><div class="sc-change">Currently listed</div></div>
+        <div class="stat-card">
+          <div class="sc-label">Total revenue</div>
+          <div class="sc-num" style="color:var(--accent)" id="stat-revenue">₹0</div>
+          <div class="sc-change" id="stat-revenue-sub">No data yet</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Total orders</div>
+          <div class="sc-num" id="stat-orders">0</div>
+          <div class="sc-change" id="stat-orders-sub">No data yet</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Pending orders</div>
+          <div class="sc-num" id="stat-pending">0</div>
+          <div class="sc-change">Needs attention</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Active menu items</div>
+          <div class="sc-num" id="stat-menu">0</div>
+          <div class="sc-change">Currently listed</div>
+        </div>
       </div>
+
       <div class="table-card">
         <div class="tc-head"><div class="tc-title">Recent orders</div><button class="btn-sm btn-outline" onclick="setTab('orders', document.querySelector('[data-tab=orders]'))">View all</button></div>
         <table class="table">
           <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Time</th></tr></thead>
-          <tbody id="recent-orders-body"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+          <tbody id="recent-orders-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
 
+    <!-- ORDERS TAB -->
     <div class="tab-content" id="tab-orders">
       <div class="top-bar">
         <div class="page-title">All orders</div>
@@ -75,27 +96,41 @@
         <div class="tc-head"><div class="tc-title">Orders</div></div>
         <table class="table">
           <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Channel</th><th>Status</th></tr></thead>
-          <tbody id="orders-body"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+          <tbody id="orders-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
 
+    <!-- MENU TAB -->
     <div class="tab-content" id="tab-menu">
-      <div class="top-bar"><div class="page-title">Menu editor</div><div class="top-actions"><button class="btn-sm btn-primary" onclick="showModal()">+ Add item</button></div></div>
-      <div class="menu-editor-grid" id="menu-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
+      <div class="top-bar">
+        <div class="page-title">Menu editor</div>
+        <div class="top-actions">
+          <button class="btn-sm btn-primary" onclick="showModal()">+ Add item</button>
+        </div>
+      </div>
+      <div class="menu-editor-grid" id="menu-editor-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>
+      </div>
     </div>
 
+    <!-- OFFERS TAB -->
     <div class="tab-content" id="tab-offers">
       <div class="top-bar"><div class="page-title">Offers & Promotions</div><button class="btn-sm btn-primary" onclick="showCouponModal()">+ New offer</button></div>
       <div class="table-card">
         <div class="tc-head"><div class="tc-title">Current offers</div></div>
         <table class="table">
           <thead><tr><th>Code</th><th>Description</th><th>Discount</th><th>Uses</th><th>Expiry</th><th>Status</th><th></th></tr></thead>
-          <tbody id="offers-body"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+          <tbody id="offers-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
 
+    <!-- CONTENT TAB -->
     <div class="tab-content" id="tab-team">
       <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" onclick="showTeamModal()">+ Add team member</button></div>
       <div class="menu-editor-grid" id="team-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
@@ -137,6 +172,7 @@
   </div>
 </div>
 
+<!-- ADD / EDIT MENU ITEM MODAL -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h3 id="menu-modal-title">Add menu item</h3>
@@ -176,12 +212,15 @@
   </div>
 </div>
 
+<!-- ADD COUPON MODAL -->
 <div class="modal-overlay" id="couponModal">
   <div class="modal">
     <h3>New offer</h3>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Code</label><input class="form-input" id="co-code" placeholder="SUREN20"/></div>
-      <div class="form-group"><label class="form-label">Type</label><select class="form-input" id="co-type"><option value="percent">Percent off</option><option value="flat">Flat ₹ off</option></select></div>
+      <div class="form-group"><label class="form-label">Type</label>
+        <select class="form-input" id="co-type"><option value="percent">Percent off</option><option value="flat">Flat ₹ off</option></select>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Value</label><input class="form-input" id="co-value" type="number" placeholder="20"/></div>
@@ -217,9 +256,7 @@
 </div>
 
 <div class="toast" id="toast-el"></div>
-
-<script src="../js/config.js"></script>
-<script src="js/admin-auth.js"></script>
-<script src="js/admin.js"></script>
-</body>
-</html>
+{% endblock %}
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

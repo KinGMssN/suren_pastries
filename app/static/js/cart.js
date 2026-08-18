@@ -1,13 +1,15 @@
 let cart = JSON.parse(localStorage.getItem('surenPastriesCart')) || [];
 let discountAmt = 0;
 let appliedCoupon = null;
+let addresses = [];
+let selectedAddressId = null;
 
 function save() {
   localStorage.setItem('surenPastriesCart', JSON.stringify(cart));
   localStorage.setItem('cartCount', cart.reduce((s, i) => s + i.qty, 0));
 }
 
-function render() {
+async function render() {
   const card = document.getElementById('items-card');
   const sum = document.getElementById('summary-card');
   const count = cart.reduce((s, i) => s + i.qty, 0);
@@ -41,6 +43,7 @@ function render() {
     `).join('')}
   `;
   updateSummary();
+  await renderCheckoutArea();
 }
 
 function updateSummary() {
@@ -60,6 +63,60 @@ function updateSummary() {
   }
 }
 
+// Swaps the checkout buttons for a "please log in" prompt, or an address
+// picker + payment buttons, depending on login state.
+async function renderCheckoutArea() {
+  const area = document.getElementById('checkout-area');
+  if (!area) return;
+  const customer = typeof getCustomer === 'function' ? getCustomer() : null;
+
+  if (!customer) {
+    area.innerHTML = `
+      <div class="login-prompt">
+        <p>Log in to save your address and place an order.</p>
+        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="${window.LOGIN_URL || 'login.html'}">Log in to checkout</a>
+      </div>
+    `;
+    return;
+  }
+
+  try {
+    const res = await fetch((window.API_BASE || '') + '/api/customer/addresses?phone=' + encodeURIComponent(customer.phone));
+    addresses = await res.json();
+  } catch (err) {
+    addresses = [];
+  }
+
+  if (!addresses.length) {
+    area.innerHTML = `
+      <div class="login-prompt">
+        <p>Add a delivery address to your account before checking out.</p>
+        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="${window.ACCOUNT_URL || 'account.html'}">Add an address</a>
+      </div>
+    `;
+    return;
+  }
+
+  if (!selectedAddressId) {
+    const def = addresses.find(a => a.is_default) || addresses[0];
+    selectedAddressId = def.id;
+  }
+
+  area.innerHTML = `
+    <div class="addr-picker">
+      <label class="acct-label">Deliver to</label>
+      <select class="acct-input" id="address-select" onchange="selectedAddressId=parseInt(this.value)">
+        ${addresses.map(a => `<option value="${a.id}" ${a.id === selectedAddressId ? 'selected' : ''}>${a.label} — ${a.address_line}${a.city ? ', ' + a.city : ''}</option>`).join('')}
+      </select>
+    </div>
+    <div class="checkout-stack">
+      <button class="co-btn co-wa" onclick="checkout('whatsapp')">💬 Order via WhatsApp</button>
+      <button class="co-btn co-online" onclick="checkout('online')">💳 Pay online</button>
+      <button class="co-btn co-cod" onclick="checkout('cod')">💵 Cash on delivery</button>
+    </div>
+  `;
+}
+
 function change(id, d) {
   const i = cart.find(x => x.id === id);
   if (!i) return;
@@ -75,7 +132,7 @@ async function applyCoupon() {
   if (!v) { alert('Enter a promo code'); return; }
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   try {
-    const res = await fetch('/api/coupon/apply', {
+    const res = await fetch((window.API_BASE || '') + '/api/coupon/apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: v, subtotal })
@@ -93,24 +150,38 @@ async function applyCoupon() {
 
 async function checkout(method) {
   if (!cart.length) return;
+  const customer = typeof getCustomer === 'function' ? getCustomer() : null;
+  if (!customer) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
+  if (!selectedAddressId) { alert('Please select a delivery address.'); return; }
+
   const overlay = document.getElementById('overlay');
   try {
-    const res = await fetch('/api/checkout', {
+    const res = await fetch((window.API_BASE || '') + '/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: cart,
         channel: method,
-        coupon_code: appliedCoupon
+        coupon_code: appliedCoupon,
+        phone: customer.phone,
+        address_id: selectedAddressId,
       })
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) { alert(data.error || 'Something went wrong placing your order.'); return; }
+    if (!res.ok || !data.ok) {
+      if (res.status === 401) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
+      alert(data.error || 'Something went wrong placing your order.');
+      return;
+    }
 
     if (method === 'online') {
       document.getElementById('modal-icon').textContent = '💳';
       document.getElementById('modal-title').textContent = 'Payment successful!';
       document.getElementById('modal-sub').textContent = `Order ${data.order_number} confirmed — total ₹${data.total}. Delivery in 25–35 minutes.`;
+    } else if (method === 'cod') {
+      document.getElementById('modal-icon').textContent = '💵';
+      document.getElementById('modal-title').textContent = 'Order placed!';
+      document.getElementById('modal-sub').textContent = `Order ${data.order_number} confirmed — total ₹${data.total}. Pay cash when your order arrives.`;
     } else {
       document.getElementById('modal-icon').textContent = '💬';
       document.getElementById('modal-title').textContent = 'Order placed!';
