@@ -21,6 +21,7 @@
       <div class="sb-section">Settings</div>
       <button class="sb-link" data-tab="offers" onclick="setTab('offers',this)"><span class="sb-icon">🎉</span>Offers</button>
       <button class="sb-link" data-tab="team" onclick="setTab('team',this)"><span class="sb-icon">👥</span>Team</button>
+      <button class="sb-link" data-tab="delivery" onclick="setTab('delivery',this)"><span class="sb-icon">🚚</span>Delivery Staff</button>
       <button class="sb-link" data-tab="content" onclick="setTab('content',this)"><span class="sb-icon">📝</span>Content</button>
       <button class="sb-link" onclick="location.href='{{ url_for('main.home') }}'"><span class="sb-icon">🌐</span>View site</button>
     </div>
@@ -134,6 +135,18 @@
     <div class="tab-content" id="tab-team">
       <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" onclick="showTeamModal()">+ Add team member</button></div>
       <div class="menu-editor-grid" id="team-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-delivery">
+      <div class="top-bar">
+        <div class="page-title">Delivery staff</div>
+        <button class="btn-sm btn-primary" onclick="showDeliveryModal()">+ Add delivery person</button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Manage who can pick and deliver orders. They use this list to identify
+        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a> — no login required there yet.
+      </p>
+      <div class="menu-editor-grid" id="delivery-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
     </div>
 
     <div class="tab-content" id="tab-content">
@@ -251,6 +264,19 @@
     <div class="modal-footer">
       <button class="btn-sm btn-outline" onclick="hideTeamModal()">Cancel</button>
       <button class="btn-sm btn-primary" onclick="submitTeamMember()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deliveryModal">
+  <div class="modal">
+    <h3 id="delivery-modal-title">Add delivery person</h3>
+    <input type="hidden" id="dp-id"/>
+    <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="dp-name" placeholder="e.g. Suresh"/></div>
+    <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="dp-phone" placeholder="10-digit mobile number"/></div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-outline" onclick="hideDeliveryModal()">Cancel</button>
+      <button class="btn-sm btn-primary" onclick="submitDeliveryPerson()">Save</button>
     </div>
   </div>
 </div>

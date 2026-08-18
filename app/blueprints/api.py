@@ -723,3 +723,116 @@ def admin_team_member(member_id):
 
     db.session.commit()
     return jsonify({"ok": True, "member": member.to_dict()})
+
+
+
+# ── Delivery staff roster (admin manages who's on the team) ──
+
+@api_bp.route("/admin/delivery-people", methods=["GET", "POST"])
+@login_required
+def admin_delivery_people():
+    if request.method == "GET":
+        people = DeliveryPerson.query.order_by(DeliveryPerson.name).all()
+        return jsonify([p.to_dict() for p in people])
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return error("Name is required.")
+
+    person = DeliveryPerson(
+        name=name,
+        phone=(payload.get("phone") or "").strip(),
+        active=True,
+    )
+    db.session.add(person)
+    db.session.commit()
+    return jsonify({"ok": True, "person": person.to_dict()}), 201
+
+
+@api_bp.route("/admin/delivery-people/<int:person_id>", methods=["PUT", "DELETE"])
+@login_required
+def admin_delivery_person_detail(person_id):
+    person = DeliveryPerson.query.get_or_404(person_id)
+
+    if request.method == "DELETE":
+        db.session.delete(person)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    payload = request.get_json(silent=True) or {}
+    if "name" in payload:
+        person.name = payload["name"].strip()
+    if "phone" in payload:
+        person.phone = payload["phone"].strip()
+
+    db.session.commit()
+    return jsonify({"ok": True, "person": person.to_dict()})
+
+
+@api_bp.route("/admin/delivery-people/<int:person_id>/toggle", methods=["POST"])
+@login_required
+def admin_toggle_delivery_person(person_id):
+    person = DeliveryPerson.query.get_or_404(person_id)
+    person.active = not person.active
+    db.session.commit()
+    return jsonify({"ok": True, "active": person.active})
+
+
+# ═══════════════════════ DELIVERY PORTAL (no login yet═══════════════════════
+
+@api_bp.route("/delivery/people")
+def delivery_people_list():
+    people = DeliveryPerson.query.filter_by(active=True).order_by(DeliveryPerson.name).all()
+    return jsonify([p.to_dict() for p in people])
+
+
+@api_bp.route("/delivery/orders")
+def delivery_orders_list():
+    """Orders that still need delivering (not yet marked delivered),
+    optionally filtered to a specific delivery person via ?assigned_to=<id>."""
+    assigned_to = request.args.get("assigned_to")
+    q = Order.query.filter(Order.status != "delivered")
+    if assigned_to:
+        q = q.filter(Order.delivery_person_id == int(assigned_to))
+    orders = q.order_by(Order.created_at.asc()).all()
+
+    result = []
+    for o in orders:
+        d = o.to_dict()
+        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
+        result.append(d)
+    return jsonify(result)
+
+
+@api_bp.route("/delivery/orders/<int:order_id>/assign", methods=["POST"])
+def delivery_assign_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    payload = request.get_json(silent=True) or {}
+    person_id = payload.get("delivery_person_id")
+    person = DeliveryPerson.query.get(person_id) if person_id else None
+    if not person:
+        return error("Select who you are first.")
+
+    order.delivery_person_id = person.id
+    if order.status == "pending":
+        order.status = "preparing"
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/delivery/orders/<int:order_id>/deliver", methods=["POST"])
+def delivery_mark_delivered(order_id):
+    order = Order.query.get_or_404(order_id)
+    payload = request.get_json(silent=True) or {}
+
+    if payload.get("delivery_person_id"):
+        order.delivery_person_id = payload["delivery_person_id"]
+
+    order.status = "delivered"
+    order.delivered_at = datetime.utcnow()
+    if order.channel == "cod":
+        order.cod_collected = bool(payload.get("cod_collected"))
+
+    db.session.commit()
+    return jsonify({"ok": True})

@@ -46,3 +46,8 @@ def login():
 @main_bp.route("/account")
 def account():
     return render_template("account.html")
+
+
+@main_bp.route("/delivery")
+def delivery():
+    return render_template("delivery.html")
