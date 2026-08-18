@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Delivery{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/delivery.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav class="site-nav">
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+  </div>
+</nav>
+
+<div class="dl-page">
+  <div class="dl-header">
+    <div class="dl-title">🚚 Delivery</div>
+    <div class="dl-sub">No login yet — just pick your name below to get started</div>
+  </div>
+
+  <div class="dl-picker">
+    <label>Who are you?</label>
+    <select id="who-am-i" onchange="onWhoAmIChange()"></select>
+  </div>
+
+  <div id="delivery-orders"></div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/delivery.js') }}"></script>
+{% endblock %}

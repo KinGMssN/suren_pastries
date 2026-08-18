@@ -1,0 +1,27 @@
+.dl-page{max-width:700px;margin:0 auto;padding:32px 20px}
+.dl-header{text-align:center;margin-bottom:24px}
+.dl-title{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:6px}
+.dl-sub{font-size:13px;color:var(--muted)}
+
+.dl-picker{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:24px}
+.dl-picker label{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px}
+.dl-picker select{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none}
+
+.dl-empty{text-align:center;color:var(--muted);font-size:13px;padding:32px}
+
+.dl-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.dl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.dl-status{font-size:11px;background:#FFF3E0;color:#B36A00;padding:2px 10px;border-radius:10px;font-weight:500}
+.dl-customer{font-size:13px;margin-bottom:4px}
+.dl-customer a{color:var(--accent);text-decoration:none}
+.dl-address{font-size:13px;color:var(--muted);margin-bottom:6px}
+.dl-address a{color:inherit;text-decoration:underline}
+.dl-items{font-size:12px;color:var(--muted);margin-bottom:10px}
+.dl-bottom{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;margin-bottom:12px}
+.dl-assigned{font-size:11px;font-weight:400;color:var(--muted)}
+.dl-actions{display:flex;gap:8px}
+.dl-btn{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;transition:all .2s}
+.dl-btn-assign{background:var(--dark);color:#fff}
+.dl-btn-assign:hover{background:#000}
+.dl-btn-deliver{background:var(--success);color:#fff}
+.dl-btn-deliver:hover{background:#1da851}
