@@ -10,6 +10,7 @@ function setTab(name, el) {
   if (name === 'menu') loadMenuEditor();
   if (name === 'offers') loadOffers();
   if (name === 'team') loadTeam();
+  if (name === 'delivery') loadDeliveryStaff();
   if (name === 'content') loadContent();
 }
 
@@ -403,6 +404,84 @@ async function deleteTeamMember(id) {
   catch (err) { toast(err.message); }
 }
 document.getElementById('teamModal').addEventListener('click', e => { if (e.target === document.getElementById('teamModal')) hideTeamModal(); });
+
+// ───────────────────────── delivery staff ─────────────────────────
+let editingDeliveryId = null;
+
+async function loadDeliveryStaff() {
+  const grid = document.getElementById('delivery-editor-grid');
+  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
+  try {
+    const people = await api('/delivery-people');
+    if (!people.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);border:1px dashed var(--border);border-radius:12px">No delivery staff added yet.</div>`;
+      return;
+    }
+    grid.innerHTML = people.map(p => `
+      <div class="me-card">
+        <div class="me-card-top">
+          <div class="me-emoji">🚴</div>
+          <div class="me-info">
+            <div class="me-name">${p.name} ${p.active ? '' : '<span style="color:var(--muted);font-weight:400">(inactive)</span>'}</div>
+            <div class="me-cat">${p.phone || 'No phone on file'}</div>
+          </div>
+        </div>
+        <div class="me-actions">
+          <button class="me-btn" onclick='openEditDeliveryModal(${JSON.stringify(p)})'>Edit</button>
+          <button class="me-btn" onclick="toggleDeliveryPerson(${p.id})">${p.active ? 'Deactivate' : 'Activate'}</button>
+          <button class="me-btn me-del" onclick="deleteDeliveryPerson(${p.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Could not load delivery staff</div>`;
+  }
+}
+
+function showDeliveryModal() {
+  editingDeliveryId = null;
+  document.getElementById('delivery-modal-title').textContent = 'Add delivery person';
+  ['id', 'name', 'phone'].forEach(f => document.getElementById('dp-' + f).value = '');
+  document.getElementById('deliveryModal').classList.add('show');
+}
+function openEditDeliveryModal(person) {
+  editingDeliveryId = person.id;
+  document.getElementById('delivery-modal-title').textContent = 'Edit delivery person';
+  document.getElementById('dp-id').value = person.id;
+  document.getElementById('dp-name').value = person.name;
+  document.getElementById('dp-phone').value = person.phone || '';
+  document.getElementById('deliveryModal').classList.add('show');
+}
+function hideDeliveryModal() { document.getElementById('deliveryModal').classList.remove('show'); }
+
+async function submitDeliveryPerson() {
+  const payload = {
+    name: document.getElementById('dp-name').value.trim(),
+    phone: document.getElementById('dp-phone').value.trim(),
+  };
+  if (!payload.name) { toast('Name is required'); return; }
+  try {
+    if (editingDeliveryId) {
+      await api(`/delivery-people/${editingDeliveryId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Delivery person updated');
+    } else {
+      await api('/delivery-people', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Delivery person added!');
+    }
+    hideDeliveryModal();
+    loadDeliveryStaff();
+  } catch (err) { toast(err.message); }
+}
+async function toggleDeliveryPerson(id) {
+  try { await api(`/delivery-people/${id}/toggle`, { method: 'POST' }); loadDeliveryStaff(); }
+  catch (err) { toast(err.message); }
+}
+async function deleteDeliveryPerson(id) {
+  if (!confirm('Remove this delivery person?')) return;
+  try { await api(`/delivery-people/${id}`, { method: 'DELETE' }); toast('Delivery person removed'); loadDeliveryStaff(); }
+  catch (err) { toast(err.message); }
+}
+document.getElementById('deliveryModal').addEventListener('click', e => { if (e.target === document.getElementById('deliveryModal')) hideDeliveryModal(); });
 
 // ───────────────────────── site content ─────────────────────────
 const CONTENT_FIELDS = [
