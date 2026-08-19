@@ -89,7 +89,7 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 /* CHARTS ROW */
 .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
 @media(max-width:760px){.charts-row{grid-template-columns:1fr}}
-.chart-card{background:var(--surface);border-radius:14px;padding:20px;border:1px solid var(--border)}
+.chart-card{background:var();border-radius:14px;padding:20px;border:1px solid var(--border)}
 .cc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 .cc-title{font-weight:500;font-size:15px}
 .cc-sub{font-size:12px;color:var(--muted)}
@@ -107,7 +107,7 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 .leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
 /* ORDERS TABLE */
-.table-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:24px}
+.table-card{background:var();border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:24px}
 .tc-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .tc-title{font-weight:500;font-size:15px}
 .table{width:100%;border-collapse:collapse;font-size:13px}
@@ -141,8 +141,7 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 /* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border-radius:16px;padding:32px;width:400px;max-width:90vw}
-.modal h3{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:20px}
+.modal{position:static;display:block;height:auto;z-index:auto;background:var(--surface);border-radius:16px;padding:32px;width:400px;max-width:90vw}.modal h3{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:20px}
 .form-group{margin-bottom:16px}
 .form-label{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:block}
 .form-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border 0.2s}
