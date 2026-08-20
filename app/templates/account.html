@@ -61,5 +61,6 @@
 {% block page_js %}
 <script>window.HOME_URL = "{{ url_for('main.home') }}"; window.LOGIN_URL = "{{ url_for('main.login') }}";</script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
 <script>loadAccountPage();</script>
 {% endblock %}
