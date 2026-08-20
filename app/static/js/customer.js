@@ -17,16 +17,23 @@ function isLoggedIn() {
   return !!getCustomer();
 }
 
-// Updates any "Login" / "Hi, <name>" nav link found on the page.
+// Updates the nav-account link into a circular avatar: shows the
+// customer's first initial when logged in, or a generic person icon
+// (prompting login) when not.
 function updateAccountNav() {
   const link = document.getElementById('nav-account');
   if (!link) return;
   const customer = getCustomer();
+  link.classList.add('nav-avatar');
   if (customer) {
-    link.textContent = 'Hi, ' + customer.name.split(' ')[0];
+    link.classList.remove('guest');
+    link.textContent = customer.name.trim().charAt(0).toUpperCase() || '👤';
+    link.title = customer.name;
     link.href = window.ACCOUNT_URL || 'account.html';
   } else {
-    link.textContent = 'Login';
+    link.classList.add('guest');
+    link.textContent = '👤';
+    link.title = 'Log in';
     link.href = window.LOGIN_URL || 'login.html';
   }
 }

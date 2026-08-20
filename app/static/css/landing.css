@@ -70,23 +70,49 @@
       color: #fff
     }
 
-    .nav-cta {
-      background: var(--accent);
-      color: #fff;
+        .nav-cta {
+      background: transparent;
+      color: rgba(255, 255, 255, 0.85);
       font-family: 'DM Sans', sans-serif;
       font-size: 13px;
       font-weight: 500;
-      padding: 9px 22px;
+      padding: 9px 18px;
       border-radius: 6px;
-      border: none;
+      border: 1px solid rgba(255, 255, 255, 0.25);
       cursor: pointer;
       text-decoration: none;
       transition: all 0.2s;
     }
 
     .nav-cta:hover {
-      background: #a83e1e;
-      transform: translateY(-1px)
+      color: #fff;
+      border-color: #fff;
+    }
+
+    /* ── ACCOUNT AVATAR (circle, shows first-letter or a generic icon) ── */
+    .nav-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--gold);
+      color: var(--dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .nav-avatar.guest {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 16px;
+    }
+    .nav-avatar:hover {
+      transform: scale(1.08);
     }
 
     /* ── HERO ── */
