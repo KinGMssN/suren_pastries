@@ -85,6 +85,7 @@ async function assignToMe(orderId) {
       body: JSON.stringify({ delivery_person_id: parseInt(personId) }),
     });
     loadOrders();
+    window.open('/delivery/order/' + orderId, '_blank');
   } catch (err) { alert('Could not assign order.'); }
 }
 

@@ -154,7 +154,6 @@ async function checkout(method) {
   if (!customer) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
   if (!selectedAddressId) { alert('Please select a delivery address.'); return; }
 
-  const overlay = document.getElementById('overlay');
   try {
     const res = await fetch((window.API_BASE || '') + '/api/checkout', {
       method: 'POST',
@@ -174,20 +173,9 @@ async function checkout(method) {
       return;
     }
 
-    if (method === 'online') {
-      document.getElementById('modal-icon').textContent = '💳';
-      document.getElementById('modal-title').textContent = 'Payment successful!';
-      document.getElementById('modal-sub').textContent = `Order ${data.order_number} confirmed — total ₹${data.total}. Delivery in 25–35 minutes.`;
-    } else if (method === 'cod') {
-      document.getElementById('modal-icon').textContent = '💵';
-      document.getElementById('modal-title').textContent = 'Order placed!';
-      document.getElementById('modal-sub').textContent = `Order ${data.order_number} confirmed — total ₹${data.total}. Pay cash when your order arrives.`;
-    } else {
-      document.getElementById('modal-icon').textContent = '💬';
-      document.getElementById('modal-title').textContent = 'Order placed!';
-      document.getElementById('modal-sub').textContent = `Order ${data.order_number} confirmed — total ₹${data.total}. Complete the chat on WhatsApp for live updates.`;
-    }
-    overlay.classList.add('show');
+        cart = []; discountAmt = 0; appliedCoupon = null;
+    save();
+    window.location.href = '/track/' + data.order_number;
   } catch (err) {
     alert('Could not reach the server, please check your connection and try again.');
   }

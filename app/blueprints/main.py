@@ -51,3 +51,13 @@ def account():
 @main_bp.route("/delivery")
 def delivery():
     return render_template("delivery.html")
+
+
+@main_bp.route("/track/<order_number>")
+def track(order_number):
+    return render_template("track.html", order_number=order_number)
+
+
+@main_bp.route("/delivery/order/<int:order_id>")
+def delivery_order(order_id):
+    return render_template("delivery_order.html", order_id=order_id)

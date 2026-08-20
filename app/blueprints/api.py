@@ -394,7 +394,7 @@ def checkout():
             )
         )
 
-    db.session.commit()
+        db.session.commit()
 
     return jsonify(
         {
@@ -403,6 +403,28 @@ def checkout():
             "total": order.total,
         }
     )
+
+
+# ───────────────────────── public: order tracking ─────────────────────────
+# The order_number itself (random 6-char code) acts as the access token —
+# no login needed to check on an order you just placed.
+
+@api_bp.route("/orders/track/<order_number>")
+def track_order(order_number):
+    order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
+    if not order:
+        return error("Order not found. Check the order number and try again.", 404)
+    d = order.to_dict()
+    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
+    return jsonify(d)
+
+
+@api_bp.route("/delivery/orders/<int:order_id>")
+def delivery_order_detail(order_id):
+    order = Order.query.get_or_404(order_id)
+    d = order.to_dict()
+    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
+    return jsonify(d)
 
 
 # ═══════════════════════ ADMIN JSON API (login required) ═══════════════════════

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Track Order{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/track.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav class="site-nav">
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.account') }}">My Orders</a>
+  </div>
+</nav>
+
+<div class="tr-page">
+  <div class="tr-header">
+    <div class="tr-order-num">Order {{ order_number }}</div>
+    <div class="tr-message" id="tr-message">Loading…</div>
+    <div class="tr-submessage" id="tr-submessage"></div>
+  </div>
+
+  <div class="tr-stepper" id="tr-stepper"></div>
+
+  <div class="tr-partner" id="tr-partner" style="display:none"></div>
+
+  <div class="tr-card">
+    <div class="tr-card-title">Items</div>
+    <div id="tr-items"></div>
+    <div class="tr-divider"></div>
+    <div class="tr-total-row"><span>Total</span><span id="tr-total">₹0</span></div>
+  </div>
+
+  <div class="tr-card">
+    <div class="tr-card-title">Delivery address</div>
+    <div class="tr-address" id="tr-address"></div>
+  </div>
+
+  <div class="tr-card">
+    <div class="tr-card-title">Payment</div>
+    <div class="tr-address" id="tr-payment"></div>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>window.ORDER_NUMBER = "{{ order_number }}";</script>
+<script src="{{ url_for('static', filename='js/track.js') }}"></script>
+{% endblock %}
