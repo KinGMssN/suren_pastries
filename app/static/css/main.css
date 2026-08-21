@@ -22,9 +22,8 @@ a{color:inherit}
 /* ── PAGE TRANSITIONS ── */
 body{opacity:0;animation:fadeInPage .4s ease-out forwards}
 body.fade-out{animation:fadeOutPage .25s ease-in forwards}
-@keyframes fadeInPage{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeOutPage{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
-
+@keyframes fadeInPage{from{opacity:0}to{opacity:1}}
+@keyframes fadeOutPage{from{opacity:1}to{opacity:0}}
 /* ── FLOATING CART BUBBLE + TRACK-ORDER PILL (every customer page except checkout) ── */
 .floating-cart-btn{position:fixed;bottom:24px;right:24px;z-index:500;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s}
 .floating-cart-btn:hover{transform:scale(1.08)}

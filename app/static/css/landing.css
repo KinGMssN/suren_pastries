@@ -747,25 +747,21 @@
 
     @keyframes fadeInPage {
       from {
-        opacity: 0;
-        transform: translateY(12px)
+        opacity: 0
       }
 
       to {
-        opacity: 1;
-        transform: translateY(0)
+        opacity: 1
       }
     }
 
     @keyframes fadeOutPage {
       from {
-        opacity: 1;
-        transform: translateY(0)
+        opacity: 1
       }
 
       to {
-        opacity: 0;
-        transform: translateY(-12px)
+        opacity: 0
       }
     }
 
