@@ -22,12 +22,23 @@ a{color:inherit}
 /* ── PAGE TRANSITIONS ── */
 body{opacity:0;animation:fadeInPage .4s ease-out forwards}
 body.fade-out{animation:fadeOutPage .25s ease-in forwards}
-@keyframes fadeInPage{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeOutPage{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
+@keyframes fadeInPage{from{opacity:0}to{opacity:1}}
+@keyframes fadeOutPage{from{opacity:1}to{opacity:0}}
+/* ── FLOATING CART BUBBLE + TRACK-ORDER PILL (every customer page except checkout) ── */
+.floating-cart-btn{position:fixed;bottom:24px;right:24px;z-index:500;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s}
+.floating-cart-btn:hover{transform:scale(1.08)}
+.floating-badge{position:absolute;top:-4px;right:-4px;background:var(--gold);color:var(--dark);font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
+.floating-track-btn{position:fixed;bottom:24px;left:24px;z-index:500;background:var(--dark);color:#fff;padding:12px 18px;border-radius:30px;display:flex;align-items:center;gap:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s}
+.floating-track-btn:hover{transform:scale(1.04)}
+.floating-track-status{background:var(--accent);color:#fff;font-size:10px;font-weight:600;text-transform:capitalize;padding:2px 8px;border-radius:10px}
+@media(max-width:600px){
+  .floating-cart-btn{bottom:16px;right:16px;width:50px;height:50px;font-size:20px}
+  .floating-track-btn{bottom:16px;left:16px;padding:10px 14px;font-size:12px}
+}
 /* ── SHARED NAV (menu / details / cart use the light/dark bar variant) ── */
-nav.site-nav{background:var(--dark);min-height:60px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:12px}
-.logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);letter-spacing:1.5px;text-decoration:none}
+
+nav.site-nav{background:var(--dark);min-height:60px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:12px}.logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);letter-spacing:1.5px;text-decoration:none}
 .nav-links{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
 .nl{background:none;border:none;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;transition:all .2s}
 .nl:hover,.nl.active{color:#fff;background:rgba(255,255,255,.1)}

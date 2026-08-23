@@ -13,11 +13,10 @@ def index():
 
 @main_bp.route("/home")
 def home():
-    # A handful of "chef's specials" for the landing page preview strip.
     specials = (
-        MenuItem.query.filter(MenuItem.tag != "", MenuItem.is_available.is_(True))
+        MenuItem.query.filter(MenuItem.is_special.is_(True), MenuItem.is_available.is_(True))
         .order_by(MenuItem.id)
-        .limit(4)
+        .limit(8)
         .all()
     )
     return render_template("landing.html", specials=specials)
@@ -37,3 +36,28 @@ def about():
 @main_bp.route("/cart")
 def cart():
     return render_template("cart.html")
+
+
+@main_bp.route("/login")
+def login():
+    return render_template("login.html")
+
+
+@main_bp.route("/account")
+def account():
+    return render_template("account.html")
+
+
+@main_bp.route("/delivery")
+def delivery():
+    return render_template("delivery.html")
+
+
+@main_bp.route("/track/<order_number>")
+def track(order_number):
+    return render_template("track.html", order_number=order_number)
+
+
+@main_bp.route("/delivery/order/<int:order_id>")
+def delivery_order(order_id):
+    return render_template("delivery_order.html", order_id=order_id)

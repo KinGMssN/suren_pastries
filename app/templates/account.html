@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — My Account{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav class="site-nav">
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl" href="{{ url_for('main.about') }}">About</a>
+  </div>
+  <button class="nl" onclick="customerLogout()" style="cursor:pointer">Logout</button>
+</nav>
+
+<div class="acct-page">
+  <div class="acct-header">
+    <div class="acct-avatar">👤</div>
+    <div>
+      <div class="acct-header-name" id="acct-name">…</div>
+      <div class="acct-header-phone" id="acct-phone">…</div>
+    </div>
+  </div>
+
+  <div class="acct-grid">
+    <div class="acct-card">
+      <h2 class="acct-section-title">Saved addresses</h2>
+      <div id="address-list"></div>
+
+      <form onsubmit="addAddress(event)" class="acct-address-form">
+        <label class="acct-label">Label</label>
+        <input class="acct-input" type="text" id="addr-label" placeholder="Home, Work, etc." value="Home"/>
+        <label class="acct-label">Address</label>
+        <input class="acct-input" type="text" id="addr-line" placeholder="House no, street, area" required/>
+        <div class="acct-input-row">
+          <div>
+            <label class="acct-label">City</label>
+            <input class="acct-input" type="text" id="addr-city" placeholder="City"/>
+          </div>
+          <div>
+            <label class="acct-label">Pincode</label>
+            <input class="acct-input" type="text" id="addr-pincode" placeholder="Pincode"/>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;color:var(--muted)">
+          <input type="checkbox" id="addr-default" style="width:auto"/> Set as default address
+        </label>
+        <button class="acct-btn-primary" type="submit">+ Add address</button>
+      </form>
+    </div>
+
+    <div class="acct-card">
+      <h2 class="acct-section-title">Past orders</h2>
+      <div id="order-history-list"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>window.HOME_URL = "{{ url_for('main.home') }}"; window.LOGIN_URL = "{{ url_for('main.login') }}";</script>
+<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
+<script>loadAccountPage();</script>
+{% endblock %}

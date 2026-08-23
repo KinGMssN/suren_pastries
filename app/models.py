@@ -46,7 +46,10 @@ class MenuItem(db.Model):
     price = db.Column(db.Integer, nullable=False)  # stored in rupees, whole numbers
     emoji = db.Column(db.String(10), default="🍽️")
     tag = db.Column(db.String(40), default="")
-    is_available = db.Column(db.Boolean, default=True, nullable=False)
+    is_available = db.Column(db.Boolean, default=True, nullable=False)  # hidden from menu entirely when False
+    in_stock = db.Column(db.Boolean, default=True, nullable=False)      # shown but not orderable when False
+    is_special = db.Column(db.Boolean, default=False, nullable=False)   # featured on landing page "Chef's specials"
+    image_data = db.Column(db.Text, nullable=True)  # base64 data URI (data:image/png;base64,...), overrides emoji when set
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -57,10 +60,14 @@ class MenuItem(db.Model):
             "desc": self.description,
             "price": self.price,
             "emoji": self.emoji,
+            "image": self.image_data or None,
             "tag": self.tag or None,
             "category": self.category.name if self.category else None,
             "is_available": self.is_available,
+            "in_stock": self.in_stock,
+            "is_special": self.is_special,
         }
+
 
 class TeamMember(db.Model):
     __tablename__ = "team_members"
@@ -110,8 +117,63 @@ class Coupon(db.Model):
         return min(self.value, subtotal)
 
 
+class Customer(db.Model):
+    __tablename__ = "customers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    phone = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(120), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    addresses = db.relationship(
+        "CustomerAddress", backref="customer", lazy=True, cascade="all, delete-orphan"
+    )
+    orders = db.relationship("Order", backref="customer", lazy=True)
+
+    def to_dict(self, include_addresses=True):
+        d = {"id": self.id, "phone": self.phone, "name": self.name}
+        if include_addresses:
+            d["addresses"] = [a.to_dict() for a in self.addresses]
+        return d
+
+
+class CustomerAddress(db.Model):
+    __tablename__ = "customer_addresses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    label = db.Column(db.String(40), default="Home")  # e.g. Home, Work
+    address_line = db.Column(db.String(300), nullable=False)
+    city = db.Column(db.String(80), default="")
+    pincode = db.Column(db.String(12), default="")
+    is_default = db.Column(db.Boolean, default=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "label": self.label,
+            "address_line": self.address_line,
+            "city": self.city,
+            "pincode": self.pincode,
+            "is_default": self.is_default,
+        }
+
+
+class DeliveryPerson(db.Model):
+    __tablename__ = "delivery_people"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(20), default="")
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id": self.id, "name": self.name, "phone": self.phone, "active": self.active}
+
+
 ORDER_STATUSES = ["pending", "preparing", "ready", "delivered"]
-ORDER_CHANNELS = ["whatsapp", "online"]
+ORDER_CHANNELS = ["whatsapp", "online", "cod"]
 
 
 class Order(db.Model):
@@ -121,8 +183,18 @@ class Order(db.Model):
     order_number = db.Column(db.String(20), unique=True, nullable=False)
     customer_name = db.Column(db.String(120), default="Guest")
     customer_phone = db.Column(db.String(30), default="")
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)
     channel = db.Column(db.String(20), default="whatsapp")
     status = db.Column(db.String(20), default="pending")
+
+    # Snapshot of the delivery address at order time (addresses can change later)
+    delivery_address = db.Column(db.String(300), default="")
+    delivery_city = db.Column(db.String(80), default="")
+    delivery_pincode = db.Column(db.String(12), default="")
+
+    delivery_person_id = db.Column(db.Integer, db.ForeignKey("delivery_people.id"), nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    cod_collected = db.Column(db.Boolean, default=False)  # only meaningful when channel == "cod"
 
     subtotal = db.Column(db.Integer, default=0)
     delivery_fee = db.Column(db.Integer, default=0)
@@ -136,11 +208,12 @@ class Order(db.Model):
     items = db.relationship(
         "OrderItem", backref="order", lazy=True, cascade="all, delete-orphan"
     )
+    delivery_person = db.relationship("DeliveryPerson", backref="orders", lazy=True)
 
     @staticmethod
     def generate_order_number():
         return "SP" + secrets.token_hex(3).upper()
-
+    
     def item_count(self):
         return sum(i.qty for i in self.items)
 
@@ -149,11 +222,19 @@ class Order(db.Model):
             "id": self.id,
             "order_number": self.order_number,
             "customer_name": self.customer_name,
+            "customer_phone": self.customer_phone,
             "channel": self.channel,
             "status": self.status,
             "total": self.total,
             "item_count": self.item_count(),
             "created_at": self.created_at.strftime("%d %b %Y, %I:%M %p"),
+            "delivery_address": self.delivery_address,
+            "delivery_city": self.delivery_city,
+            "delivery_pincode": self.delivery_pincode,
+            "delivery_person": self.delivery_person.name if self.delivery_person else None,
+            "delivery_person_id": self.delivery_person_id,
+            "delivered_at": self.delivered_at.strftime("%d %b %Y, %I:%M %p") if self.delivered_at else None,
+            "cod_collected": self.cod_collected,
         }
 
 

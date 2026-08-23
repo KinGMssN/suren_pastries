@@ -8,6 +8,9 @@ from app.models import (
     AdminUser,
     Category,
     Coupon,
+    Customer,
+    CustomerAddress,
+    DeliveryPerson,
     MenuItem,
     Order,
     OrderItem,
@@ -54,6 +57,13 @@ def bootstrap():
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_data TEXT",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address VARCHAR(300) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_city VARCHAR(80) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_pincode VARCHAR(12) DEFAULT ''",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_person_id INTEGER REFERENCES delivery_people(id)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_collected BOOLEAN NOT NULL DEFAULT FALSE",
     ]:
         db.session.execute(text(stmt))
     db.session.commit()
@@ -162,6 +172,118 @@ def public_team():
     return jsonify([m.to_dict() for m in members])
 
 
+# ───────────────────────── customer accounts (phone-based, no password yet) ─────────────────────────
+# NOTE: this is intentionally lightweight — phone number only, no OTP/password
+# verification. A real auth step can replace /customer/login later without
+# changing the address/order-history endpoints below it.
+
+def _normalize_phone(raw):
+    return "".join(ch for ch in (raw or "") if ch.isdigit())[-10:]
+
+
+@api_bp.route("/customer/login", methods=["POST"])
+def customer_login():
+    payload = request.get_json(silent=True) or {}
+    phone = _normalize_phone(payload.get("phone"))
+    name = (payload.get("name") or "").strip()
+
+    if len(phone) != 10:
+        return error("Enter a valid 10-digit phone number.")
+    if not name:
+        return error("Name is required.")
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if customer is None:
+        customer = Customer(phone=phone, name=name)
+        db.session.add(customer)
+    else:
+        customer.name = name  # keep the name up to date on repeat logins
+    db.session.commit()
+    return jsonify({"ok": True, "customer": customer.to_dict()})
+
+
+def _get_customer_or_404(phone):
+    phone = _normalize_phone(phone)
+    customer = Customer.query.filter_by(phone=phone).first()
+    return customer
+
+
+@api_bp.route("/customer/addresses", methods=["GET", "POST"])
+def customer_addresses():
+    phone = request.args.get("phone") if request.method == "GET" else (request.get_json(silent=True) or {}).get("phone")
+    customer = _get_customer_or_404(phone)
+    if not customer:
+        return error("Please log in first.", 404)
+
+    if request.method == "GET":
+        return jsonify([a.to_dict() for a in customer.addresses])
+
+    payload = request.get_json(silent=True) or {}
+    address_line = (payload.get("address_line") or "").strip()
+    if not address_line:
+        return error("Address is required.")
+
+    if payload.get("is_default"):
+        CustomerAddress.query.filter_by(customer_id=customer.id).update({"is_default": False})
+
+    addr = CustomerAddress(
+        customer_id=customer.id,
+        label=(payload.get("label") or "Home").strip() or "Home",
+        address_line=address_line,
+        city=(payload.get("city") or "").strip(),
+        pincode=(payload.get("pincode") or "").strip(),
+        is_default=bool(payload.get("is_default")) or len(customer.addresses) == 0,
+    )
+    db.session.add(addr)
+    db.session.commit()
+    return jsonify({"ok": True, "address": addr.to_dict()}), 201
+
+
+@api_bp.route("/customer/addresses/<int:address_id>", methods=["PUT", "DELETE"])
+def customer_address_detail(address_id):
+    addr = CustomerAddress.query.get_or_404(address_id)
+
+    if request.method == "DELETE":
+        db.session.delete(addr)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    payload = request.get_json(silent=True) or {}
+    if "label" in payload:
+        addr.label = payload["label"].strip() or addr.label
+    if "address_line" in payload:
+        addr.address_line = payload["address_line"].strip()
+    if "city" in payload:
+        addr.city = payload["city"].strip()
+    if "pincode" in payload:
+        addr.pincode = payload["pincode"].strip()
+    if payload.get("is_default"):
+        CustomerAddress.query.filter_by(customer_id=addr.customer_id).update({"is_default": False})
+        addr.is_default = True
+
+    db.session.commit()
+    return jsonify({"ok": True, "address": addr.to_dict()})
+
+
+@api_bp.route("/customer/orders")
+def customer_orders():
+    customer = _get_customer_or_404(request.args.get("phone"))
+    if not customer:
+        return error("Please log in first.", 404)
+
+    orders = (
+        Order.query.filter_by(customer_id=customer.id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    result = []
+    for o in orders:
+        d = o.to_dict()
+        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
+        result.append(d)
+    return jsonify(result)
+
+
 # ───────────────────────── public: menu ─────────────────────────
 
 @api_bp.route("/menu")
@@ -202,16 +324,28 @@ def apply_coupon():
 # ───────────────────────── public: checkout ─────────────────────────
 
 @api_bp.route("/checkout", methods=["POST"])
+
 def checkout():
     payload = request.get_json(silent=True) or {}
     cart_items = payload.get("items") or []
     channel = payload.get("channel", "whatsapp")
     coupon_code = (payload.get("coupon_code") or "").strip().upper() or None
-    customer_name = (payload.get("customer_name") or "Guest").strip()[:120]
-    customer_phone = (payload.get("customer_phone") or "").strip()[:30]
+    phone = _normalize_phone(payload.get("phone"))
+    address_id = payload.get("address_id")
 
     if not cart_items:
         return error("Your cart is empty.")
+    if len(phone) != 10:
+        return error("Please log in to place an order.", 401)
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if not customer:
+        return error("Please log in to place an order.", 401)
+
+    address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
+    if not address:
+        return error("Please select a delivery address.")
+
     if channel not in ORDER_CHANNELS:
         channel = "whatsapp"
 
@@ -230,10 +364,14 @@ def checkout():
 
     order = Order(
         order_number=Order.generate_order_number(),
-        customer_name=customer_name or "Guest",
-        customer_phone=customer_phone,
+        customer_name=customer.name or "Guest",
+        customer_phone=customer.phone,
+        customer_id=customer.id,
         channel=channel,
         status="pending",
+        delivery_address=address.address_line,
+        delivery_city=address.city,
+        delivery_pincode=address.pincode,
         subtotal=subtotal,
         delivery_fee=delivery_fee,
         tax=tax,
@@ -243,7 +381,7 @@ def checkout():
     )
     db.session.add(order)
     db.session.flush()  # get order.id before adding items
-
+    
     for i in cart_items:
         db.session.add(
             OrderItem(
@@ -256,7 +394,7 @@ def checkout():
             )
         )
 
-    db.session.commit()
+        db.session.commit()
 
     return jsonify(
         {
@@ -265,6 +403,28 @@ def checkout():
             "total": order.total,
         }
     )
+
+
+# ───────────────────────── public: order tracking ─────────────────────────
+# The order_number itself (random 6-char code) acts as the access token —
+# no login needed to check on an order you just placed.
+
+@api_bp.route("/orders/track/<order_number>")
+def track_order(order_number):
+    order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
+    if not order:
+        return error("Order not found. Check the order number and try again.", 404)
+    d = order.to_dict()
+    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
+    return jsonify(d)
+
+
+@api_bp.route("/delivery/orders/<int:order_id>")
+def delivery_order_detail(order_id):
+    order = Order.query.get_or_404(order_id)
+    d = order.to_dict()
+    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
+    return jsonify(d)
 
 
 # ═══════════════════════ ADMIN JSON API (login required) ═══════════════════════
@@ -389,6 +549,7 @@ def admin_menu_item(item_id):
     item = MenuItem.query.get_or_404(item_id)
 
     if request.method == "DELETE":
+        OrderItem.query.filter_by(menu_item_id=item.id).update({"menu_item_id": None})
         db.session.delete(item)
         db.session.commit()
         return jsonify({"ok": True})
@@ -584,3 +745,116 @@ def admin_team_member(member_id):
 
     db.session.commit()
     return jsonify({"ok": True, "member": member.to_dict()})
+
+
+
+# ── Delivery staff roster (admin manages who's on the team) ──
+
+@api_bp.route("/admin/delivery-people", methods=["GET", "POST"])
+@login_required
+def admin_delivery_people():
+    if request.method == "GET":
+        people = DeliveryPerson.query.order_by(DeliveryPerson.name).all()
+        return jsonify([p.to_dict() for p in people])
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return error("Name is required.")
+
+    person = DeliveryPerson(
+        name=name,
+        phone=(payload.get("phone") or "").strip(),
+        active=True,
+    )
+    db.session.add(person)
+    db.session.commit()
+    return jsonify({"ok": True, "person": person.to_dict()}), 201
+
+
+@api_bp.route("/admin/delivery-people/<int:person_id>", methods=["PUT", "DELETE"])
+@login_required
+def admin_delivery_person_detail(person_id):
+    person = DeliveryPerson.query.get_or_404(person_id)
+
+    if request.method == "DELETE":
+        db.session.delete(person)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    payload = request.get_json(silent=True) or {}
+    if "name" in payload:
+        person.name = payload["name"].strip()
+    if "phone" in payload:
+        person.phone = payload["phone"].strip()
+
+    db.session.commit()
+    return jsonify({"ok": True, "person": person.to_dict()})
+
+
+@api_bp.route("/admin/delivery-people/<int:person_id>/toggle", methods=["POST"])
+@login_required
+def admin_toggle_delivery_person(person_id):
+    person = DeliveryPerson.query.get_or_404(person_id)
+    person.active = not person.active
+    db.session.commit()
+    return jsonify({"ok": True, "active": person.active})
+
+
+# ═══════════════════════ DELIVERY PORTAL (no login yet═══════════════════════
+
+@api_bp.route("/delivery/people")
+def delivery_people_list():
+    people = DeliveryPerson.query.filter_by(active=True).order_by(DeliveryPerson.name).all()
+    return jsonify([p.to_dict() for p in people])
+
+
+@api_bp.route("/delivery/orders")
+def delivery_orders_list():
+    """Orders that still need delivering (not yet marked delivered),
+    optionally filtered to a specific delivery person via ?assigned_to=<id>."""
+    assigned_to = request.args.get("assigned_to")
+    q = Order.query.filter(Order.status != "delivered")
+    if assigned_to:
+        q = q.filter(Order.delivery_person_id == int(assigned_to))
+    orders = q.order_by(Order.created_at.asc()).all()
+
+    result = []
+    for o in orders:
+        d = o.to_dict()
+        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
+        result.append(d)
+    return jsonify(result)
+
+
+@api_bp.route("/delivery/orders/<int:order_id>/assign", methods=["POST"])
+def delivery_assign_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    payload = request.get_json(silent=True) or {}
+    person_id = payload.get("delivery_person_id")
+    person = DeliveryPerson.query.get(person_id) if person_id else None
+    if not person:
+        return error("Select who you are first.")
+
+    order.delivery_person_id = person.id
+    if order.status == "pending":
+        order.status = "preparing"
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/delivery/orders/<int:order_id>/deliver", methods=["POST"])
+def delivery_mark_delivered(order_id):
+    order = Order.query.get_or_404(order_id)
+    payload = request.get_json(silent=True) or {}
+
+    if payload.get("delivery_person_id"):
+        order.delivery_person_id = payload["delivery_person_id"]
+
+    order.status = "delivered"
+    order.delivered_at = datetime.utcnow()
+    if order.channel == "cod":
+        order.cod_collected = bool(payload.get("cod_collected"))
+
+    db.session.commit()
+    return jsonify({"ok": True})

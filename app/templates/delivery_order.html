@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Order Detail{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/delivery.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/track.css') }}">
+{% endblock %}
+{% block body %}
+
+<div class="do-page">
+  <div class="do-header">
+    <div class="do-order-num">📦 Order Detail</div>
+  </div>
+  <div id="do-content">
+    <p class="dl-empty">Loading…</p>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>window.ORDER_ID = {{ order_id }};</script>
+<script src="{{ url_for('static', filename='js/delivery-order.js') }}"></script>
+{% endblock %}

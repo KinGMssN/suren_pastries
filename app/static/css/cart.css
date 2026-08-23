@@ -72,6 +72,15 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 .co-online:hover{background:#a83e1e;transform:translateY(-1px)}
 .co-wa{background:var(--success);color:#fff}
 .co-wa:hover{background:#1da851;transform:translateY(-1px)}
+.co-cod{background:var(--dark);color:#fff}
+.co-cod:hover{background:#000;transform:translateY(-1px)}
+
+/* LOGIN PROMPT + ADDRESS PICKER (shown in #checkout-area) */
+.login-prompt{margin-top:20px;padding:18px;background:var(--cream);border-radius:10px;text-align:center}
+.login-prompt p{font-size:13px;color:var(--muted);margin-bottom:12px}
+.addr-picker{margin-top:20px}
+.addr-picker .acct-label{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px}
+.addr-picker .acct-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
 
 /* MODAL OVERLAY */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center}
@@ -89,9 +98,8 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 /* ── SMOOTH TRANSITIONS ── */
 body{opacity:0;animation:fadeInPage 0.4s ease-out forwards}
 body.fade-out{animation:fadeOutPage 0.25s ease-in forwards}
-@keyframes fadeInPage{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeOutPage{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
-
+@keyframes fadeInPage{from{opacity:0}to{opacity:1}}
+@keyframes fadeOutPage{from{opacity:1}to{opacity:0}}
 /* ── MOBILE EDITION RESPONSIVENESS ── */
 @media (max-width: 768px) {
   nav {

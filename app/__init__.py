@@ -44,38 +44,7 @@ def create_app(config_class=Config):
             try:
                 return SiteContent.get(key, default)
             except Exception:
-                # DB may not be initialized yet (e.g. first run before migrate)
                 return default
         return {"content": content}
-
-    # ── Security headers on every response ──
-    # CSP allows 'unsafe-inline' for scripts/styles because the site relies
-    # heavily on inline <script> blocks and style="..." attributes — locking
-    # that down would require rewriting every template. This still blocks
-    # framing (clickjacking), restricts which origins can load resources,
-    # and forces HTTPS going forward.
-    @app.after_request
-    def set_security_headers(response):
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
-        )
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self';"
-        )
-        return response
 
     return app

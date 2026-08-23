@@ -21,11 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
 from app.extensions import db
-from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent
+from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent, TeamMember
 
 MENU_DATA = {
     "Starters": [
-        dict(name="Paneer Tikka", description="Chargrilled cottage cheese with spiced marinade and mint chutney", price=180, emoji="🍢", tag="Popular"),
+        dict(name="Paneer Tikka", description="Chargrilled cottage cheese with spiced marinade and mint chutney", price=180, emoji="🍢", tag="Popular", is_special=True),
         dict(name="Veg Spring Rolls", description="Crispy golden rolls with seasoned vegetable filling", price=120, emoji="🥢", tag=""),
         dict(name="Chicken 65", description="Spicy deep-fried chicken bites, South Indian style", price=220, emoji="🍗", tag="Spicy"),
         dict(name="Gobi Manchurian", description="Crispy cauliflower in Indo-Chinese sauce", price=150, emoji="🥦", tag=""),
@@ -33,12 +33,12 @@ MENU_DATA = {
         dict(name="Fish Fry", description="Coastal style marinated fish, pan seared", price=260, emoji="🐟", tag="Special"),
     ],
     "Mains": [
-        dict(name="Butter Chicken", description="Rich tomato-cream gravy with tender chicken pieces", price=280, emoji="🍛", tag="Bestseller"),
+        dict(name="Butter Chicken", description="Rich tomato-cream gravy with tender chicken pieces", price=280, emoji="🍛", tag="Bestseller", is_special=True),
         dict(name="Dal Makhani", description="Slow-cooked black lentils in buttery tomato sauce", price=200, emoji="🫘", tag=""),
-        dict(name="Biryani Dum", description="Fragrant basmati rice layered with whole spices", price=320, emoji="🍚", tag="Popular"),
+        dict(name="Biryani Dum", description="Fragrant basmati rice layered with whole spices", price=320, emoji="🍚", tag="Popular", is_special=True),
         dict(name="Palak Paneer", description="Creamed spinach with soft cottage cheese cubes", price=240, emoji="🥬", tag=""),
         dict(name="Chicken Curry", description="Traditional South Indian style coconut curry", price=270, emoji="🍲", tag=""),
-        dict(name="Mutton Rogan Josh", description="Slow-braised mutton in Kashmiri aromatic sauce", price=380, emoji="🥘", tag="Chef's pick"),
+        dict(name="Mutton Rogan Josh", description="Slow-braised mutton in Kashmiri aromatic sauce", price=380, emoji="🥘", tag="Chef's pick", is_special=True),
         dict(name="Chole Bhature", description="Spiced chickpeas with deep-fried fluffy bread", price=180, emoji="🫕", tag=""),
         dict(name="Mixed Veg Curry", description="Seasonal vegetables in rustic masala gravy", price=190, emoji="🥗", tag=""),
     ],
@@ -51,7 +51,7 @@ MENU_DATA = {
     ],
     "Desserts": [
         dict(name="Gulab Jamun", description="Soft milk-solid dumplings soaked in rose syrup", price=90, emoji="🍮", tag="Classic"),
-        dict(name="Kulfi Falooda", description="Indian ice cream with vermicelli and rose syrup", price=130, emoji="🍨", tag="Special"),
+        dict(name="Kulfi Falooda", description="Indian ice cream with vermicelli and rose syrup", price=130, emoji="🍨", tag="Special", is_special=True),
         dict(name="Rasgulla", description="Spongy cottage cheese balls in light sugar syrup", price=95, emoji="🍡", tag=""),
         dict(name="Kheer", description="Slow-cooked rice pudding with cardamom and nuts", price=100, emoji="🍚", tag=""),
         dict(name="Halwa", description="Semolina pudding with ghee, nuts and saffron", price=110, emoji="🟡", tag=""),
@@ -65,6 +65,13 @@ MENU_DATA = {
         dict(name="Fresh Juice", description="Seasonal fruit — ask server for today's options", price=80, emoji="🧃", tag=""),
     ],
 }
+
+TEAM_DATA = [
+    dict(name="Ravi Kumar", role="Head Chef & Founder", avatar_emoji="👨‍🍳"),
+    dict(name="Lakshmi Devi", role="Executive Chef", avatar_emoji="👩‍🍳"),
+    dict(name="Arjun Rao", role="Restaurant Manager", avatar_emoji="👨‍💼"),
+    dict(name="Priya Sharma", role="Customer Experience", avatar_emoji="👩‍💼"),
+]
 
 DEFAULT_CONTENT = {
     "phone_display": "090327 17635",
@@ -121,6 +128,14 @@ def run():
             print("Seeded starter coupons SUREN20 and FLAT50.")
         else:
             print("Coupons already exist — skipped coupon seeding.")
+
+        # 3b. Team members
+        if TeamMember.query.count() == 0:
+            for order, member in enumerate(TEAM_DATA):
+                db.session.add(TeamMember(sort_order=order, **member))
+            print(f"Seeded {len(TEAM_DATA)} team members.")
+        else:
+            print("Team members already exist — skipped team seeding.")
 
         # 4. Site content
         for key, value in DEFAULT_CONTENT.items():
