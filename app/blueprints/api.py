@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 
-from app.extensions import db
+from app.extensions import db,limiter
 from app.models import (
     AdminUser,
     Category,
@@ -118,6 +118,7 @@ def bootstrap():
 # ───────────────────────── auth (JSON, for the static frontend) ─────────────────────────
 
 @api_bp.route("/auth/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def auth_login():
     payload = request.get_json(silent=True) or {}
     username = (payload.get("username") or "").strip()
@@ -182,6 +183,7 @@ def _normalize_phone(raw):
 
 
 @api_bp.route("/customer/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def customer_login():
     payload = request.get_json(silent=True) or {}
     phone = _normalize_phone(payload.get("phone"))
@@ -324,6 +326,7 @@ def apply_coupon():
 # ───────────────────────── public: checkout ─────────────────────────
 
 @api_bp.route("/checkout", methods=["POST"])
+@limiter.limit("10 per minute")
 
 def checkout():
     payload = request.get_json(silent=True) or {}

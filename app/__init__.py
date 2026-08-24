@@ -2,7 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from config import Config
-from app.extensions import db, login_manager
+from app.extensions import db, login_manager,limiter
 
 
 def create_app(config_class=Config):
@@ -11,7 +11,8 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     login_manager.init_app(app)
-
+    limiter.init_app(app)
+    
     # The frontend now lives on a different origin (GitHub Pages), so the
     # browser needs explicit permission to send/receive the admin session
     # cookie cross-site. FRONTEND_ORIGIN is set in Render's environment,
