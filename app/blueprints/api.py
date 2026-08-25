@@ -1,3 +1,5 @@
+import base64
+import re
 from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
@@ -27,6 +29,36 @@ api_bp = Blueprint("api", __name__)
 
 def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
+
+
+# ───────────────────────── image upload validation ─────────────────────────
+# Photos are uploaded as base64 data URIs (no server-side file storage —
+# see the note in models.py). Validate them server-side rather than trusting
+# whatever the browser's <input type="file" accept="..."> claims, since that
+# attribute is purely a UI hint and is trivially bypassed.
+
+ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg"}
+MAX_IMAGE_BYTES = 2 * 1024 * 1024  # 2MB
+
+
+def validate_image_data_uri(data_uri):
+    """Returns None if the value is empty or a valid small PNG/JPG data URI.
+    Returns an error message string otherwise."""
+    if not data_uri:
+        return None
+    match = re.match(r"^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$", data_uri, re.DOTALL)
+    if not match:
+        return "Invalid image format — please upload a PNG or JPG."
+    mime_type, b64data = match.group(1).lower(), match.group(2)
+    if mime_type not in ALLOWED_IMAGE_TYPES:
+        return f"Unsupported image type ({mime_type}) — please use PNG or JPG."
+    try:
+        raw = base64.b64decode(b64data, validate=True)
+    except Exception:
+        return "Could not read that image — please try a different file."
+    if len(raw) > MAX_IMAGE_BYTES:
+        return f"Image is too large ({len(raw) // 1024}KB) — please use one under {MAX_IMAGE_BYTES // (1024 * 1024)}MB."
+    return None
 
 
 # ───────────────────────── one-time remote bootstrap ─────────────────────────
@@ -523,6 +555,10 @@ def admin_menu_collection():
     if not name or price is None or not category_name:
         return error("Name, price and category are required.")
 
+    img_error = validate_image_data_uri(payload.get("image"))
+    if img_error:
+        return error(img_error)
+
     category = Category.query.filter_by(name=category_name).first()
     if not category:
         category = Category(name=category_name, sort_order=Category.query.count())
@@ -558,6 +594,10 @@ def admin_menu_item(item_id):
         return jsonify({"ok": True})
 
     payload = request.get_json(silent=True) or {}
+    if "image" in payload:
+        img_error = validate_image_data_uri(payload["image"])
+        if img_error:
+            return error(img_error)
     if "name" in payload:
         item.name = payload["name"].strip()
     if "description" in payload:
@@ -714,6 +754,10 @@ def admin_team_collection():
     if not name:
         return error("Name is required.")
 
+    img_error = validate_image_data_uri(payload.get("photo"))
+    if img_error:
+        return error(img_error)
+
     member = TeamMember(
         name=name,
         role=(payload.get("role") or "").strip(),
@@ -737,6 +781,10 @@ def admin_team_member(member_id):
         return jsonify({"ok": True})
 
     payload = request.get_json(silent=True) or {}
+    if "photo" in payload:
+        img_error = validate_image_data_uri(payload["photo"])
+        if img_error:
+            return error(img_error)
     if "name" in payload:
         member.name = payload["name"].strip()
     if "role" in payload:
