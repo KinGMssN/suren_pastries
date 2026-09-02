@@ -1,7 +1,8 @@
 async function loadOrderDetail() {
   const box = document.getElementById('do-content');
+  const orderId = document.body.dataset.orderId;
   try {
-    const res = await fetch('/api/delivery/orders/' + window.ORDER_ID);
+    const res = await fetch('/api/delivery/orders/' + orderId);
     const o = await res.json();
     if (!res.ok) { box.innerHTML = `<p class="dl-empty">${o.error || 'Order not found'}</p>`; return; }
 
@@ -29,7 +30,7 @@ async function loadOrderDetail() {
       </div>
       ${alreadyDelivered
         ? `<p class="dl-empty">This order has already been marked delivered.</p>`
-        : `<button class="dl-btn dl-btn-deliver" style="width:100%;padding:14px" onclick="markDeliveredFromDetail(${o.id}, ${o.channel === 'cod'})">Mark delivered</button>`
+        : `<button class="dl-btn dl-btn-deliver" style="width:100%;padding:14px" data-action="mark-delivered-detail" data-id="${o.id}" data-cod="${o.channel === 'cod'}">Mark delivered</button>`
       }
     `;
   } catch (err) {
@@ -51,5 +52,12 @@ async function markDeliveredFromDetail(orderId, isCod) {
     loadOrderDetail();
   } catch (err) { alert('Could not update order.'); }
 }
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (el.dataset.action === 'mark-delivered-detail') {
+    markDeliveredFromDetail(parseInt(el.dataset.id, 10), el.dataset.cod === 'true');
+  }
+});
 
 loadOrderDetail();

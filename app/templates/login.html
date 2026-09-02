@@ -22,7 +22,7 @@
 
     <div id="login-error" class="acct-error" style="display:none"></div>
 
-    <form onsubmit="customerLogin(event)">
+      <form id="login-form">
       <label class="acct-label">Phone number</label>
       <input class="acct-input" type="tel" id="login-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}"/>
       <label class="acct-label">Your name</label>
@@ -34,9 +34,6 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script>
-  window.AFTER_LOGIN_URL = "{{ url_for('main.account') }}";
-</script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
 {% endblock %}
