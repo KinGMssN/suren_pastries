@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 {% block page_css %}{% endblock %}
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
 {% block body %}{% endblock %}
 
 <script src="{{ url_for('static', filename='js/transitions.js') }}"></script>

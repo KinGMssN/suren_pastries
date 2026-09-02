@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Suren Pastries — Track Order{% endblock %}
+{% block body_attrs %} data-order-number="{{ order_number }}"{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/track.css') }}">
 {% endblock %}
@@ -43,7 +44,6 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script>window.ORDER_NUMBER = "{{ order_number }}";</script>
 <script src="{{ url_for('static', filename='js/track.js') }}"></script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>

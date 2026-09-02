@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Suren Pastries — Order Detail{% endblock %}
+{% block body_attrs %} data-order-id="{{ order_id }}"{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/delivery.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/track.css') }}">
@@ -16,6 +17,5 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script>window.ORDER_ID = {{ order_id }};</script>
 <script src="{{ url_for('static', filename='js/delivery-order.js') }}"></script>
 {% endblock %}

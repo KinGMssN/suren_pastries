@@ -1,9 +1,10 @@
 const STAGES = ['pending', 'preparing', 'ready', 'delivered'];
 const STAGE_LABELS = { pending: 'Order placed', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' };
+const ORDER_NUMBER = document.body.dataset.orderNumber;
 
 async function loadTrackedOrder() {
   try {
-    const res = await fetch('/api/orders/track/' + window.ORDER_NUMBER);
+    const res = await fetch('/api/orders/track/' + ORDER_NUMBER);
     const order = await res.json();
     if (!res.ok) {
       document.getElementById('tr-message').textContent = 'Order not found';
