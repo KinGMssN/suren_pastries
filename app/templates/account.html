@@ -12,7 +12,7 @@
     <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
     <a class="nl" href="{{ url_for('main.about') }}">About</a>
   </div>
-  <button class="nl" onclick="customerLogout()" style="cursor:pointer">Logout</button>
+  <button class="nl" data-action="logout" style="cursor:pointer">Logout</button>
 </nav>
 
 <div class="acct-page">
@@ -26,7 +26,7 @@
 
   <div class="acct-grid">
     <div class="acct-card">
-      <h2 class="acct-section-title">Saved addresses</h2>
+      <form id="add-address-form" class="acct-address-form">
       <div id="address-list"></div>
 
       <form onsubmit="addAddress(event)" class="acct-address-form">
@@ -59,8 +59,6 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script>window.HOME_URL = "{{ url_for('main.home') }}"; window.LOGIN_URL = "{{ url_for('main.login') }}";</script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
-<script>loadAccountPage();</script>
 {% endblock %}

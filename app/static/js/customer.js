@@ -29,12 +29,12 @@ function updateAccountNav() {
     link.classList.remove('guest');
     link.textContent = customer.name.trim().charAt(0).toUpperCase() || '👤';
     link.title = customer.name;
-    link.href = window.ACCOUNT_URL || 'account.html';
+    link.href = '/account';
   } else {
     link.classList.add('guest');
     link.textContent = '👤';
     link.title = 'Log in';
-    link.href = window.LOGIN_URL || 'login.html';
+    link.href = '/login';
   }
 }
 
@@ -58,7 +58,7 @@ async function customerLogin(event) {
       return;
     }
     setCustomer(data.customer);
-    window.location.href = window.AFTER_LOGIN_URL || 'account.html';
+    window.location.href = '/account';
   } catch (err) {
     if (errBox) { errBox.textContent = 'Could not reach the server. Please try again.'; errBox.style.display = 'block'; }
   }
@@ -66,13 +66,13 @@ async function customerLogin(event) {
 
 function customerLogout() {
   clearCustomer();
-  window.location.href = window.HOME_URL || 'landing.html';
+  window.location.href = '/home';
 }
 
 // ───────────────────────── account page ─────────────────────────
 async function loadAccountPage() {
   const customer = getCustomer();
-  if (!customer) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
+  if (!customer) { window.location.href = '/login'; return; }
 
   const nameEl = document.getElementById('acct-name');
   const phoneEl = document.getElementById('acct-phone');
@@ -98,10 +98,10 @@ async function loadAddresses() {
       <div class="addr-card" data-id="${a.id}">
         <div class="addr-top">
           <strong>${a.label}</strong>
-          ${a.is_default ? '<span class="addr-default">Default</span>' : `<button class="addr-link-btn" onclick="setDefaultAddress(${a.id})">Set default</button>`}
+          ${a.is_default ? '<span class="addr-default">Default</span>' : `<button class="addr-link-btn" data-action="set-default-address" data-id="${a.id}">Set default</button>`}
         </div>
         <div class="addr-text">${a.address_line}${a.city ? ', ' + a.city : ''}${a.pincode ? ' - ' + a.pincode : ''}</div>
-        <button class="addr-link-btn" onclick="deleteAddress(${a.id})">Delete</button>
+        <button class="addr-link-btn" data-action="delete-address" data-id="${a.id}">Delete</button>
       </div>
     `).join('');
   } catch (err) {
@@ -184,4 +184,24 @@ async function loadOrderHistory() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', updateAccountNav);
+// ───────────────────────── event delegation ─────────────────────────
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const id = el.dataset.id ? parseInt(el.dataset.id, 10) : null;
+  switch (el.dataset.action) {
+    case 'logout': customerLogout(); break;
+    case 'set-default-address': setDefaultAddress(id); break;
+    case 'delete-address': deleteAddress(id); break;
+  }
+});
+
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'login-form') customerLogin(e);
+  if (e.target.id === 'add-address-form') addAddress(e);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateAccountNav();
+  if (document.getElementById('address-list')) loadAccountPage();
+});
