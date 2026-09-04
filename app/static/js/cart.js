@@ -16,13 +16,13 @@ async function render() {
   document.getElementById('item-count').textContent = count ? `${count} item${count > 1 ? 's' : ''} in your cart` : 'Your cart is empty';
 
   if (!cart.length) {
-    card.innerHTML = `<div class="empty"><div class="empty-big">🛒</div><h3>Your cart is empty</h3><p>Add some delicious items from our menu</p><a class="btn-p" href="${window.MENU_URL}">Browse menu</a></div>`;
+    card.innerHTML = `<div class="empty"><div class="empty-big">🛒</div><h3>Your cart is empty</h3><p>Add some delicious items from our menu</p><a class="btn-p" href="/menu">Browse menu</a></div>`;
     sum.style.display = 'none';
     return;
   }
   sum.style.display = 'block';
   card.innerHTML = `
-    <div class="items-card-head"><h3>Items (${count})</h3><button class="clear-btn" onclick="clearCart()">Clear all</button></div>
+    <div class="items-card-head"><h3>Items (${count})</h3><button class="clear-btn" data-action="clear-cart">Clear all</button></div>
     ${cart.map(i => `
       <div class="cart-item">
         <div class="ci-emoji">${i.emoji}</div>
@@ -33,12 +33,12 @@ async function render() {
         <div class="ci-right">
           <div class="ci-price">₹${i.price * i.qty}</div>
           <div class="qty-ctrl">
-            <button class="qb" onclick="change(${i.id},-1)">−</button>
+            <button class="qb" data-action="change-qty" data-id="${i.id}" data-delta="-1">−</button>
             <div class="qn">${i.qty}</div>
-            <button class="qb" onclick="change(${i.id},1)">+</button>
+            <button class="qb" data-action="change-qty" data-id="${i.id}" data-delta="1">+</button>
           </div>
         </div>
-        <button class="del-btn" onclick="remove(${i.id})">🗑</button>
+        <button class="del-btn" data-action="remove-item" data-id="${i.id}">🗑</button>
       </div>
     `).join('')}
   `;
@@ -48,8 +48,8 @@ async function render() {
 
 function updateSummary() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const delivery = sub >= window.FREE_DELIVERY_THRESHOLD ? 0 : window.DELIVERY_FEE;
-  const tax = Math.round(sub * window.TAX_RATE);
+  const delivery = sub >= 499 ? 0 : 40;
+  const tax = Math.round(sub * 0.05);
   const total = Math.max(sub + delivery + tax - discountAmt, 0);
   document.getElementById('subtotal').textContent = '₹' + sub;
   document.getElementById('delivery').textContent = delivery === 0 ? 'FREE' : '₹' + delivery;
@@ -74,7 +74,7 @@ async function renderCheckoutArea() {
     area.innerHTML = `
       <div class="login-prompt">
         <p>Log in to save your address and place an order.</p>
-        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="${window.LOGIN_URL || 'login.html'}">Log in to checkout</a>
+        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="/login">Log in to checkout</a>
       </div>
     `;
     return;
@@ -91,7 +91,7 @@ async function renderCheckoutArea() {
     area.innerHTML = `
       <div class="login-prompt">
         <p>Add a delivery address to your account before checking out.</p>
-        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="${window.ACCOUNT_URL || 'account.html'}">Add an address</a>
+        <a class="acct-btn-primary" style="display:block;text-align:center;text-decoration:none" href="/account">Add an address</a>
       </div>
     `;
     return;
@@ -105,14 +105,14 @@ async function renderCheckoutArea() {
   area.innerHTML = `
     <div class="addr-picker">
       <label class="acct-label">Deliver to</label>
-      <select class="acct-input" id="address-select" onchange="selectedAddressId=parseInt(this.value)">
+      <select class="acct-input" id="address-select" data-action="select-address">
         ${addresses.map(a => `<option value="${a.id}" ${a.id === selectedAddressId ? 'selected' : ''}>${a.label} — ${a.address_line}${a.city ? ', ' + a.city : ''}</option>`).join('')}
       </select>
     </div>
     <div class="checkout-stack">
-      <button class="co-btn co-wa" onclick="checkout('whatsapp')">💬 Order via WhatsApp</button>
-      <button class="co-btn co-online" onclick="checkout('online')">💳 Pay online</button>
-      <button class="co-btn co-cod" onclick="checkout('cod')">💵 Cash on delivery</button>
+      <button class="co-btn co-wa" data-action="checkout" data-method="whatsapp">💬 Order via WhatsApp</button>
+      <button class="co-btn co-online" data-action="checkout" data-method="online">💳 Pay online</button>
+      <button class="co-btn co-cod" data-action="checkout" data-method="cod">💵 Cash on delivery</button>
     </div>
   `;
 }
@@ -151,7 +151,7 @@ async function applyCoupon() {
 async function checkout(method) {
   if (!cart.length) return;
   const customer = typeof getCustomer === 'function' ? getCustomer() : null;
-  if (!customer) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
+  if (!customer) { window.location.href = '/login'; return; }
   if (!selectedAddressId) { alert('Please select a delivery address.'); return; }
 
   try {
@@ -168,12 +168,12 @@ async function checkout(method) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      if (res.status === 401) { window.location.href = window.LOGIN_URL || 'login.html'; return; }
+      if (res.status === 401) { window.location.href = '/login'; return; }
       alert(data.error || 'Something went wrong placing your order.');
       return;
     }
 
-        cart = []; discountAmt = 0; appliedCoupon = null;
+    cart = []; discountAmt = 0; appliedCoupon = null;
     save();
     window.location.href = '/track/' + data.order_number;
   } catch (err) {
@@ -185,7 +185,30 @@ function closeModal() {
   document.getElementById('overlay').classList.remove('show');
   cart = []; discountAmt = 0; appliedCoupon = null;
   save(); render();
-  location.href = window.HOME_URL;
+  location.href = '/home';
 }
+
+// ───────────────────────── event delegation ─────────────────────────
+// Dynamically-generated buttons use data-action instead of onclick="...",
+// since inline event handlers are blocked by this site's CSP.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  switch (el.dataset.action) {
+    case 'clear-cart': clearCart(); break;
+    case 'change-qty': change(parseInt(el.dataset.id, 10), parseInt(el.dataset.delta, 10)); break;
+    case 'remove-item': remove(parseInt(el.dataset.id, 10)); break;
+    case 'checkout': checkout(el.dataset.method); break;
+    case 'apply-coupon': applyCoupon(); break;
+    case 'close-modal': closeModal(); break;
+  }
+});
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (el.dataset.action === 'select-address') {
+    selectedAddressId = parseInt(el.value, 10);
+  }
+});
 
 render();

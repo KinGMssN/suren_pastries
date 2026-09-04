@@ -37,7 +37,7 @@
 
         <div class="coupon-row">
           <input class="coupon-input" type="text" id="coupon" placeholder="Promo code" />
-          <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
+          <button class="coupon-btn" data-action="apply-coupon">Apply</button>
         </div>
 
                 <div id="checkout-area"></div>
@@ -55,20 +55,11 @@
     <div class="modal-icon" id="modal-icon">✅</div>
     <div class="modal-title" id="modal-title">Order placed!</div>
     <div class="modal-sub" id="modal-sub">Your order has been confirmed. We'll get it ready right away!</div>
-    <button class="modal-btn" onclick="closeModal()">Back to home</button>
+    <button class="modal-btn" data-action="close-modal">Back to home</button>
   </div>
 </div>
 {% endblock %}
 {% block page_js %}
-<script>
-  window.MENU_URL = "{{ url_for('main.menu') }}";
-  window.HOME_URL = "{{ url_for('main.home') }}";
-  window.LOGIN_URL = "{{ url_for('main.login') }}";
-  window.ACCOUNT_URL = "{{ url_for('main.account') }}";
-  window.FREE_DELIVERY_THRESHOLD = 499;
-  window.DELIVERY_FEE = 40;
-  window.TAX_RATE = 0.05;
-</script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 {% endblock %}
