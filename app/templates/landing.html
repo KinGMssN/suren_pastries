@@ -93,7 +93,7 @@
         <div class="dish-desc">{{ d.description }}</div>
         <div class="dish-foot">
           <div class="dish-price">₹{{ d.price }}</div>
-          <button class="dish-add" onclick="addCart(event, {{ d.id }}, {{ d.name|tojson }}, {{ d.price }}, {{ d.emoji|tojson }})">+ Add</button>
+          <button class="dish-add" data-action="add-cart" data-id="{{ d.id }}" data-name="{{ d.name }}" data-price="{{ d.price }}" data-emoji="{{ d.emoji }}">+ Add</button>
         </div>
       </div>
     </div>

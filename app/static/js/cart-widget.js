@@ -1,7 +1,7 @@
 // Shared "add to cart" logic used on the landing page and the menu page.
 // Cart is kept in localStorage so it persists across pages without a login.
 
-function addCart(event, id, name, price, emoji) {
+function addCart(el, id, name, price, emoji) {
   let cart = JSON.parse(localStorage.getItem('surenPastriesCart')) || [];
   let existing = cart.find(i => i.id === id);
   if (existing) { existing.qty++; }
@@ -13,8 +13,8 @@ function addCart(event, id, name, price, emoji) {
   const cc = document.getElementById('ccount');
   if (cc) cc.textContent = cartCount;
 
-  if (event && event.currentTarget) {
-    const btn = event.currentTarget;
+  if (el) {
+    const btn = el;
     const oldText = btn.textContent;
     btn.textContent = '✓ Added';
     btn.style.background = '#4CAF50';
@@ -38,3 +38,17 @@ function updateFC() {
     else { fc.style.display = 'none'; }
   }
 }
+
+// base64-encode small objects for safe embedding in data-* attributes
+function encodeObj(obj) {
+  return btoa(encodeURIComponent(JSON.stringify(obj)));
+}
+function decodeObj(str) {
+  return JSON.parse(decodeURIComponent(atob(str)));
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action="add-cart"]');
+  if (!el) return;
+  addCart(el, parseInt(el.dataset.id, 10), el.dataset.name, parseFloat(el.dataset.price), el.dataset.emoji);
+});
