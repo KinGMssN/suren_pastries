@@ -15,15 +15,15 @@
     </div>
     <div class="sb-nav">
       <div class="sb-section">Main</div>
-      <button class="sb-link active" data-tab="dashboard" onclick="setTab('dashboard',this)"><span class="sb-icon">📊</span>Dashboard</button>
-      <button class="sb-link" data-tab="orders" onclick="setTab('orders',this)"><span class="sb-icon">📋</span>Orders</button>
-      <button class="sb-link" data-tab="menu" onclick="setTab('menu',this)"><span class="sb-icon">🍽️</span>Menu</button>
+      <button class="sb-link active" data-tab="dashboard" data-action="set-tab"><span class="sb-icon">📊</span>Dashboard</button>
+      <button class="sb-link" data-tab="orders" data-action="set-tab"><span class="sb-icon">📋</span>Orders</button>
+      <button class="sb-link" data-tab="menu" data-action="set-tab"><span class="sb-icon">🍽️</span>Menu</button>
       <div class="sb-section">Settings</div>
-      <button class="sb-link" data-tab="offers" onclick="setTab('offers',this)"><span class="sb-icon">🎉</span>Offers</button>
-      <button class="sb-link" data-tab="team" onclick="setTab('team',this)"><span class="sb-icon">👥</span>Team</button>
-      <button class="sb-link" data-tab="delivery" onclick="setTab('delivery',this)"><span class="sb-icon">🚚</span>Delivery Staff</button>
-      <button class="sb-link" data-tab="content" onclick="setTab('content',this)"><span class="sb-icon">📝</span>Content</button>
-      <button class="sb-link" onclick="location.href='{{ url_for('main.home') }}'"><span class="sb-icon">🌐</span>View site</button>
+      <button class="sb-link" data-tab="offers" data-action="set-tab"><span class="sb-icon">🎉</span>Offers</button>
+      <button class="sb-link" data-tab="team" data-action="set-tab"><span class="sb-icon">👥</span>Team</button>
+      <button class="sb-link" data-tab="delivery" data-action="set-tab"><span class="sb-icon">🚚</span>Delivery Staff</button>
+      <button class="sb-link" data-tab="content" data-action="set-tab"><span class="sb-icon">📝</span>Content</button>
+      <a class="sb-link" href="{{ url_for('main.home') }}"><span class="sb-icon">🌐</span>View site</a>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
@@ -41,7 +41,7 @@
       <div class="top-bar">
         <div class="page-title">Dashboard</div>
         <div class="top-actions">
-          <button class="btn-sm btn-primary" onclick="setTab('menu', document.querySelector('[data-tab=menu]'))">+ Add item</button>
+          <button class="btn-sm btn-primary" data-action="goto-tab" data-tab="menu">+ Add item</button>
         </div>
       </div>
 
@@ -69,7 +69,7 @@
       </div>
 
       <div class="table-card">
-        <div class="tc-head"><div class="tc-title">Recent orders</div><button class="btn-sm btn-outline" onclick="setTab('orders', document.querySelector('[data-tab=orders]'))">View all</button></div>
+        <div class="tc-head"><div class="tc-title">Recent orders</div><button class="btn-sm btn-outline" data-action="goto-tab" data-tab="orders">View all</button></div>
         <table class="table">
           <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Time</th></tr></thead>
           <tbody id="recent-orders-body">
@@ -84,7 +84,7 @@
       <div class="top-bar">
         <div class="page-title">All orders</div>
         <div class="top-actions">
-          <select class="form-input" id="order-status-filter" style="width:auto" onchange="loadOrders()">
+          <select class="form-input" id="order-status-filter" style="width:auto" data-action="reload-orders">
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
             <option value="preparing">Preparing</option>
@@ -109,7 +109,7 @@
       <div class="top-bar">
         <div class="page-title">Menu editor</div>
         <div class="top-actions">
-          <button class="btn-sm btn-primary" onclick="showModal()">+ Add item</button>
+          <button class="btn-sm btn-primary" data-action="show-modal">+ Add item</button>
         </div>
       </div>
       <div class="menu-editor-grid" id="menu-editor-grid">
@@ -119,7 +119,7 @@
 
     <!-- OFFERS TAB -->
     <div class="tab-content" id="tab-offers">
-      <div class="top-bar"><div class="page-title">Offers & Promotions</div><button class="btn-sm btn-primary" onclick="showCouponModal()">+ New offer</button></div>
+      <div class="top-bar"><div class="page-title">Offers & Promotions</div><button class="btn-sm btn-primary" data-action="show-coupon-modal">+ New offer</button></div>
       <div class="table-card">
         <div class="tc-head"><div class="tc-title">Current offers</div></div>
         <table class="table">
@@ -133,14 +133,14 @@
 
     <!-- CONTENT TAB -->
     <div class="tab-content" id="tab-team">
-      <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" onclick="showTeamModal()">+ Add team member</button></div>
+      <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" data-action="show-team-modal">+ Add team member</button></div>
       <div class="menu-editor-grid" id="team-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
     </div>
 
     <div class="tab-content" id="tab-delivery">
       <div class="top-bar">
         <div class="page-title">Delivery staff</div>
-        <button class="btn-sm btn-primary" onclick="showDeliveryModal()">+ Add delivery person</button>
+        <button class="btn-sm btn-primary" data-action="show-delivery-modal">+ Add delivery person</button>
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
         Manage who can pick and deliver orders. They use this list to identify
@@ -150,7 +150,7 @@
     </div>
 
     <div class="tab-content" id="tab-content">
-      <div class="top-bar"><div class="page-title">Site content</div><button class="btn-sm btn-primary" onclick="saveContent()">Save changes</button></div>
+      <div class="top-bar"><div class="page-title">Site content</div><button class="btn-sm btn-primary" data-action="save-content">Save changes</button></div>
       <div style="display:grid;gap:16px">
         <div class="chart-card">
           <div class="cc-title" style="margin-bottom:16px">Restaurant details</div>
@@ -219,8 +219,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-sm btn-outline" onclick="hideModal()">Cancel</button>
-      <button class="btn-sm btn-primary" onclick="submitMenuItem()">Save item</button>
+      <button class="btn-sm btn-outline" data-action="hide-modal">Cancel</button>
+      <button class="btn-sm btn-primary" data-action="submit-menu-item">Save item</button>
     </div>
   </div>
 </div>
@@ -241,8 +241,8 @@
     </div>
     <div class="form-group"><label class="form-label">Description</label><input class="form-input" id="co-description" placeholder="20% off on all orders"/></div>
     <div class="modal-footer">
-      <button class="btn-sm btn-outline" onclick="hideCouponModal()">Cancel</button>
-      <button class="btn-sm btn-primary" onclick="submitCoupon()">Create offer</button>
+      <button class="btn-sm btn-outline" data-action="hide-coupon-modal">Cancel</button>
+      <button class="btn-sm btn-primary" data-action="submit-coupon">Create offer</button>
     </div>
   </div>
 </div>
@@ -262,8 +262,8 @@
       <img id="tm-photo-preview" style="display:none;max-width:100px;border-radius:50%;margin-top:8px"/>
     </div>
     <div class="modal-footer">
-      <button class="btn-sm btn-outline" onclick="hideTeamModal()">Cancel</button>
-      <button class="btn-sm btn-primary" onclick="submitTeamMember()">Save</button>
+      <button class="btn-sm btn-outline" data-action="hide-team-modal">Cancel</button>
+      <button class="btn-sm btn-primary" data-action="submit-team-member">Save</button>
     </div>
   </div>
 </div>
@@ -275,8 +275,8 @@
     <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="dp-name" placeholder="e.g. Suresh"/></div>
     <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="dp-phone" placeholder="10-digit mobile number"/></div>
     <div class="modal-footer">
-      <button class="btn-sm btn-outline" onclick="hideDeliveryModal()">Cancel</button>
-      <button class="btn-sm btn-primary" onclick="submitDeliveryPerson()">Save</button>
+      <button class="btn-sm btn-outline" data-action="hide-delivery-modal">Cancel</button>
+      <button class="btn-sm btn-primary" data-action="submit-delivery-person">Save</button>
     </div>
   </div>
 </div>

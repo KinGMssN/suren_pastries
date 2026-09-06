@@ -38,6 +38,71 @@ async function api(path, opts) {
 const STATUS_LABEL = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' };
 const STATUS_CLASS = { pending: 's-pending', preparing: 's-preparing', ready: 's-ready', delivered: 's-delivered' };
 
+// ───────────────────────── data-action delegation ─────────────────────────
+// Every dynamically-generated button below uses data-action (+ data-id /
+// data-item) instead of onclick="...", since inline event handlers are
+// blocked by the site's Content-Security-Policy. One listener here handles
+// all of them — this also covers buttons that don't exist yet at page load
+// (they're created later by innerHTML when a tab's data loads).
+
+// Objects (whole menu items / team members / delivery people) are passed
+// through data-* as base64 JSON — safe inside any HTML attribute regardless
+// of quotes or special characters in the name/description.
+function encodeObj(obj) {
+  return btoa(encodeURIComponent(JSON.stringify(obj)));
+}
+function decodeObj(str) {
+  return JSON.parse(decodeURIComponent(atob(str)));
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+  const id = el.dataset.id ? parseInt(el.dataset.id, 10) : null;
+
+  switch (action) {
+    case 'set-tab': setTab(el.dataset.tab, el); break;
+    case 'goto-tab': setTab(el.dataset.tab, document.querySelector(`[data-tab="${el.dataset.tab}"]`)); break;
+    case 'show-modal': showModal(); break;
+    case 'hide-modal': hideModal(); break;
+    case 'submit-menu-item': submitMenuItem(); break;
+    case 'edit-menu-item': openEditModal(decodeObj(el.dataset.item)); break;
+    case 'toggle-availability': toggleAvailability(id); break;
+    case 'toggle-stock': toggleStock(id); break;
+    case 'toggle-special': toggleSpecial(id); break;
+    case 'delete-menu-item': deleteMenuItem(id); break;
+    case 'show-coupon-modal': showCouponModal(); break;
+    case 'hide-coupon-modal': hideCouponModal(); break;
+    case 'submit-coupon': submitCoupon(); break;
+    case 'toggle-coupon': toggleCoupon(id); break;
+    case 'delete-coupon': deleteCoupon(id); break;
+    case 'show-team-modal': showTeamModal(); break;
+    case 'hide-team-modal': hideTeamModal(); break;
+    case 'submit-team-member': submitTeamMember(); break;
+    case 'edit-team-member': openEditTeamModal(decodeObj(el.dataset.item)); break;
+    case 'delete-team-member': deleteTeamMember(id); break;
+    case 'show-delivery-modal': showDeliveryModal(); break;
+    case 'hide-delivery-modal': hideDeliveryModal(); break;
+    case 'submit-delivery-person': submitDeliveryPerson(); break;
+    case 'edit-delivery-person': openEditDeliveryModal(decodeObj(el.dataset.item)); break;
+    case 'toggle-delivery-person': toggleDeliveryPerson(id); break;
+    case 'delete-delivery-person': deleteDeliveryPerson(id); break;
+    case 'save-content': saveContent(); break;
+  }
+});
+
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (el.dataset.action === 'update-order-status') {
+    updateOrderStatus(parseInt(el.dataset.id, 10), el.value);
+  }
+  if (el.dataset.action === 'reload-orders') {
+    loadOrders();
+  }
+});
+
 // ───────────────────────── dashboard ─────────────────────────
 async function loadDashboard() {
   try {
@@ -86,7 +151,7 @@ async function loadOrders() {
         <td>₹${o.total}</td>
         <td style="text-transform:capitalize">${o.channel}</td>
         <td>
-          <select class="form-input" style="width:auto;padding:6px 10px;font-size:12px" onchange="updateOrderStatus(${o.id}, this.value)">
+          <select class="form-input" style="width:auto;padding:6px 10px;font-size:12px" data-action="update-order-status" data-id="${o.id}">
             ${Object.keys(STATUS_LABEL).map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
           </select>
         </td>
@@ -157,11 +222,11 @@ async function loadMenuEditor() {
           </div>
         </div>
         <div class="me-actions">
-          <button class="me-btn" onclick='openEditModal(${JSON.stringify(i)})'>Edit</button>
-          <button class="me-btn" onclick="toggleAvailability(${i.id})">${i.is_available ? 'Hide' : 'Show'}</button>
-          <button class="me-btn" onclick="toggleStock(${i.id})">${i.in_stock ? 'Out of stock' : 'In stock'}</button>
-          <button class="me-btn" onclick="toggleSpecial(${i.id})">${i.is_special ? 'Unset special' : 'Set special'}</button>
-          <button class="me-btn me-del" onclick="deleteMenuItem(${i.id})">Delete</button>
+          <button class="me-btn" data-action="edit-menu-item" data-item="${encodeObj(i)}">Edit</button>
+          <button class="me-btn" data-action="toggle-availability" data-id="${i.id}">${i.is_available ? 'Hide' : 'Show'}</button>
+          <button class="me-btn" data-action="toggle-stock" data-id="${i.id}">${i.in_stock ? 'Out of stock' : 'In stock'}</button>
+          <button class="me-btn" data-action="toggle-special" data-id="${i.id}">${i.is_special ? 'Unset special' : 'Set special'}</button>
+          <button class="me-btn me-del" data-action="delete-menu-item" data-id="${i.id}">Delete</button>
         </div>
       </div>
     `).join('');
@@ -269,8 +334,8 @@ async function loadOffers() {
         <td>${c.expires_at || 'No expiry'}</td>
         <td><span class="tstatus ${c.is_valid ? 's-ready' : 's-pending'}">${c.is_valid ? 'Active' : 'Inactive'}</span></td>
         <td>
-          <button class="me-btn" onclick="toggleCoupon(${c.id})">${c.active ? 'Disable' : 'Enable'}</button>
-          <button class="me-btn me-del" onclick="deleteCoupon(${c.id})">Delete</button>
+          <button class="me-btn" data-action="toggle-coupon" data-id="${c.id}">${c.active ? 'Disable' : 'Enable'}</button>
+          <button class="me-btn me-del" data-action="delete-coupon" data-id="${c.id}">Delete</button>
         </td>
       </tr>
     `).join('');
@@ -343,8 +408,8 @@ async function loadTeam() {
           </div>
         </div>
         <div class="me-actions">
-          <button class="me-btn" onclick='openEditTeamModal(${JSON.stringify(m)})'>Edit</button>
-          <button class="me-btn me-del" onclick="deleteTeamMember(${m.id})">Delete</button>
+          <button class="me-btn" data-action="edit-team-member" data-item="${encodeObj(m)}">Edit</button>
+          <button class="me-btn me-del" data-action="delete-team-member" data-id="${m.id}">Delete</button>
         </div>
       </div>
     `).join('');
@@ -427,9 +492,9 @@ async function loadDeliveryStaff() {
           </div>
         </div>
         <div class="me-actions">
-          <button class="me-btn" onclick='openEditDeliveryModal(${JSON.stringify(p)})'>Edit</button>
-          <button class="me-btn" onclick="toggleDeliveryPerson(${p.id})">${p.active ? 'Deactivate' : 'Activate'}</button>
-          <button class="me-btn me-del" onclick="deleteDeliveryPerson(${p.id})">Delete</button>
+          <button class="me-btn" data-action="edit-delivery-person" data-item="${encodeObj(p)}">Edit</button>
+          <button class="me-btn" data-action="toggle-delivery-person" data-id="${p.id}">${p.active ? 'Deactivate' : 'Activate'}</button>
+          <button class="me-btn me-del" data-action="delete-delivery-person" data-id="${p.id}">Delete</button>
         </div>
       </div>
     `).join('');

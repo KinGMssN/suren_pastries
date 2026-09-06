@@ -64,8 +64,8 @@ async function loadOrders() {
             ${o.delivery_person ? `<span class="dl-assigned">Assigned: ${o.delivery_person}</span>` : ''}
           </div>
           <div class="dl-actions">
-            ${isUnassigned ? `<button class="dl-btn dl-btn-assign" onclick="assignToMe(${o.id})">Take this order</button>` : ''}
-            ${isMine ? `<button class="dl-btn dl-btn-deliver" onclick="markDelivered(${o.id}, ${o.channel === 'cod'})">Mark delivered</button>` : ''}
+            ${isUnassigned ? `<button class="dl-btn dl-btn-assign" data-action="assign-to-me" data-id="${o.id}">Take this order</button>` : ''}
+            ${isMine ? `<button class="dl-btn dl-btn-deliver" data-action="mark-delivered" data-id="${o.id}" data-cod="${o.channel === 'cod'}">Mark delivered</button>` : ''}
           </div>
         </div>
       `;
@@ -104,6 +104,18 @@ async function markDelivered(orderId, isCod) {
     loadOrders();
   } catch (err) { alert('Could not update order.'); }
 }
+
+// ───────────────────────── event delegation ─────────────────────────
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const id = parseInt(el.dataset.id, 10);
+  if (el.dataset.action === 'assign-to-me') assignToMe(id);
+  if (el.dataset.action === 'mark-delivered') markDelivered(id, el.dataset.cod === 'true');
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'who-am-i') onWhoAmIChange();
+});
 
 loadPeoplePicker();
 loadOrders();

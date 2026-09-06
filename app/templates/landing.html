@@ -139,10 +139,5 @@
 <script src="{{ url_for('static', filename='js/cart-widget.js') }}"></script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
-<script>
-  window.addEventListener('scroll', () => {
-    document.getElementById('nav').classList.toggle('scrolled', scrollY > 60);
-  });
-  updateFC();
-</script>
+<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
 {% endblock %}

@@ -1,3 +1,16 @@
+// base64-encode small objects for safe embedding in data-* attributes
+// (dish names can contain quotes/apostrophes, which would otherwise break
+// out of the HTML attribute).
+function encodeObj(obj) {
+  return btoa(encodeURIComponent(JSON.stringify(obj)));
+}
+function decodeObj(str) {
+  return JSON.parse(decodeURIComponent(atob(str)));
+}
+function encodeAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 // Menu data now comes from the database via /api/menu instead of being
 // hardcoded, so whatever the admin edits in Admin > Menu shows up here.
 let menu = {};
@@ -23,9 +36,9 @@ async function loadMenu() {
 
 function renderTabs() {
   let allCount = cats.reduce((sum, c) => sum + menu[c].length, 0);
-  let tabsHTML = `<button class="tab ${active === 'All' ? 'active' : ''}" onclick="setActive('All')">All <span style="font-size:11px;opacity:0.6">(${allCount})</span></button>`;
+  let tabsHTML = `<button class="tab ${active === 'All' ? 'active' : ''}" data-action="set-active-cat" data-cat="All">All <span style="font-size:11px;opacity:0.6">(${allCount})</span></button>`;
   tabsHTML += cats.map(c => `
-    <button class="tab ${c === active ? 'active' : ''}" onclick="setActive('${c}')">${c} <span style="font-size:11px;opacity:0.6">(${menu[c].length})</span></button>
+    <button class="tab ${c === active ? 'active' : ''}" data-action="set-active-cat" data-cat="${encodeAttr(c)}">${c} <span style="font-size:11px;opacity:0.6">(${menu[c].length})</span></button>
   `).join('');
   document.getElementById('tabs').innerHTML = tabsHTML;
 }
@@ -75,13 +88,13 @@ function itemHTML(i) {
         <div class="price">₹${i.price}</div>
         ${outOfStock
           ? `<button class="add-btn" disabled style="opacity:.5;cursor:not-allowed">Unavailable</button>`
-          : `<button class="add-btn" onclick='addCart(event, ${i.id}, ${JSON.stringify(i.name)}, ${i.price}, ${JSON.stringify(i.emoji)})'>+ Add</button>`}
+          : `<button class="add-btn" data-action="add-cart" data-id="${i.id}" data-name="${encodeAttr(i.name)}" data-price="${i.price}" data-emoji="${encodeAttr(i.emoji)}">+ Add</button>`}
       </div>
     </div>
   </div>`;
 }
 
-function addCart(event, id, name, price, emoji) {
+function addCart(el, id, name, price, emoji) {
   let cart = JSON.parse(localStorage.getItem('surenPastriesCart')) || [];
   let existing = cart.find(i => i.id === id);
   if (existing) { existing.qty++; }
@@ -99,8 +112,8 @@ function addCart(event, id, name, price, emoji) {
     setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  if (event && event.currentTarget) {
-    const btn = event.currentTarget;
+  if (el) {
+    const btn = el;
     const oldText = btn.textContent;
     btn.textContent = '✓ Added';
     btn.style.background = '#4CAF50';
@@ -121,6 +134,19 @@ function updateFC() {
   const fc = document.getElementById('nav-cart'), fb = document.getElementById('ccount');
   if (fc && fb) { if (c > 0) { fc.style.display = 'flex'; fb.textContent = c; } else { fc.style.display = 'none'; } }
 }
+
+// ───────────────────────── event delegation ─────────────────────────
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (el.dataset.action === 'set-active-cat') setActive(el.dataset.cat);
+  if (el.dataset.action === 'add-cart') {
+    addCart(el, parseInt(el.dataset.id, 10), el.dataset.name, parseFloat(el.dataset.price), el.dataset.emoji);
+  }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'search') renderItems();
+});
 
 updateFC();
 loadMenu();
