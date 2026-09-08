@@ -1,6 +1,8 @@
+import json
+import logging
 import secrets
 
-from flask import Flask, g
+from flask import Flask, g, request
 from flask_cors import CORS
 
 from config import Config
@@ -39,6 +41,24 @@ def create_app(config_class=Config):
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
+    @app.post("/api/csp-report")
+    def receive_csp_report():
+        payload = request.get_json(silent=True) or {}
+        if not payload:
+            try:
+                payload = json.loads(request.get_data(as_text=True) or "{}")
+            except json.JSONDecodeError:
+                payload = {}
+        report = payload.get("csp-report", payload)
+        if isinstance(report, dict):
+            logging.getLogger("csp").warning(
+                "CSP violation: document=%s directive=%s blocked=%s",
+                report.get("document-uri", ""),
+                report.get("violated-directive", ""),
+                report.get("blocked-uri", ""),
+            )
+        return "", 204
+
     from app.models import SiteContent
 
     @app.context_processor
@@ -67,18 +87,23 @@ def create_app(config_class=Config):
         )
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Reporting-Endpoints"] = 'csp-endpoint="/api/csp-report"'
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{g.csp_nonce}'; "
             f"style-src 'self' 'nonce-{g.csp_nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "style-src-attr 'unsafe-inline'; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' data:; "
             "connect-src 'self'; "
             "object-src 'none'; "
+            "frame-src 'none'; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "form-action 'self';"
+            " upgrade-insecure-requests;"
+            " report-to csp-endpoint;"
+            " report-uri /api/csp-report;"
         )
         return response
 
