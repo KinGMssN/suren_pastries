@@ -8,12 +8,17 @@ load_dotenv(os.path.join(basedir, ".env"))
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
-    # PostgreSQL connection string, e.g.
-    # postgresql://suren_user:suren_pass@localhost:5432/suren_pastries
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
+    # SQLAlchemy's psycopg3 dialect is explicit so existing deployment URLs
+    # without a driver suffix continue to work after the driver migration.
+    database_url = os.environ.get(
         "DATABASE_URL",
-        "postgresql://suren_user:suren_pass@localhost:5432/suren_pastries",
+        "postgresql+psycopg://suren_user:suren_pass@localhost:5432/suren_pastries",
     )
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgres://"):]
+    elif database_url.startswith("postgresql://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+    SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")

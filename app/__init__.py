@@ -1,4 +1,6 @@
-from flask import Flask
+import secrets
+
+from flask import Flask, g
 from flask_cors import CORS
 
 from config import Config
@@ -50,11 +52,10 @@ def create_app(config_class=Config):
         return {"content": content}
 
     # ── Security headers on every response ──
-    # CSP allows 'unsafe-inline' for scripts/styles because the site relies
-    # heavily on inline <script> blocks and style="..." attributes — locking
-    # that down would require rewriting every template. This still blocks
-    # framing (clickjacking), restricts which origins can load resources,
-    # and forces HTTPS going forward.
+    @app.before_request
+    def set_csp_nonce():
+        g.csp_nonce = secrets.token_urlsafe(16)
+
     @app.after_request
     def set_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -68,8 +69,9 @@ def create_app(config_class=Config):
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            f"script-src 'self' 'nonce-{g.csp_nonce}'; "
+            f"style-src 'self' 'nonce-{g.csp_nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "style-src-attr 'unsafe-inline'; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
             "connect-src 'self'; "

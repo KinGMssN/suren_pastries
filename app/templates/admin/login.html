@@ -2,7 +2,7 @@
 {% block title %}Suren Pastries — Admin Login{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-<style>body{opacity:1;animation:none}</style>
+<style nonce="{{ g.csp_nonce }}">body{opacity:1;animation:none}</style>
 {% endblock %}
 {% block body %}
 <div class="login-screen" id="loginScreen">
