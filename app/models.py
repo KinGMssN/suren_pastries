@@ -192,7 +192,6 @@ class Order(db.Model):
     channel = db.Column(db.String(20), default="whatsapp")
     status = db.Column(db.String(20), default="pending")
 
-    # Snapshot of the delivery address at order time (addresses can change later)
     delivery_address = db.Column(db.String(300), default="")
     delivery_city = db.Column(db.String(80), default="")
     delivery_pincode = db.Column(db.String(12), default="")

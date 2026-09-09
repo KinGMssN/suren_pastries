@@ -33,13 +33,8 @@ def error(message, status=400):
 
 
 # ───────────────────────── image upload validation ─────────────────────────
-# Photos are uploaded as base64 data URIs (no server-side file storage —
-# see the note in models.py). Validate them server-side rather than trusting
-# whatever the browser's <input type="file" accept="..."> claims, since that
-# attribute is purely a UI hint and is trivially bypassed.
-
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg"}
-MAX_IMAGE_BYTES = 2 * 1024 * 1024  # 2MB
+MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 
 def validate_image_data_uri(data_uri):
@@ -63,11 +58,6 @@ def validate_image_data_uri(data_uri):
 
 
 # ───────────────────────── one-time remote bootstrap ─────────────────────────
-# Lets you seed the database by visiting a URL in the browser, for platforms
-# (like Render's free tier) that don't give shell access. Protected by the
-# SEED_KEY environment variable — set it on Render, visit this URL once,
-# then remove the env var (or leave it, it's a no-op once already seeded).
-
 @api_bp.route("/bootstrap")
 def bootstrap():
     seed_key = current_app.config.get("SEED_KEY")
@@ -84,8 +74,6 @@ def bootstrap():
     db.create_all()  # creates any brand-new tables (e.g. team_members)
     log = []
 
-    # Additive schema migration — safe to re-run, adds columns that were
-    # introduced after the table already existed on this database.
     for stmt in [
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE",
@@ -193,9 +181,6 @@ def auth_me():
 
 
 # ───────────────────────── public: site content + specials ─────────────────────────
-# (read-only, no login — the old /api/admin/content GET required auth, which
-# doesn't work for the static landing/about pages that need this on load)
-
 @api_bp.route("/content")
 def public_content():
     rows = SiteContent.query.all()
@@ -220,10 +205,6 @@ def public_team():
 
 
 # ───────────────────────── customer accounts (phone-based, no password yet) ─────────────────────────
-# NOTE: this is intentionally lightweight — phone number only, no OTP/password
-# verification. A real auth step can replace /customer/login later without
-# changing the address/order-history endpoints below it.
-
 def _normalize_phone(raw):
     return "".join(ch for ch in (raw or "") if ch.isdigit())[-10:]
 
@@ -455,9 +436,6 @@ def checkout():
 
 
 # ───────────────────────── public: order tracking ─────────────────────────
-# The order_number itself (random 6-char code) acts as the access token —
-# no login needed to check on an order you just placed.
-
 @api_bp.route("/orders/track/<order_number>")
 def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
@@ -487,7 +465,6 @@ def admin_stats():
     revenue = db.session.query(db.func.coalesce(db.func.sum(Order.total), 0)).scalar()
     menu_count = MenuItem.query.count()
 
-    # last 7 days order counts for the mini bar chart
     from sqlalchemy import func
 
     daily = (

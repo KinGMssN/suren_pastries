@@ -1,6 +1,3 @@
-// base64-encode small objects for safe embedding in data-* attributes
-// (dish names can contain quotes/apostrophes, which would otherwise break
-// out of the HTML attribute).
 function encodeObj(obj) {
   return btoa(encodeURIComponent(JSON.stringify(obj)));
 }
@@ -11,8 +8,6 @@ function encodeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 
-// Menu data now comes from the database via /api/menu instead of being
-// hardcoded, so whatever the admin edits in Admin > Menu shows up here.
 let menu = {};
 let cats = [];
 let active = 'All';

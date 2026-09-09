@@ -13,7 +13,7 @@ async function loadTrackedOrder() {
     }
     render(order);
     if (order.status !== 'delivered') {
-      setTimeout(loadTrackedOrder, 8000); // keep polling until delivered
+      setTimeout(loadTrackedOrder, 8000);
     }
   } catch (err) {
     document.getElementById('tr-submessage').textContent = 'Could not reach the server — retrying…';
@@ -22,7 +22,6 @@ async function loadTrackedOrder() {
 }
 
 function render(order) {
-  // Stepper
   const currentIndex = STAGES.indexOf(order.status);
   document.getElementById('tr-stepper').innerHTML = STAGES.map((s, i) => {
     const cls = i < currentIndex ? 'done' : (i === currentIndex ? 'current' : '');
@@ -30,7 +29,6 @@ function render(order) {
     return `<div class="tr-step ${cls}"><div class="tr-step-dot">${icon}</div><div class="tr-step-label">${STAGE_LABELS[s]}</div></div>`;
   }).join('');
 
-  // Headline message
   const messages = {
     pending: ['Order received!', "We've got your order and we're getting started."],
     preparing: ['Your food is being prepared 👨‍🍳', 'Our kitchen is working on it right now.'],
@@ -41,7 +39,6 @@ function render(order) {
   document.getElementById('tr-message').textContent = msg;
   document.getElementById('tr-submessage').textContent = sub;
 
-  // Delivery partner card (shown once assigned)
   const partnerEl = document.getElementById('tr-partner');
   if (order.delivery_person && order.status !== 'delivered') {
     partnerEl.style.display = 'flex';
@@ -56,7 +53,6 @@ function render(order) {
     partnerEl.style.display = 'none';
   }
 
-  // Order summary
   document.getElementById('tr-items').innerHTML = order.items.map(i =>
     `<div class="tr-item-row"><span>${i.qty}× ${i.name}</span><span>₹${i.price * i.qty}</span></div>`
   ).join('');

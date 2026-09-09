@@ -1,8 +1,3 @@
-// Injects two floating buttons into the page:
-//  - a cart bubble (bottom-right) showing the current item count
-//  - a "track order" pill (bottom-left), shown only when the logged-in
-//    customer has an order that isn't delivered yet
-// Not loaded on cart.html — no point showing "go to cart" while already there.
 
 (function () {
   function renderCartBubble() {
@@ -33,7 +28,7 @@
       const active = orders.find(o => o.status !== 'delivered');
       const existing = document.getElementById('floating-track-btn');
       if (!active) { if (existing) existing.remove(); return; }
-      if (existing) existing.remove(); // rebuild so the status label stays current
+      if (existing) existing.remove();
 
       const btn = document.createElement('a');
       btn.id = 'floating-track-btn';
@@ -41,11 +36,11 @@
       btn.href = '/track/' + active.order_number;
       btn.innerHTML = `📦 Track order <span class="floating-track-status">${active.status}</span>`;
       document.body.appendChild(btn);
-    } catch (err) { /* fail silently, not critical */ }
+    } catch (err) { }
   }
 
   renderCartBubble();
   renderTrackPill();
-  setInterval(renderCartBubble, 2000);   // picks up cart changes made on this tab
-  setInterval(renderTrackPill, 20000);   // occasional refresh of order status label
+  setInterval(renderCartBubble, 2000);
+  setInterval(renderTrackPill, 20000);
 })();

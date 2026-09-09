@@ -63,8 +63,6 @@ function updateSummary() {
   }
 }
 
-// Swaps the checkout buttons for a "please log in" prompt, or an address
-// picker + payment buttons, depending on login state.
 async function renderCheckoutArea() {
   const area = document.getElementById('checkout-area');
   if (!area) return;
@@ -189,8 +187,6 @@ function closeModal() {
 }
 
 // ───────────────────────── event delegation ─────────────────────────
-// Dynamically-generated buttons use data-action instead of onclick="...",
-// since inline event handlers are blocked by this site's CSP.
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;

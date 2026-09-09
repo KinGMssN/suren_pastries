@@ -1,8 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('a').forEach(a => {
     const h = a.getAttribute('href');
-    // Only intercept internal same-site navigations, never the WhatsApp
-    // link, external links, mailto/tel, or anchors that open a new tab.
     if (h && h.startsWith('/') && a.target !== '_blank') {
       a.addEventListener('click', e => {
         e.preventDefault();

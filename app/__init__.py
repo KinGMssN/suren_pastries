@@ -19,9 +19,6 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     limiter.init_app(app)
 
-    # Apply additive schema changes before Flask-Login can query AdminUser.
-    # Existing deployments may have an admin_users table created before roles
-    # were introduced, so db.create_all() alone cannot add this column.
     with app.app_context():
         try:
             db.session.execute(text(
@@ -30,13 +27,8 @@ def create_app(config_class=Config):
             ))
             db.session.commit()
         except SQLAlchemyError:
-            # A first boot may run before seed/db.create_all() creates tables.
             db.session.rollback()
     
-    # The frontend now lives on a different origin (GitHub Pages), so the
-    # browser needs explicit permission to send/receive the admin session
-    # cookie cross-site. FRONTEND_ORIGIN is set in Render's environment,
-    # e.g. https://your-username.github.io
     CORS(
         app,
         supports_credentials=True,
@@ -45,8 +37,6 @@ def create_app(config_class=Config):
 
     from app.models import AdminUser
 
-    # Keep the testing/provisioned menu account synchronized with Render
-    # environment variables, without changing the main administrator.
     with app.app_context():
         subadmin_username = app.config.get("SUBADMIN_USERNAME", "").strip()
         subadmin_password = app.config.get("SUBADMIN_PASSWORD", "")
@@ -100,7 +90,6 @@ def create_app(config_class=Config):
             try:
                 return SiteContent.get(key, default)
             except Exception:
-                # DB may not be initialized yet (e.g. first run before migrate)
                 return default
         return {"content": content}
 

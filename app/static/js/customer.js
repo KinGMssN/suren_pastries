@@ -1,6 +1,3 @@
-// Works in both contexts, same as menu.js/cart.js:
-// - Server-rendered pages: window.API_BASE is unset, falls back to '' (relative paths)
-// - Static frontend (GitHub Pages): config.js sets window.API_BASE to the Render URL
 const CUSTOMER_API_BASE = window.API_BASE || '';
 
 function getCustomer() {
@@ -17,9 +14,6 @@ function isLoggedIn() {
   return !!getCustomer();
 }
 
-// Updates the nav-account link into a circular avatar: shows the
-// customer's first initial when logged in, or a generic person icon
-// (prompting login) when not.
 function updateAccountNav() {
   const link = document.getElementById('nav-account');
   if (!link) return;

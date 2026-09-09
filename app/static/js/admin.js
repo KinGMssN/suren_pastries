@@ -39,15 +39,6 @@ const STATUS_LABEL = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready
 const STATUS_CLASS = { pending: 's-pending', preparing: 's-preparing', ready: 's-ready', delivered: 's-delivered' };
 
 // ───────────────────────── data-action delegation ─────────────────────────
-// Every dynamically-generated button below uses data-action (+ data-id /
-// data-item) instead of onclick="...", since inline event handlers are
-// blocked by the site's Content-Security-Policy. One listener here handles
-// all of them — this also covers buttons that don't exist yet at page load
-// (they're created later by innerHTML when a tab's data loads).
-
-// Objects (whole menu items / team members / delivery people) are passed
-// through data-* as base64 JSON — safe inside any HTML attribute regardless
-// of quotes or special characters in the name/description.
 function encodeObj(obj) {
   return btoa(encodeURIComponent(JSON.stringify(obj)));
 }
@@ -173,7 +164,7 @@ async function updateOrderStatus(id, status) {
 // ───────────────────────── menu editor ─────────────────────────
 let editingItemId = null;
 let knownCategories = new Set();
-let pendingImageData = null;   // base64 data URI staged from the file input, or null to keep existing
+let pendingImageData = null;
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {

@@ -1,5 +1,3 @@
-// Shared "add to cart" logic used on the landing page and the menu page.
-// Cart is kept in localStorage so it persists across pages without a login.
 
 function addCart(el, id, name, price, emoji) {
   let cart = JSON.parse(localStorage.getItem('surenPastriesCart')) || [];
@@ -39,7 +37,6 @@ function updateFC() {
   }
 }
 
-// base64-encode small objects for safe embedding in data-* attributes
 function encodeObj(obj) {
   return btoa(encodeURIComponent(JSON.stringify(obj)));
 }

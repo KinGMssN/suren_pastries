@@ -13,6 +13,6 @@ async function loadTeam() {
         <div class="team-role">${m.role || ''}</div>
       </div>
     `).join('');
-  } catch (err) { /* keep fallback empty grid */ }
+  } catch (err) { }
 }
 loadTeam();

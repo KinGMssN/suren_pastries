@@ -119,4 +119,4 @@ document.addEventListener('change', (e) => {
 
 loadPeoplePicker();
 loadOrders();
-setInterval(loadOrders, 20000); // light auto-refresh so the list stays current
+setInterval(loadOrders, 20000);
