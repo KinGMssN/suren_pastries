@@ -576,4 +576,8 @@ async function saveContent() {
 }
 
 // ───────────────────────── boot ─────────────────────────
-loadDashboard();
+if (document.body.dataset.adminRole === 'menu_admin') {
+  loadMenuEditor();
+} else {
+  loadDashboard();
+}

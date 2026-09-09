@@ -7,11 +7,12 @@ It will:
   1. Create all tables (safe to re-run — it won't drop existing data)
   2. Create the admin login (from ADMIN_USERNAME / ADMIN_PASSWORD in .env),
      or update the password if that username already exists
-  3. Seed the menu with the same 30 dishes from the original static site,
+    3. Create the optional menu-only sub-admin from SUBADMIN_USERNAME / SUBADMIN_PASSWORD
+    4. Seed the menu with the same 30 dishes from the original static site,
      but only if the menu_items table is currently empty
-  4. Seed two starter coupons (SUREN20, FLAT50) so the cart's promo code
+    5. Seed two starter coupons (SUREN20, FLAT50) so the cart's promo code
      box has something to test, only if the coupons table is empty
-  5. Seed the default site content used on the landing/about pages, only
+    6. Seed the default site content used on the landing/about pages, only
      if that key doesn't already exist
 """
 import os
@@ -22,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app
 from app.extensions import db
 from app.models import AdminUser, Category, Coupon, MenuItem, SiteContent, TeamMember
+from sqlalchemy import text
 
 MENU_DATA = {
     "Starters": [
@@ -95,6 +97,10 @@ def run():
     app = create_app()
     with app.app_context():
         db.create_all()
+        db.session.execute(text(
+            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role VARCHAR(30) NOT NULL DEFAULT 'super_admin'"
+        ))
+        db.session.commit()
 
         # 1. Admin user
         username = app.config["ADMIN_USERNAME"]
@@ -107,7 +113,19 @@ def run():
             print(f"Created admin user '{username}'.")
         else:
             user.set_password(password)
+            user.role = "super_admin"
             print(f"Admin user '{username}' already existed — password reset from .env.")
+
+        subadmin_username = app.config.get("SUBADMIN_USERNAME")
+        subadmin_password = app.config.get("SUBADMIN_PASSWORD")
+        if subadmin_username and subadmin_password:
+            subadmin = AdminUser.query.filter_by(username=subadmin_username).first()
+            if subadmin is None:
+                subadmin = AdminUser(username=subadmin_username, role="menu_admin")
+                db.session.add(subadmin)
+                print(f"Created menu sub-admin '{subadmin_username}'.")
+            subadmin.set_password(subadmin_password)
+            subadmin.role = "menu_admin"
 
         # 2. Menu + categories
         if MenuItem.query.count() == 0:

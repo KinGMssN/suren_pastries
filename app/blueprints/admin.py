@@ -38,4 +38,5 @@ def logout():
 @admin_bp.route("/")
 @login_required
 def dashboard():
-    return render_template("admin/dashboard.html", active_tab="dashboard")
+    active_tab = "menu" if current_user.is_menu_admin else "dashboard"
+    return render_template("admin/dashboard.html", active_tab=active_tab)

@@ -26,6 +26,8 @@ class Config:
     # the database without needing shell access.
     SEED_KEY = os.environ.get("SEED_KEY", "")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me-now")
+    SUBADMIN_USERNAME = os.environ.get("SUBADMIN_USERNAME", "")
+    SUBADMIN_PASSWORD = os.environ.get("SUBADMIN_PASSWORD", "")
 
     # The static frontend's origin, e.g. https://your-username.github.io
     # (no trailing slash). Used for CORS. Falls back to localhost so the

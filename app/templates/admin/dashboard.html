@@ -5,6 +5,7 @@
 <style nonce="{{ g.csp_nonce }}">body{opacity:1;animation:none}</style>
 {% endblock %}
 {% block body %}
+<script nonce="{{ g.csp_nonce }}">document.body.dataset.adminRole = "{{ current_user.role }}";</script>
 
 <div class="admin-layout">
 
@@ -15,20 +16,22 @@
     </div>
     <div class="sb-nav">
       <div class="sb-section">Main</div>
-      <button class="sb-link active" data-tab="dashboard" data-action="set-tab"><span class="sb-icon">📊</span>Dashboard</button>
-      <button class="sb-link" data-tab="orders" data-action="set-tab"><span class="sb-icon">📋</span>Orders</button>
-      <button class="sb-link" data-tab="menu" data-action="set-tab"><span class="sb-icon">🍽️</span>Menu</button>
+      {% if not current_user.is_menu_admin %}<button class="sb-link active" data-tab="dashboard" data-action="set-tab"><span class="sb-icon">📊</span>Dashboard</button>
+      <button class="sb-link" data-tab="orders" data-action="set-tab"><span class="sb-icon">📋</span>Orders</button>{% endif %}
+      <button class="sb-link{% if current_user.is_menu_admin %} active{% endif %}" data-tab="menu" data-action="set-tab"><span class="sb-icon">🍽️</span>Menu</button>
+      {% if not current_user.is_menu_admin %}
       <div class="sb-section">Settings</div>
       <button class="sb-link" data-tab="offers" data-action="set-tab"><span class="sb-icon">🎉</span>Offers</button>
       <button class="sb-link" data-tab="team" data-action="set-tab"><span class="sb-icon">👥</span>Team</button>
       <button class="sb-link" data-tab="delivery" data-action="set-tab"><span class="sb-icon">🚚</span>Delivery Staff</button>
       <button class="sb-link" data-tab="content" data-action="set-tab"><span class="sb-icon">📝</span>Content</button>
+      {% endif %}
       <a class="sb-link" href="{{ url_for('main.home') }}"><span class="sb-icon">🌐</span>View site</a>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
         <div class="sb-avatar">👨‍💼</div>
-        <div><div class="sb-name">{{ current_user.username }}</div><div class="sb-role">Super admin</div></div>
+        <div><div class="sb-name">{{ current_user.username }}</div><div class="sb-role">{{ 'Menu admin' if current_user.is_menu_admin else 'Super admin' }}</div></div>
       </div>
       <a class="sb-link" style="margin-top:4px;display:flex" href="{{ url_for('admin.logout') }}"><span class="sb-icon">🚪</span>Logout</a>
     </div>
@@ -37,7 +40,7 @@
   <div class="main">
 
     <!-- DASHBOARD -->
-    <div class="tab-content active" id="tab-dashboard">
+    {% if not current_user.is_menu_admin %}<div class="tab-content active" id="tab-dashboard">
       <div class="top-bar">
         <div class="page-title">Dashboard</div>
         <div class="top-actions">
@@ -77,10 +80,10 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </div>{% endif %}
 
     <!-- ORDERS TAB -->
-    <div class="tab-content" id="tab-orders">
+    {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-orders">
       <div class="top-bar">
         <div class="page-title">All orders</div>
         <div class="top-actions">
@@ -102,10 +105,10 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </div>{% endif %}
 
     <!-- MENU TAB -->
-    <div class="tab-content" id="tab-menu">
+    <div class="tab-content{% if current_user.is_menu_admin %} active{% endif %}" id="tab-menu">
       <div class="top-bar">
         <div class="page-title">Menu editor</div>
         <div class="top-actions">
@@ -118,7 +121,7 @@
     </div>
 
     <!-- OFFERS TAB -->
-    <div class="tab-content" id="tab-offers">
+    {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-offers">
       <div class="top-bar"><div class="page-title">Offers & Promotions</div><button class="btn-sm btn-primary" data-action="show-coupon-modal">+ New offer</button></div>
       <div class="table-card">
         <div class="tc-head"><div class="tc-title">Current offers</div></div>
@@ -129,15 +132,15 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </div>{% endif %}
 
     <!-- CONTENT TAB -->
-    <div class="tab-content" id="tab-team">
+    {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-team">
       <div class="top-bar"><div class="page-title">Team & Chefs</div><button class="btn-sm btn-primary" data-action="show-team-modal">+ Add team member</button></div>
       <div class="menu-editor-grid" id="team-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
-    </div>
+    </div>{% endif %}
 
-    <div class="tab-content" id="tab-delivery">
+    {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-delivery">
       <div class="top-bar">
         <div class="page-title">Delivery staff</div>
         <button class="btn-sm btn-primary" data-action="show-delivery-modal">+ Add delivery person</button>
@@ -147,9 +150,9 @@
         themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a> — no login required there yet.
       </p>
       <div class="menu-editor-grid" id="delivery-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
-    </div>
+    </div>{% endif %}
 
-    <div class="tab-content" id="tab-content">
+    {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-content">
       <div class="top-bar"><div class="page-title">Site content</div><button class="btn-sm btn-primary" data-action="save-content">Save changes</button></div>
       <div style="display:grid;gap:16px">
         <div class="chart-card">
@@ -183,7 +186,7 @@
     </div>
 
   </div>
-</div>
+  </div>{% endif %}
 
 <!-- ADD / EDIT MENU ITEM MODAL -->
 <div class="modal-overlay" id="modal">

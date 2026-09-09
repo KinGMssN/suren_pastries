@@ -13,7 +13,12 @@ class AdminUser(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(30), nullable=False, default="super_admin")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def is_menu_admin(self):
+        return self.role == "menu_admin"
 
     def set_password(self, raw_password: str) -> None:
         self.password_hash = generate_password_hash(raw_password)

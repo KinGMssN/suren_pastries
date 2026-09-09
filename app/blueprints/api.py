@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db,limiter
+from app.permissions import menu_access_required, super_admin_required
 from app.models import (
     AdminUser,
     Category,
@@ -89,6 +90,7 @@ def bootstrap():
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS is_special BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS image_data TEXT",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role VARCHAR(30) NOT NULL DEFAULT 'super_admin'",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address VARCHAR(300) DEFAULT ''",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_city VARCHAR(80) DEFAULT ''",
@@ -111,7 +113,19 @@ def bootstrap():
         log.append(f"Created admin user '{username}'.")
     else:
         user.set_password(password)
+        user.role = "super_admin"
         log.append(f"Admin user '{username}' already existed — password reset from env.")
+
+    subadmin_username = current_app.config.get("SUBADMIN_USERNAME")
+    subadmin_password = current_app.config.get("SUBADMIN_PASSWORD")
+    if subadmin_username and subadmin_password:
+        subadmin = AdminUser.query.filter_by(username=subadmin_username).first()
+        if subadmin is None:
+            subadmin = AdminUser(username=subadmin_username, role="menu_admin")
+            db.session.add(subadmin)
+            log.append(f"Created menu sub-admin '{subadmin_username}'.")
+        subadmin.set_password(subadmin_password)
+        subadmin.role = "menu_admin"
 
     if MenuItem.query.count() == 0:
         for order, (cat_name, items) in enumerate(MENU_DATA.items()):
@@ -466,6 +480,7 @@ def delivery_order_detail(order_id):
 
 @api_bp.route("/admin/stats")
 @login_required
+@super_admin_required
 def admin_stats():
     total_orders = Order.query.count()
     pending = Order.query.filter_by(status="pending").count()
@@ -508,6 +523,7 @@ def admin_stats():
 
 @api_bp.route("/admin/orders")
 @login_required
+@super_admin_required
 def admin_list_orders():
     status = request.args.get("status")
     q = Order.query
@@ -527,6 +543,7 @@ def admin_list_orders():
 
 @api_bp.route("/admin/orders/<int:order_id>/status", methods=["POST"])
 @login_required
+@super_admin_required
 def admin_update_order_status(order_id):
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
@@ -542,6 +559,7 @@ def admin_update_order_status(order_id):
 
 @api_bp.route("/admin/menu", methods=["GET", "POST"])
 @login_required
+@menu_access_required
 def admin_menu_collection():
     if request.method == "GET":
         items = MenuItem.query.order_by(MenuItem.category_id, MenuItem.id).all()
@@ -584,6 +602,7 @@ def admin_menu_collection():
 
 @api_bp.route("/admin/menu/<int:item_id>", methods=["PUT", "DELETE"])
 @login_required
+@menu_access_required
 def admin_menu_item(item_id):
     item = MenuItem.query.get_or_404(item_id)
 
@@ -628,6 +647,7 @@ def admin_menu_item(item_id):
 
 @api_bp.route("/admin/menu/<int:item_id>/toggle", methods=["POST"])
 @login_required
+@menu_access_required
 def admin_toggle_menu_item(item_id):
     item = MenuItem.query.get_or_404(item_id)
     item.is_available = not item.is_available
@@ -637,6 +657,7 @@ def admin_toggle_menu_item(item_id):
 
 @api_bp.route("/admin/menu/<int:item_id>/stock", methods=["POST"])
 @login_required
+@menu_access_required
 def admin_toggle_stock(item_id):
     item = MenuItem.query.get_or_404(item_id)
     item.in_stock = not item.in_stock
@@ -646,6 +667,7 @@ def admin_toggle_stock(item_id):
 
 @api_bp.route("/admin/menu/<int:item_id>/special", methods=["POST"])
 @login_required
+@menu_access_required
 def admin_toggle_special(item_id):
     item = MenuItem.query.get_or_404(item_id)
     item.is_special = not item.is_special
@@ -657,6 +679,7 @@ def admin_toggle_special(item_id):
 
 @api_bp.route("/admin/coupons", methods=["GET", "POST"])
 @login_required
+@super_admin_required
 def admin_coupons_collection():
     if request.method == "GET":
         coupons = Coupon.query.order_by(Coupon.id.desc()).all()
@@ -708,6 +731,7 @@ def admin_coupons_collection():
 
 @api_bp.route("/admin/coupons/<int:coupon_id>", methods=["DELETE"])
 @login_required
+@super_admin_required
 def admin_delete_coupon(coupon_id):
     coupon = Coupon.query.get_or_404(coupon_id)
     db.session.delete(coupon)
@@ -717,6 +741,7 @@ def admin_delete_coupon(coupon_id):
 
 @api_bp.route("/admin/coupons/<int:coupon_id>/toggle", methods=["POST"])
 @login_required
+@super_admin_required
 def admin_toggle_coupon(coupon_id):
     coupon = Coupon.query.get_or_404(coupon_id)
     coupon.active = not coupon.active
@@ -728,6 +753,7 @@ def admin_toggle_coupon(coupon_id):
 
 @api_bp.route("/admin/content", methods=["GET", "POST"])
 @login_required
+@super_admin_required
 def admin_content():
     if request.method == "GET":
         rows = SiteContent.query.all()
@@ -744,6 +770,7 @@ def admin_content():
 
 @api_bp.route("/admin/team", methods=["GET", "POST"])
 @login_required
+@super_admin_required
 def admin_team_collection():
     if request.method == "GET":
         members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
@@ -772,6 +799,7 @@ def admin_team_collection():
 
 @api_bp.route("/admin/team/<int:member_id>", methods=["PUT", "DELETE"])
 @login_required
+@super_admin_required
 def admin_team_member(member_id):
     member = TeamMember.query.get_or_404(member_id)
 
@@ -803,6 +831,7 @@ def admin_team_member(member_id):
 
 @api_bp.route("/admin/delivery-people", methods=["GET", "POST"])
 @login_required
+@super_admin_required
 def admin_delivery_people():
     if request.method == "GET":
         people = DeliveryPerson.query.order_by(DeliveryPerson.name).all()
@@ -825,6 +854,7 @@ def admin_delivery_people():
 
 @api_bp.route("/admin/delivery-people/<int:person_id>", methods=["PUT", "DELETE"])
 @login_required
+@super_admin_required
 def admin_delivery_person_detail(person_id):
     person = DeliveryPerson.query.get_or_404(person_id)
 
@@ -845,6 +875,7 @@ def admin_delivery_person_detail(person_id):
 
 @api_bp.route("/admin/delivery-people/<int:person_id>/toggle", methods=["POST"])
 @login_required
+@super_admin_required
 def admin_toggle_delivery_person(person_id):
     person = DeliveryPerson.query.get_or_404(person_id)
     person.active = not person.active
