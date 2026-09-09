@@ -6,7 +6,7 @@
 {% endblock %}
 {% block body %}
 
-<nav>
+<nav class="site-nav" aria-label="Primary navigation">
   <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
   <div class="nav-links">
     <a class="nl" href="{{ url_for('main.home') }}">Home</a>
@@ -36,8 +36,9 @@
         <div class="sum-total"><span>Total</span><span class="sum-total-num" id="total">₹0</span></div>
 
         <div class="coupon-row">
+          <label class="visually-hidden" for="coupon">Promo code</label>
           <input class="coupon-input" type="text" id="coupon" placeholder="Promo code" />
-          <button class="coupon-btn" data-action="apply-coupon">Apply</button>
+          <button class="coupon-btn" type="button" data-action="apply-coupon">Apply promo code</button>
         </div>
 
                 <div id="checkout-area"></div>

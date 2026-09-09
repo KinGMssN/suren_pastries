@@ -32,16 +32,16 @@
     </div>
     <div class="stats">
       <div class="stat-item">
-        <div class="stat-num">{{ content('stat_years', '15+') }}</div>
-        <div class="stat-label">Years of taste</div>
+        <div class="stat-num">{{ content('stat_years', '—') }}</div>
+        <div class="stat-label">Established</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">{{ content('stat_dishes', '80+') }}</div>
+        <div class="stat-num">{{ content('stat_dishes', '—') }}</div>
         <div class="stat-label">Dishes crafted</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">{{ content('stat_guests', '50k+') }}</div>
-        <div class="stat-label">Happy guests</div>
+        <div class="stat-num">{{ content('stat_guests', '—') }}</div>
+        <div class="stat-label">Customer count unavailable</div>
       </div>
     </div>
   </div>
@@ -56,23 +56,23 @@
 <section class="features">
   <div class="feature">
     <div class="feature-icon">🌿</div>
-    <div class="feature-title">Farm Fresh</div>
-    <div class="feature-desc">Every ingredient sourced fresh daily from local farms and trusted suppliers.</div>
+    <div class="feature-title">Made to order</div>
+    <div class="feature-desc">Choose from the current menu and we will prepare your order for collection or delivery.</div>
   </div>
   <div class="feature">
     <div class="feature-icon">👨‍🍳</div>
-    <div class="feature-title">Master Chefs</div>
-    <div class="feature-desc">Our chefs bring decades of culinary tradition to every plate they create.</div>
+    <div class="feature-title">Our kitchen</div>
+    <div class="feature-desc">Recipes and availability are kept current by the Suren Pastries team.</div>
   </div>
   <div class="feature">
     <div class="feature-icon">⚡</div>
-    <div class="feature-title">Fast Delivery</div>
-    <div class="feature-desc">Hot, fresh food at your doorstep in 30 minutes or less. Guaranteed.</div>
+    <div class="feature-title">Delivery options</div>
+    <div class="feature-desc">Delivery fees and estimated times are shown before you confirm an order.</div>
   </div>
   <div class="feature">
     <div class="feature-icon">💎</div>
-    <div class="feature-title">Premium Quality</div>
-    <div class="feature-desc">No shortcuts. Every dish made with the finest spices and freshest produce.</div>
+    <div class="feature-title">Clear ordering</div>
+    <div class="feature-desc">Review your items, address, fees, and total before placing an order.</div>
   </div>
 </section>
 
@@ -93,7 +93,7 @@
         <div class="dish-desc">{{ d.description }}</div>
         <div class="dish-foot">
           <div class="dish-price">₹{{ d.price }}</div>
-          <button class="dish-add" data-action="add-cart" data-id="{{ d.id }}" data-name="{{ d.name }}" data-price="{{ d.price }}" data-emoji="{{ d.emoji }}">+ Add</button>
+          <button class="dish-add" aria-label="Add {{ d.name }} to cart" data-action="add-cart" data-id="{{ d.id }}" data-name="{{ d.name }}" data-price="{{ d.price }}" data-emoji="{{ d.emoji }}">+ Add</button>
         </div>
       </div>
     </div>
@@ -126,11 +126,13 @@
       <a class="footer-link" href="{{ url_for('main.cart') }}">Cart</a>
       <a class="footer-link" href="{{ url_for('main.about') }}">About</a>
     </div>
-        <a class="footer-admin" href="{{ url_for('admin.login') }}">🔒 Admin Portal</a>
-    <a class="footer-admin" href="{{ url_for('main.delivery') }}">🚚 Delivery Portal</a>
+      <div class="footer-business">Kurmannapalem, Gajuwaka, Andhra Pradesh 530046<br><a href="tel:09032717635">090327 17635</a> · <a href="mailto:hello@surenpastries.in">hello@surenpastries.in</a></div>
+      <a class="footer-admin" href="{{ url_for('admin.login') }}">Admin Portal</a>
+      <a class="footer-admin" href="{{ url_for('main.delivery') }}">Delivery Portal</a>
   </div>
   <div class="footer-bottom">
     <div class="footer-copy">© 2026 Suren Pastries. All rights reserved.</div>
+    <div class="footer-links"><a class="footer-link" href="{{ url_for('main.privacy') }}">Privacy</a><a class="footer-link" href="{{ url_for('main.refund_policy') }}">Refunds</a><a class="footer-link" href="{{ url_for('main.terms') }}">Terms</a><a class="footer-link" href="{{ url_for('main.cookies') }}">Cookies</a></div>
   </div>
 </footer>
 {% endblock %}
@@ -139,5 +141,4 @@
 <script src="{{ url_for('static', filename='js/cart-widget.js') }}"></script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
-<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
 {% endblock %}

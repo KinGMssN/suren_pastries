@@ -91,9 +91,9 @@ def create_app(config_class=Config):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{g.csp_nonce}'; "
-            f"style-src 'self' 'nonce-{g.csp_nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            f"style-src 'self' 'nonce-{g.csp_nonce}'; "
             "style-src-attr 'unsafe-inline'; "
-            "font-src 'self' https://fonts.gstatic.com; "
+            "font-src 'self'; "
             "img-src 'self' data:; "
             "connect-src 'self'; "
             "object-src 'none'; "

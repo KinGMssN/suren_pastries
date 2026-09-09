@@ -20,8 +20,10 @@
     {% endwith %}
 
     <form method="POST">
-      <input class="login-input" type="text" name="username" placeholder="Username" autofocus required/>
-      <input class="login-input" type="password" name="password" placeholder="Password" required/>
+      <label class="visually-hidden" for="admin-username">Username</label>
+      <input class="login-input" id="admin-username" type="text" name="username" placeholder="Username" autofocus required/>
+      <label class="visually-hidden" for="admin-password">Password</label>
+      <input class="login-input" id="admin-password" type="password" name="password" placeholder="Password" required/>
       <button class="login-btn" type="submit">Sign in</button>
     </form>
     <div class="login-hint">Forgot your credentials? Ask whoever set up the server, or run <code>python scripts/seed.py</code> again.</div>

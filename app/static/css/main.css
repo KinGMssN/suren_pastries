@@ -10,7 +10,7 @@
   --dark:#1A1A1A;
   --darker:#0F0D0A;
   --cream:#FAF7F2;
-  --muted:#7A7570;
+  --muted:#625D58;
   --border:#E8E4DF;
   --surface:#fff;
   --success:#25D366;
@@ -18,6 +18,9 @@
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark)}
 
 a{color:inherit}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+button,input,select{font:inherit}
 
 /* ── PAGE TRANSITIONS ── */
 body{opacity:0;animation:fadeInPage .4s ease-out forwards}
@@ -70,6 +73,18 @@ footer.site-footer{background:var(--darker);padding:56px 48px 28px;color:rgba(25
 .footer-admin:hover{color:var(--gold)}
 .footer-bottom{display:flex;justify-content:space-between;padding-top:20px;flex-wrap:wrap;gap:12px}
 .footer-copy{font-size:12px;color:rgba(255,255,255,.35)}
+.cookie-notice{position:fixed;left:16px;right:16px;bottom:16px;z-index:1000;display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--dark);color:#fff;border:1px solid rgba(255,255,255,.2);box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px}
+.cookie-notice[hidden]{display:none}
+.cookie-notice p{margin:0;flex:1}
+.cookie-notice a{color:#fff;text-decoration:underline;white-space:nowrap}
+.cookie-dismiss{border:1px solid #fff;background:transparent;color:#fff;padding:6px 14px;border-radius:5px;cursor:pointer}
+.consent-label{display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--muted);font-size:13px;line-height:1.5}
+.consent-label input{margin-top:3px;flex:0 0 auto}
+.policy-page{max-width:840px;margin:0 auto;padding:64px 24px 90px}
+.policy-page h1{font-family:Georgia,serif;font-size:clamp(32px,5vw,52px);margin-bottom:12px}
+.policy-page h2{font-family:Georgia,serif;font-size:22px;margin:30px 0 8px}
+.policy-page p,.policy-page li{max-width:72ch;line-height:1.7;color:var(--muted)}
+.policy-meta{color:var(--muted);font-size:13px;margin-bottom:36px}
 
 @media (max-width:768px){
   nav.site-nav{padding:16px;justify-content:center;text-align:center}
@@ -77,4 +92,6 @@ footer.site-footer{background:var(--darker);padding:56px 48px 28px;color:rgba(25
   .back-btn{margin-top:4px}
   footer.site-footer{padding:40px 24px}
   .footer-top,.footer-bottom{flex-direction:column;text-align:center}
+  .cookie-notice{align-items:stretch;flex-wrap:wrap}
+  .cookie-notice p{flex-basis:100%}
 }

@@ -16,13 +16,13 @@ async function render() {
   document.getElementById('item-count').textContent = count ? `${count} item${count > 1 ? 's' : ''} in your cart` : 'Your cart is empty';
 
   if (!cart.length) {
-    card.innerHTML = `<div class="empty"><div class="empty-big">🛒</div><h3>Your cart is empty</h3><p>Add some delicious items from our menu</p><a class="btn-p" href="/menu">Browse menu</a></div>`;
+    card.innerHTML = `<div class="empty"><div class="empty-big" aria-hidden="true">🛒</div><h3>Your cart is empty</h3><p>Add some items from our menu</p><a class="btn-p" href="/menu">Browse menu</a></div>`;
     sum.style.display = 'none';
     return;
   }
   sum.style.display = 'block';
   card.innerHTML = `
-    <div class="items-card-head"><h3>Items (${count})</h3><button class="clear-btn" data-action="clear-cart">Clear all</button></div>
+    <div class="items-card-head"><h3>Items (${count})</h3><button class="clear-btn" type="button" data-action="clear-cart">Clear all items</button></div>
     ${cart.map(i => `
       <div class="cart-item">
         <div class="ci-emoji">${i.emoji}</div>
@@ -33,12 +33,12 @@ async function render() {
         <div class="ci-right">
           <div class="ci-price">₹${i.price * i.qty}</div>
           <div class="qty-ctrl">
-            <button class="qb" data-action="change-qty" data-id="${i.id}" data-delta="-1">−</button>
+            <button class="qb" aria-label="Decrease quantity of ${i.name}" data-action="change-qty" data-id="${i.id}" data-delta="-1">−</button>
             <div class="qn">${i.qty}</div>
-            <button class="qb" data-action="change-qty" data-id="${i.id}" data-delta="1">+</button>
+            <button class="qb" aria-label="Increase quantity of ${i.name}" data-action="change-qty" data-id="${i.id}" data-delta="1">+</button>
           </div>
         </div>
-        <button class="del-btn" data-action="remove-item" data-id="${i.id}">🗑</button>
+        <button class="del-btn" aria-label="Remove ${i.name} from cart" data-action="remove-item" data-id="${i.id}">Remove</button>
       </div>
     `).join('')}
   `;
@@ -104,8 +104,8 @@ async function renderCheckoutArea() {
 
   area.innerHTML = `
     <div class="addr-picker">
-      <label class="acct-label">Deliver to</label>
-      <select class="acct-input" id="address-select" data-action="select-address">
+      <label class="acct-label" for="address-select">Deliver to</label>
+      <select class="acct-input" id="address-select" aria-label="Delivery address" data-action="select-address">
         ${addresses.map(a => `<option value="${a.id}" ${a.id === selectedAddressId ? 'selected' : ''}>${a.label} — ${a.address_line}${a.city ? ', ' + a.city : ''}</option>`).join('')}
       </select>
     </div>

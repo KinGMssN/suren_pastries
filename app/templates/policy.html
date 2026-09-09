@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — {% if policy == 'privacy' %}Privacy Policy{% elif policy == 'refund' %}Refund Policy{% elif policy == 'terms' %}Terms and Conditions{% else %}Cookies Policy{% endif %}{% endblock %}
+{% block body %}
+<nav class="site-nav" aria-label="Primary navigation">
+  <a href="{{ url_for('main.home') }}" class="logo">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl" href="{{ url_for('main.about') }}">About</a>
+  </div>
+</nav>
+<main class="policy-page">
+{% if policy == 'privacy' %}
+  <h1>Privacy Policy</h1>
+  <p class="policy-meta">Last updated: September 9, 2026</p>
+  <p>Suren Pastries, Kurmannapalem, Gajuwaka, Andhra Pradesh 530046, uses the information you provide to process orders, deliver food, respond to requests, and maintain your account.</p>
+  <h2>Information we collect</h2>
+  <p>We collect only the information needed for those purposes: your name, phone number, delivery address, order details, and messages you choose to send us. Payment details are handled by the selected payment provider and are not stored by this site.</p>
+  <h2>Sharing and retention</h2>
+  <p>We share delivery details only with staff and service providers who need them to complete your order. We do not sell personal information or use it for advertising. We keep information only as long as needed for orders, legal obligations, and customer support.</p>
+  <h2>Your choices</h2>
+  <p>To ask for access, correction, or deletion of your information, contact <a href="mailto:hello@surenpastries.in">hello@surenpastries.in</a> or call <a href="tel:09032717635">090327 17635</a>.</p>
+{% elif policy == 'refund' %}
+  <h1>Refund Policy</h1>
+  <p class="policy-meta">Last updated: September 9, 2026</p>
+  <p>Because food is prepared to order, cancellations and refunds depend on the order stage. Contact us as soon as possible at <a href="tel:09032717635">090327 17635</a>.</p>
+  <h2>Before preparation</h2>
+  <p>We will try to cancel an order before preparation begins and confirm any eligible refund through the original payment method.</p>
+  <h2>Problems with an order</h2>
+  <p>Tell us within 24 hours if an order is missing, damaged, or not what you ordered. Include your order number and, where useful, a photo so we can investigate and offer a replacement or refund.</p>
+{% elif policy == 'terms' %}
+  <h1>Terms and Conditions</h1>
+  <p class="policy-meta">Last updated: September 9, 2026</p>
+  <p>By placing an order with Suren Pastries, you confirm that the contact and delivery details you provide are accurate and that you are authorised to use the chosen payment method.</p>
+  <h2>Orders and availability</h2>
+  <p>Orders are accepted subject to item availability, delivery coverage, and confirmation by Suren Pastries. Menu prices, taxes, delivery fees, and preparation times are shown at checkout and may change before an order is confirmed.</p>
+  <h2>Delivery</h2>
+  <p>Delivery times are estimates. We may contact you about access, substitutions, or delays. Please provide a safe and accurate delivery address.</p>
+  <h2>Contact</h2>
+  <p>Questions about an order or these terms can be sent to <a href="mailto:hello@surenpastries.in">hello@surenpastries.in</a>.</p>
+{% else %}
+  <h1>Cookies Policy</h1>
+  <p class="policy-meta">Last updated: September 9, 2026</p>
+  <p>This site does not use advertising, analytics, social-media, or cross-site tracking cookies. It uses browser local storage for the shopping cart, customer session details, and your cookie-notice preference.</p>
+  <h2>Essential storage</h2>
+  <p>Essential storage supports shopping and account features you request. Clearing browser storage may remove your cart or sign you out.</p>
+  <h2>Third-party services</h2>
+  <p>There are no embedded video, map, advertising, or analytics services on these pages. Payment or messaging services may apply their own terms when you choose to use them.</p>
+{% endif %}
+</main>
+{% endblock %}

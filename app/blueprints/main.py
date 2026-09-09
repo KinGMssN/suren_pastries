@@ -33,6 +33,26 @@ def about():
     return render_template("details.html")
 
 
+@main_bp.route("/privacy")
+def privacy():
+    return render_template("policy.html", policy="privacy")
+
+
+@main_bp.route("/refund-policy")
+def refund_policy():
+    return render_template("policy.html", policy="refund")
+
+
+@main_bp.route("/terms")
+def terms():
+    return render_template("policy.html", policy="terms")
+
+
+@main_bp.route("/cookies")
+def cookies():
+    return render_template("policy.html", policy="cookies")
+
+
 @main_bp.route("/cart")
 def cart():
     return render_template("cart.html")

@@ -23,10 +23,11 @@
     <div id="login-error" class="acct-error" style="display:none"></div>
 
     <form id="login-form">
-      <label class="acct-label">Phone number</label>
+      <label class="acct-label" for="login-phone">Phone number</label>
       <input class="acct-input" type="tel" id="login-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}"/>
-      <label class="acct-label">Your name</label>
+      <label class="acct-label" for="login-name">Your name</label>
       <input class="acct-input" type="text" id="login-name" placeholder="Full name" required/>
+      <label class="consent-label"><input type="checkbox" id="login-consent" required/> I agree to the <a href="{{ url_for('main.privacy') }}">Privacy Policy</a> and <a href="{{ url_for('main.terms') }}">Terms</a>.</label>
       <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Continue</button>
     </form>
     <p class="acct-note">No OTP for now — just your phone number and name. We'll add verification later.</p>
