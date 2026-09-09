@@ -45,6 +45,23 @@ def create_app(config_class=Config):
 
     from app.models import AdminUser
 
+    # Keep the testing/provisioned menu account synchronized with Render
+    # environment variables, without changing the main administrator.
+    with app.app_context():
+        subadmin_username = app.config.get("SUBADMIN_USERNAME", "").strip()
+        subadmin_password = app.config.get("SUBADMIN_PASSWORD", "")
+        if subadmin_username and subadmin_password:
+            try:
+                subadmin = AdminUser.query.filter_by(username=subadmin_username).first()
+                if subadmin is None:
+                    subadmin = AdminUser(username=subadmin_username, role="menu_admin")
+                    db.session.add(subadmin)
+                subadmin.set_password(subadmin_password)
+                subadmin.role = "menu_admin"
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+
     @login_manager.user_loader
     def load_user(user_id):
         return AdminUser.query.get(int(user_id))
