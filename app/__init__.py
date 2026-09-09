@@ -4,6 +4,8 @@ import secrets
 
 from flask import Flask, g, request
 from flask_cors import CORS
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 from app.extensions import db, login_manager,limiter
@@ -16,6 +18,20 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
+
+    # Apply additive schema changes before Flask-Login can query AdminUser.
+    # Existing deployments may have an admin_users table created before roles
+    # were introduced, so db.create_all() alone cannot add this column.
+    with app.app_context():
+        try:
+            db.session.execute(text(
+                "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role "
+                "VARCHAR(30) NOT NULL DEFAULT 'super_admin'"
+            ))
+            db.session.commit()
+        except SQLAlchemyError:
+            # A first boot may run before seed/db.create_all() creates tables.
+            db.session.rollback()
     
     # The frontend now lives on a different origin (GitHub Pages), so the
     # browser needs explicit permission to send/receive the admin session
