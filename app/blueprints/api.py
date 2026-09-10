@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy import inspect as sqlalchemy_inspect
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db,limiter
@@ -17,6 +18,7 @@ from app.models import (
     Customer,
     CustomerAddress,
     DeliveryPerson,
+    DeletedRecord,
     MenuItem,
     Order,
     OrderItem,
@@ -33,6 +35,22 @@ api_bp = Blueprint("api", __name__)
 
 def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
+
+
+def archive_before_delete(record, deleted_by_username=None):
+    """Store a database-column snapshot before removing a record."""
+    data = {}
+    for column in sqlalchemy_inspect(record).mapper.columns:
+        value = getattr(record, column.key)
+        data[column.key] = value.isoformat() if isinstance(value, datetime) else value
+    user = current_user if getattr(current_user, "is_authenticated", False) else None
+    db.session.add(DeletedRecord(
+        table_name=record.__tablename__,
+        original_id=record.id,
+        record_data=data,
+        deleted_by_user_id=user.id if user else None,
+        deleted_by_username=deleted_by_username or (user.username if user else None),
+    ))
 
 
 # ───────────────────────── image upload validation ─────────────────────────
@@ -273,6 +291,12 @@ def customer_request_otp():
     if len(phone) != 10:
         return error("Enter a valid 10-digit phone number.")
     customer = Customer.query.filter_by(phone=phone).first()
+    if customer is None and not name:
+        return jsonify({
+            "ok": False,
+            "needs_name": True,
+            "error": "Please enter your name to create your account.",
+        }), 400
     if customer is None:
         customer = Customer(phone=phone, name=name[:120])
         db.session.add(customer)
@@ -314,6 +338,30 @@ def customer_verify_otp():
 
 @api_bp.route("/customer/logout", methods=["POST"])
 def customer_logout():
+    session.pop("customer_id", None)
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/customer/account", methods=["DELETE"])
+def customer_delete_account():
+    customer = _get_current_customer()
+    if not customer:
+        return error("Please log in first.", 401)
+
+    deleted_by = f"customer:{customer.phone}"
+    for address in list(customer.addresses):
+        archive_before_delete(address, deleted_by_username=deleted_by)
+
+    archive_before_delete(customer, deleted_by_username=deleted_by)
+    Order.query.filter_by(customer_id=customer.id).update(
+        {
+            "customer_id": None,
+            "customer_name": "Deleted customer",
+            "customer_phone": "",
+        }
+    )
+    db.session.delete(customer)
+    db.session.commit()
     session.pop("customer_id", None)
     return jsonify({"ok": True})
 
@@ -361,6 +409,7 @@ def customer_address_detail(address_id):
         return error("Please log in first.", 404)
 
     if request.method == "DELETE":
+        archive_before_delete(addr)
         db.session.delete(addr)
         db.session.commit()
         return jsonify({"ok": True})
@@ -586,6 +635,24 @@ def admin_stats():
     )
 
 
+@api_bp.route("/admin/deleted-records")
+@login_required
+@super_admin_required
+def admin_deleted_records():
+    records = DeletedRecord.query.order_by(DeletedRecord.deleted_at.desc()).limit(500).all()
+    return jsonify([
+        {
+            "id": record.id,
+            "table": record.table_name,
+            "original_id": record.original_id,
+            "data": record.record_data,
+            "deleted_by": record.deleted_by_username,
+            "deleted_at": record.deleted_at.isoformat(),
+        }
+        for record in records
+    ])
+
+
 # ── Orders ──
 
 @api_bp.route("/admin/orders")
@@ -675,6 +742,7 @@ def admin_menu_item(item_id):
 
     if request.method == "DELETE":
         OrderItem.query.filter_by(menu_item_id=item.id).update({"menu_item_id": None})
+        archive_before_delete(item)
         db.session.delete(item)
         db.session.commit()
         return jsonify({"ok": True})
@@ -801,6 +869,7 @@ def admin_coupons_collection():
 @super_admin_required
 def admin_delete_coupon(coupon_id):
     coupon = Coupon.query.get_or_404(coupon_id)
+    archive_before_delete(coupon)
     db.session.delete(coupon)
     db.session.commit()
     return jsonify({"ok": True})
@@ -871,6 +940,7 @@ def admin_team_member(member_id):
     member = TeamMember.query.get_or_404(member_id)
 
     if request.method == "DELETE":
+        archive_before_delete(member)
         db.session.delete(member)
         db.session.commit()
         return jsonify({"ok": True})
@@ -926,6 +996,7 @@ def admin_delivery_person_detail(person_id):
     person = DeliveryPerson.query.get_or_404(person_id)
 
     if request.method == "DELETE":
+        archive_before_delete(person)
         db.session.delete(person)
         db.session.commit()
         return jsonify({"ok": True})

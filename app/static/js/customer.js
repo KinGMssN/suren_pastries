@@ -48,6 +48,21 @@ async function customerLogin(event) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
+      if (data.needs_name) {
+        const nameField = document.getElementById('login-name');
+        const nameLabel = document.querySelector('label[for="login-name"]');
+        if (nameField) {
+          nameField.hidden = false;
+          nameField.required = true;
+          nameField.focus();
+        }
+        if (nameLabel) nameLabel.hidden = false;
+        if (errBox) {
+          errBox.textContent = 'New customer? Enter your name, then continue.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
       if (errBox) { errBox.textContent = data.error || 'Something went wrong.'; errBox.style.display = 'block'; }
       return;
     }
@@ -84,6 +99,19 @@ function customerLogout() {
   fetch(CUSTOMER_API_BASE + '/api/customer/logout', { method: 'POST' });
   clearCustomer();
   window.location.href = '/home';
+}
+
+async function deleteCustomerAccount() {
+  if (!confirm('Delete your account and saved addresses? Your completed orders will be retained without your personal details.')) return;
+  try {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/account', { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not delete your account.');
+    clearCustomer();
+    window.location.href = '/home';
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 // ───────────────────────── account page ─────────────────────────
@@ -207,6 +235,7 @@ document.addEventListener('click', (e) => {
   const id = el.dataset.id ? parseInt(el.dataset.id, 10) : null;
   switch (el.dataset.action) {
     case 'logout': customerLogout(); break;
+    case 'delete-account': deleteCustomerAccount(); break;
     case 'set-default-address': setDefaultAddress(id); break;
     case 'delete-address': deleteAddress(id); break;
   }

@@ -163,6 +163,18 @@ class AuditLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
+class DeletedRecord(db.Model):
+    __tablename__ = "deleted_records"
+
+    id = db.Column(db.Integer, primary_key=True)
+    table_name = db.Column(db.String(80), nullable=False, index=True)
+    original_id = db.Column(db.Integer, nullable=False, index=True)
+    record_data = db.Column(db.JSON, nullable=False)
+    deleted_by_user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=True)
+    deleted_by_username = db.Column(db.String(80), nullable=True)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
 class CustomerAddress(db.Model):
     __tablename__ = "customer_addresses"
 
