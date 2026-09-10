@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -43,6 +44,13 @@ class Config:
     SESSION_COOKIE_SECURE = IS_PRODUCTION
     REMEMBER_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE
     REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
+    ADMIN_SESSION_IDLE_TIMEOUT = timedelta(hours=2)
+    ADMIN_MAX_LOGIN_FAILURES = 20
+    CUSTOMER_OTP_TTL_SECONDS = 10 * 60
+    CUSTOMER_OTP_DEBUG = os.environ.get("CUSTOMER_OTP_DEBUG", "false").lower() == "true"
+    ADMIN_RESET_KEY = os.environ.get("ADMIN_RESET_KEY", "")
+    ADMIN_TOTP_SECRET = os.environ.get("ADMIN_TOTP_SECRET", "")
 
     # Business rules (also editable at runtime via the Admin > Content tab,
     # these are just the fallback defaults used to first seed the database)

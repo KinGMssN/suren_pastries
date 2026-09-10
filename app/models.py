@@ -15,6 +15,9 @@ class AdminUser(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(30), nullable=False, default="super_admin")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    session_version = db.Column(db.Integer, nullable=False, default=0)
 
     @property
     def is_menu_admin(self):
@@ -25,6 +28,9 @@ class AdminUser(UserMixin, db.Model):
 
     def check_password(self, raw_password: str) -> bool:
         return check_password_hash(self.password_hash, raw_password)
+
+    def invalidate_sessions(self):
+        self.session_version = (self.session_version or 0) + 1
 
 
 class Category(db.Model):
@@ -129,6 +135,9 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), unique=True, nullable=False)
     name = db.Column(db.String(120), default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    otp_hash = db.Column(db.String(255), nullable=True)
+    otp_expires_at = db.Column(db.DateTime, nullable=True)
+    otp_attempts = db.Column(db.Integer, nullable=False, default=0)
 
     addresses = db.relationship(
         "CustomerAddress", backref="customer", lazy=True, cascade="all, delete-orphan"
@@ -140,6 +149,18 @@ class Customer(db.Model):
         if include_addresses:
             d["addresses"] = [a.to_dict() for a in self.addresses]
         return d
+
+
+class AuditLog(db.Model):
+    __tablename__ = "audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=True)
+    username = db.Column(db.String(80), nullable=False)
+    method = db.Column(db.String(10), nullable=False)
+    path = db.Column(db.String(255), nullable=False)
+    status_code = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
 class CustomerAddress(db.Model):

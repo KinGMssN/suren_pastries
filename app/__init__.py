@@ -1,14 +1,16 @@
 import json
 import logging
 import secrets
+from datetime import datetime
 
-from flask import Flask, g, request
+from flask import Flask, g, request, session
 from flask_cors import CORS
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
-from app.extensions import db, login_manager,limiter
+from app.extensions import csrf, db, login_manager, limiter
+from app.models import AdminUser
 
 
 def create_app(config_class=Config):
@@ -18,6 +20,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
+    csrf.init_app(app)
 
     with app.app_context():
         try:
@@ -28,14 +31,27 @@ def create_app(config_class=Config):
             db.session.commit()
         except SQLAlchemyError:
             db.session.rollback()
+
+        for stmt in [
+            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
+            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(255)",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP",
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_attempts INTEGER NOT NULL DEFAULT 0",
+        ]:
+            try:
+                db.session.execute(text(stmt))
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+        db.create_all()
     
     CORS(
         app,
         supports_credentials=True,
         origins=[app.config["FRONTEND_ORIGIN"]],
     )
-
-    from app.models import AdminUser
 
     with app.app_context():
         subadmin_username = app.config.get("SUBADMIN_USERNAME", "").strip()
@@ -54,15 +70,48 @@ def create_app(config_class=Config):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return AdminUser.query.get(int(user_id))
+        user = AdminUser.query.get(int(user_id))
+        if not user or session.get("admin_session_version") != (user.session_version or 0):
+            return None
+        return user
 
     from app.blueprints.main import main_bp
     from app.blueprints.api import api_bp
     from app.blueprints.admin import admin_bp
 
     app.register_blueprint(main_bp)
+    csrf.exempt(api_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+
+    @app.before_request
+    def expire_idle_admin_session():
+        last_activity = session.get("admin_last_activity")
+        if last_activity is None:
+            return
+        now = datetime.utcnow().timestamp()
+        if now - last_activity > app.config["ADMIN_SESSION_IDLE_TIMEOUT"].total_seconds():
+            session.clear()
+            return
+        session["admin_last_activity"] = now
+
+    @app.after_request
+    def audit_admin_action(response):
+        from flask_login import current_user
+        if current_user.is_authenticated and (request.path.startswith("/admin") or request.path.startswith("/api/admin")):
+            try:
+                from app.models import AuditLog
+                db.session.add(AuditLog(
+                    admin_user_id=current_user.id,
+                    username=current_user.username,
+                    method=request.method,
+                    path=request.path,
+                    status_code=response.status_code,
+                ))
+                db.session.commit()
+            except SQLAlchemyError:
+                db.session.rollback()
+        return response
 
     @app.post("/api/csp-report")
     def receive_csp_report():

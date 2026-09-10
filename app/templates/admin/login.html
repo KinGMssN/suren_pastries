@@ -20,10 +20,12 @@
     {% endwith %}
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label class="visually-hidden" for="admin-username">Username</label>
       <input class="login-input" id="admin-username" type="text" name="username" placeholder="Username" autofocus required/>
       <label class="visually-hidden" for="admin-password">Password</label>
       <input class="login-input" id="admin-password" type="password" name="password" placeholder="Password" required/>
+      {% if config.ADMIN_TOTP_SECRET %}<input class="login-input" id="admin-otp" type="text" name="otp_code" placeholder="Authenticator code" inputmode="numeric" maxlength="6" required/>{% endif %}
       <button class="login-btn" type="submit">Sign in</button>
     </form>
     <div class="login-hint">Forgot your credentials? Ask whoever set up the server, or run <code>python scripts/seed.py</code> again.</div>

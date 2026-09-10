@@ -23,7 +23,7 @@
     if (!customer) return;
     try {
       const base = window.API_BASE || '';
-      const res = await fetch(base + '/api/customer/orders?phone=' + encodeURIComponent(customer.phone));
+      const res = await fetch(base + '/api/customer/orders');
       const orders = await res.json();
       const active = orders.find(o => o.status !== 'delivered');
       const existing = document.getElementById('floating-track-btn');

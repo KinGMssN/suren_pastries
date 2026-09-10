@@ -1,11 +1,14 @@
 import base64
 import re
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db,limiter
+from app.auth import verify_totp
 from app.permissions import menu_access_required, super_admin_required
 from app.models import (
     AdminUser,
@@ -157,12 +160,29 @@ def auth_login():
     payload = request.get_json(silent=True) or {}
     username = (payload.get("username") or "").strip()
     password = payload.get("password") or ""
+    otp_code = str(payload.get("otp_code") or "").strip()
 
     user = AdminUser.query.filter_by(username=username).first()
-    if not user or not user.check_password(password):
+    if user and user.locked_until and user.locked_until > datetime.utcnow():
+        return error("This account is temporarily locked. Try again later.", 423)
+    totp_required = current_app.config.get("ADMIN_TOTP_SECRET")
+    if not user or not user.check_password(password) or (totp_required and not verify_totp(totp_required, otp_code)):
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= current_app.config["ADMIN_MAX_LOGIN_FAILURES"]:
+                from datetime import timedelta
+                user.locked_until = datetime.utcnow() + timedelta(hours=24)
+            db.session.commit()
         return error("Invalid username or password.", 401)
 
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.invalidate_sessions()
+    db.session.commit()
     login_user(user)
+    session.permanent = True
+    session["admin_session_version"] = user.session_version
+    session["admin_last_activity"] = datetime.utcnow().timestamp()
     return jsonify({"ok": True, "username": user.username})
 
 
@@ -170,6 +190,40 @@ def auth_login():
 @login_required
 def auth_logout():
     logout_user()
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/auth/logout-everywhere", methods=["POST"])
+@login_required
+def auth_logout_everywhere():
+    current_user.invalidate_sessions()
+    db.session.commit()
+    logout_user()
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/auth/reset-password", methods=["POST"])
+@limiter.limit("3 per hour")
+def auth_reset_password():
+    payload = request.get_json(silent=True) or {}
+    reset_key = payload.get("reset_key") or ""
+    username = (payload.get("username") or "").strip()
+    new_password = payload.get("new_password") or ""
+    configured_key = current_app.config.get("ADMIN_RESET_KEY", "")
+    if not configured_key or not secrets.compare_digest(reset_key, configured_key):
+        return error("Password reset is not configured or the recovery key is invalid.", 403)
+    if len(new_password) < 12:
+        return error("New passwords must be at least 12 characters.")
+    user = AdminUser.query.filter_by(username=username).first()
+    if not user:
+        return error("Password reset failed.", 400)
+    user.set_password(new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.invalidate_sessions()
+    db.session.commit()
     return jsonify({"ok": True})
 
 
@@ -204,43 +258,74 @@ def public_team():
     return jsonify([m.to_dict() for m in members])
 
 
-# ───────────────────────── customer accounts (phone-based, no password yet) ─────────────────────────
+# ───────────────────────── customer accounts ─────────────────────────
 def _normalize_phone(raw):
     return "".join(ch for ch in (raw or "") if ch.isdigit())[-10:]
 
 
-@api_bp.route("/customer/login", methods=["POST"])
-@limiter.limit("10 per minute")
-def customer_login():
+@api_bp.route("/customer/request-otp", methods=["POST"])
+@limiter.limit("5 per hour")
+def customer_request_otp():
     payload = request.get_json(silent=True) or {}
     phone = _normalize_phone(payload.get("phone"))
     name = (payload.get("name") or "").strip()
 
     if len(phone) != 10:
         return error("Enter a valid 10-digit phone number.")
-    if not name:
-        return error("Name is required.")
-
     customer = Customer.query.filter_by(phone=phone).first()
     if customer is None:
-        customer = Customer(phone=phone, name=name)
+        customer = Customer(phone=phone, name=name[:120])
         db.session.add(customer)
-    else:
-        customer.name = name  # keep the name up to date on repeat logins
+    elif name:
+        customer.name = name[:120]
+    code = f"{secrets.randbelow(1000000):06d}"
+    customer.otp_hash = generate_password_hash(code)
+    customer.otp_expires_at = datetime.utcnow() + timedelta(seconds=current_app.config["CUSTOMER_OTP_TTL_SECONDS"])
+    customer.otp_attempts = 0
     db.session.commit()
+    current_app.logger.info("Customer OTP for %s: %s", phone, code)
+    result = {"ok": True, "message": "If that number can receive messages, a verification code is on its way."}
+    if current_app.config["CUSTOMER_OTP_DEBUG"]:
+        result["debug_code"] = code
+    return jsonify(result)
+
+
+@api_bp.route("/customer/verify-otp", methods=["POST"])
+@limiter.limit("10 per minute")
+def customer_verify_otp():
+    payload = request.get_json(silent=True) or {}
+    phone = _normalize_phone(payload.get("phone"))
+    code = str(payload.get("code") or "").strip()
+    customer = Customer.query.filter_by(phone=phone).first()
+    if not customer or not customer.otp_hash or not customer.otp_expires_at:
+        return error("That code is invalid or has expired.", 401)
+    if customer.otp_attempts >= 5 or customer.otp_expires_at < datetime.utcnow() or not check_password_hash(customer.otp_hash, code):
+        customer.otp_attempts = (customer.otp_attempts or 0) + 1
+        db.session.commit()
+        return error("That code is invalid or has expired.", 401)
+    customer.otp_hash = None
+    customer.otp_expires_at = None
+    customer.otp_attempts = 0
+    db.session.commit()
+    session["customer_id"] = customer.id
+    session.permanent = True
     return jsonify({"ok": True, "customer": customer.to_dict()})
 
 
-def _get_customer_or_404(phone):
-    phone = _normalize_phone(phone)
-    customer = Customer.query.filter_by(phone=phone).first()
-    return customer
+@api_bp.route("/customer/logout", methods=["POST"])
+def customer_logout():
+    session.pop("customer_id", None)
+    return jsonify({"ok": True})
+
+
+def _get_current_customer():
+    customer_id = session.get("customer_id")
+    return Customer.query.get(customer_id) if customer_id else None
 
 
 @api_bp.route("/customer/addresses", methods=["GET", "POST"])
 def customer_addresses():
-    phone = request.args.get("phone") if request.method == "GET" else (request.get_json(silent=True) or {}).get("phone")
-    customer = _get_customer_or_404(phone)
+    customer = _get_current_customer()
     if not customer:
         return error("Please log in first.", 404)
 
@@ -271,6 +356,9 @@ def customer_addresses():
 @api_bp.route("/customer/addresses/<int:address_id>", methods=["PUT", "DELETE"])
 def customer_address_detail(address_id):
     addr = CustomerAddress.query.get_or_404(address_id)
+    customer = _get_current_customer()
+    if not customer or addr.customer_id != customer.id:
+        return error("Please log in first.", 404)
 
     if request.method == "DELETE":
         db.session.delete(addr)
@@ -296,7 +384,7 @@ def customer_address_detail(address_id):
 
 @api_bp.route("/customer/orders")
 def customer_orders():
-    customer = _get_customer_or_404(request.args.get("phone"))
+    customer = _get_current_customer()
     if not customer:
         return error("Please log in first.", 404)
 
@@ -368,8 +456,10 @@ def checkout():
     if len(phone) != 10:
         return error("Please log in to place an order.", 401)
 
-    customer = Customer.query.filter_by(phone=phone).first()
+    customer = _get_current_customer()
     if not customer:
+        return error("Please log in to place an order.", 401)
+    if phone and phone != customer.phone:
         return error("Please log in to place an order.", 401)
 
     address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()

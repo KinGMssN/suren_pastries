@@ -79,7 +79,7 @@ async function renderCheckoutArea() {
   }
 
   try {
-    const res = await fetch((window.API_BASE || '') + '/api/customer/addresses?phone=' + encodeURIComponent(customer.phone));
+    const res = await fetch((window.API_BASE || '') + '/api/customer/addresses');
     addresses = await res.json();
   } catch (err) {
     addresses = [];

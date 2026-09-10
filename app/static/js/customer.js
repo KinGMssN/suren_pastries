@@ -41,7 +41,7 @@ async function customerLogin(event) {
   if (errBox) errBox.style.display = 'none';
 
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/login', {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, name }),
@@ -51,14 +51,37 @@ async function customerLogin(event) {
       if (errBox) { errBox.textContent = data.error || 'Something went wrong.'; errBox.style.display = 'block'; }
       return;
     }
-    setCustomer(data.customer);
-    window.location.href = '/account';
+    if (data.debug_code) document.getElementById('login-code').value = data.debug_code;
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('verify-form').style.display = 'block';
   } catch (err) {
     if (errBox) { errBox.textContent = 'Could not reach the server. Please try again.'; errBox.style.display = 'block'; }
   }
 }
 
+async function verifyCustomerOtp(event) {
+  event.preventDefault();
+  const errBox = document.getElementById('login-error');
+  try {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('login-phone').value.trim(),
+        code: document.getElementById('login-code').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid verification code.');
+    setCustomer(data.customer);
+    window.location.href = '/account';
+  } catch (err) {
+    if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+  }
+}
+
 function customerLogout() {
+  fetch(CUSTOMER_API_BASE + '/api/customer/logout', { method: 'POST' });
   clearCustomer();
   window.location.href = '/home';
 }
@@ -82,7 +105,7 @@ async function loadAddresses() {
   if (!list || !customer) return;
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/addresses?phone=' + encodeURIComponent(customer.phone));
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/addresses');
     const addresses = await res.json();
     if (!addresses.length) {
       list.innerHTML = '<p style="color:var(--muted);font-size:13px">No saved addresses yet. Add one below.</p>';
@@ -108,7 +131,6 @@ async function addAddress(event) {
   const customer = getCustomer();
   if (!customer) return;
   const payload = {
-    phone: customer.phone,
     label: document.getElementById('addr-label').value.trim() || 'Home',
     address_line: document.getElementById('addr-line').value.trim(),
     city: document.getElementById('addr-city').value.trim(),
@@ -157,7 +179,7 @@ async function loadOrderHistory() {
   if (!list || !customer) return;
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/orders?phone=' + encodeURIComponent(customer.phone));
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/orders');
     const orders = await res.json();
     if (!orders.length) {
       list.innerHTML = '<p style="color:var(--muted);font-size:13px">No past orders yet.</p>';
@@ -192,6 +214,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'login-form') customerLogin(e);
+  if (e.target.id === 'verify-form') verifyCustomerOtp(e);
   if (e.target.id === 'add-address-form') addAddress(e);
 });
 
