@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Suren Pastries — Sign Up{% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+{% endblock %}
+{% block body %}
+
+<nav class="site-nav">
+  <a href="{{ url_for('main.home') }}" class="logo" style="text-decoration:none;">SUREN PASTRIES</a>
+  <div class="nav-links">
+    <a class="nl" href="{{ url_for('main.home') }}">Home</a>
+    <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
+    <a class="nl" href="{{ url_for('main.about') }}">About</a>
+  </div>
+</nav>
+
+<div class="acct-page">
+  <div class="acct-card" style="max-width:420px;margin:60px auto">
+    <div class="acct-icon">👋</div>
+    <h1 class="acct-title">Create your account</h1>
+    <p class="acct-sub">Save your addresses and track your orders with your phone number.</p>
+
+    <div id="signup-error" class="acct-error" style="display:none"></div>
+
+    <form id="signup-form">
+      <label class="acct-label" for="signup-name">Your name</label>
+      <input class="acct-input" type="text" id="signup-name" placeholder="Full name" required />
+      <label class="acct-label" for="signup-phone">Phone number</label>
+      <input class="acct-input" type="tel" id="signup-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}" />
+      <label class="consent-label"><input type="checkbox" required /> I agree to the <a href="{{ url_for('main.privacy') }}">Privacy Policy</a> and <a href="{{ url_for('main.terms') }}">Terms</a>.</label>
+      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Create account</button>
+    </form>
+    <form id="signup-verify-form" style="display:none">
+      <label class="acct-label" for="signup-code">Verification code</label>
+      <input class="acct-input" type="text" id="signup-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required />
+      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Verify and continue</button>
+    </form>
+    <p class="acct-note">Already have an account? <a href="{{ url_for('main.login') }}">Log in</a>.</p>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
+{% endblock %}

@@ -36,7 +36,6 @@ function updateAccountNav() {
 async function customerLogin(event) {
   if (event) event.preventDefault();
   const phone = document.getElementById('login-phone').value.trim();
-  const name = document.getElementById('login-name').value.trim();
   const errBox = document.getElementById('login-error');
   if (errBox) errBox.style.display = 'none';
 
@@ -44,23 +43,12 @@ async function customerLogin(event) {
     const res = await fetch(CUSTOMER_API_BASE + '/api/customer/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name }),
+      body: JSON.stringify({ phone, mode: 'login' }),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
       if (data.needs_name) {
-        const nameField = document.getElementById('login-name');
-        const nameLabel = document.querySelector('label[for="login-name"]');
-        if (nameField) {
-          nameField.hidden = false;
-          nameField.required = true;
-          nameField.focus();
-        }
-        if (nameLabel) nameLabel.hidden = false;
-        if (errBox) {
-          errBox.textContent = 'New customer? Enter your name, then continue.';
-          errBox.style.display = 'block';
-        }
+        window.location.href = '/signup?phone=' + encodeURIComponent(phone);
         return;
       }
       if (errBox) { errBox.textContent = data.error || 'Something went wrong.'; errBox.style.display = 'block'; }
@@ -71,6 +59,49 @@ async function customerLogin(event) {
     document.getElementById('verify-form').style.display = 'block';
   } catch (err) {
     if (errBox) { errBox.textContent = 'Could not reach the server. Please try again.'; errBox.style.display = 'block'; }
+  }
+}
+
+async function customerSignup(event) {
+  event.preventDefault();
+  const phone = document.getElementById('signup-phone').value.trim();
+  const name = document.getElementById('signup-name').value.trim();
+  const errBox = document.getElementById('signup-error');
+  if (errBox) errBox.style.display = 'none';
+  try {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name, mode: 'signup' }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create your account.');
+    if (data.debug_code) document.getElementById('signup-code').value = data.debug_code;
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('signup-verify-form').style.display = 'block';
+  } catch (err) {
+    if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+  }
+}
+
+async function verifySignupOtp(event) {
+  event.preventDefault();
+  const errBox = document.getElementById('signup-error');
+  try {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('signup-phone').value.trim(),
+        code: document.getElementById('signup-code').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid verification code.');
+    setCustomer(data.customer);
+    window.location.href = '/account';
+  } catch (err) {
+    if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
   }
 }
 
@@ -243,11 +274,15 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'login-form') customerLogin(e);
+  if (e.target.id === 'signup-form') customerSignup(e);
   if (e.target.id === 'verify-form') verifyCustomerOtp(e);
+  if (e.target.id === 'signup-verify-form') verifySignupOtp(e);
   if (e.target.id === 'add-address-form') addAddress(e);
 });
 
 document.addEventListener('DOMContentLoaded', () => {
   updateAccountNav();
+  const signupPhone = new URLSearchParams(window.location.search).get('phone');
+  if (signupPhone && document.getElementById('signup-phone')) document.getElementById('signup-phone').value = signupPhone;
   if (document.getElementById('address-list')) loadAccountPage();
 });

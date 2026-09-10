@@ -63,6 +63,11 @@ def login():
     return render_template("login.html")
 
 
+@main_bp.route("/signup")
+def signup():
+    return render_template("signup.html")
+
+
 @main_bp.route("/account")
 def account():
     return render_template("account.html")

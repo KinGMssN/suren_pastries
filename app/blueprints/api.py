@@ -287,10 +287,13 @@ def customer_request_otp():
     payload = request.get_json(silent=True) or {}
     phone = _normalize_phone(payload.get("phone"))
     name = (payload.get("name") or "").strip()
+    mode = payload.get("mode", "login")
 
     if len(phone) != 10:
         return error("Enter a valid 10-digit phone number.")
     customer = Customer.query.filter_by(phone=phone).first()
+    if mode == "signup" and customer is not None:
+        return error("An account already exists for this number. Please log in.", 409)
     if customer is None and not name:
         return jsonify({
             "ok": False,
