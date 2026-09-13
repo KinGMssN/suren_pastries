@@ -14,6 +14,12 @@ function isLoggedIn() {
   return !!getCustomer();
 }
 
+async function readCustomerResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) return response.json();
+  return { ok: false, error: `Request failed (${response.status}). Please try again later.` };
+}
+
 function updateAccountNav() {
   const link = document.getElementById('nav-account');
   if (!link) return;
@@ -45,7 +51,7 @@ async function customerLogin(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, mode: 'login' }),
     });
-    const data = await res.json();
+    const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) {
       if (data.needs_name) {
         window.location.href = '/signup?phone=' + encodeURIComponent(phone);
@@ -74,7 +80,7 @@ async function customerSignup(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, name, mode: 'signup' }),
     });
-    const data = await res.json();
+    const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create your account.');
     if (data.debug_code) document.getElementById('signup-code').value = data.debug_code;
     document.getElementById('signup-form').style.display = 'none';

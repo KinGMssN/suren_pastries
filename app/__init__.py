@@ -98,6 +98,13 @@ def create_app(config_class=Config):
                 db.session.rollback()
         return response
 
+    @app.errorhandler(429)
+    def handle_rate_limit(_error):
+        return {
+            "ok": False,
+            "error": "Too many OTP requests. Please wait and try again later.",
+        }, 429
+
     @app.post("/api/csp-report")
     def receive_csp_report():
         payload = request.get_json(silent=True) or {}
