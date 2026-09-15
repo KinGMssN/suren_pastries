@@ -28,7 +28,6 @@
       {% if config.ADMIN_TOTP_SECRET %}<input class="login-input" id="admin-otp" type="text" name="otp_code" placeholder="Authenticator code" inputmode="numeric" maxlength="6" required/>{% endif %}
       <button class="login-btn" type="submit">Sign in</button>
     </form>
-    <div class="login-hint">Forgot your credentials? Ask whoever set up the server, or run <code>python scripts/seed.py</code> again.</div>
   </div>
 </div>
 {% endblock %}

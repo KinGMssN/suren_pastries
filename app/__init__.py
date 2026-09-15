@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import secrets
@@ -69,6 +70,19 @@ def create_app(config_class=Config):
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
+    for rule in app.url_map.iter_rules():
+        if not rule.endpoint.startswith("api."):
+            rule.methods.discard("OPTIONS")
+            rule.provide_automatic_options = False
+
+    @app.get("/.well-known/security.txt")
+    def security_txt():
+        return (
+            "Contact: mailto:security@surenpastries.in\n"
+            "Expires: 2027-09-15T00:00:00.000Z\n"
+            "Preferred-Languages: en\n"
+        )
+
     @app.before_request
     def expire_idle_admin_session():
         last_activity = session.get("admin_last_activity")
@@ -137,14 +151,14 @@ def create_app(config_class=Config):
     # ── Security headers on every response ──
     @app.before_request
     def set_csp_nonce():
-        g.csp_nonce = secrets.token_urlsafe(16)
+        g.csp_nonce = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
 
     @app.after_request
     def set_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Permissions-Policy"] = (
             "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
         )
@@ -155,7 +169,7 @@ def create_app(config_class=Config):
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{g.csp_nonce}'; "
             f"style-src 'self' 'nonce-{g.csp_nonce}'; "
-            "style-src-attr 'unsafe-inline'; "
+            "style-src-attr 'none'; "
             "font-src 'self'; "
             "img-src 'self' data:; "
             "connect-src 'self'; "
@@ -166,7 +180,6 @@ def create_app(config_class=Config):
             "form-action 'self';"
             " upgrade-insecure-requests;"
             " report-to csp-endpoint;"
-            " report-uri /api/csp-report;"
         )
         return response
 

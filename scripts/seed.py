@@ -29,6 +29,8 @@ DEFAULT_CONTENT = {
 def run():
     app = create_app()
     with app.app_context():
+        if not app.config.get("ADMIN_PASSWORD"):
+            raise RuntimeError("ADMIN_PASSWORD must be set before running the seed script")
         db.create_all()
         db.session.execute(text(
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role VARCHAR(30) NOT NULL DEFAULT 'super_admin'"

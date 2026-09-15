@@ -7,7 +7,7 @@ load_dotenv(os.path.join(basedir, ".env"))
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(32)
 
     # SQLAlchemy's psycopg3 dialect is explicit so existing deployment URLs
     # without a driver suffix continue to work after the driver migration.
@@ -23,10 +23,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-    # Set this on Render, visit /api/bootstrap?key=<this value> once to seed
-    # the database without needing shell access.
-    SEED_KEY = os.environ.get("SEED_KEY", "")
-    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me-now")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
     SUBADMIN_USERNAME = os.environ.get("SUBADMIN_USERNAME", "")
     SUBADMIN_PASSWORD = os.environ.get("SUBADMIN_PASSWORD", "")
 
