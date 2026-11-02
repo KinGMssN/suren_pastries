@@ -1,5 +1,7 @@
 import secrets
 
+import pytest
+
 from app.extensions import db
 from app.models import (
     AdminUser,
@@ -326,6 +328,33 @@ def test_api_mutations_reject_untrusted_origins(client):
 
     response = client.post("/api/checkout", json={})
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("next_url", "expected_location"),
+    [
+        ("https://attacker.example", "/admin/"),
+        ("//attacker.example", "/admin/"),
+        ("/\\attacker.example", "/admin/"),
+        ("/admin/orders", "/admin/orders"),
+    ],
+)
+def test_admin_login_redirect_is_limited_to_safe_relative_urls(
+    app, client, next_url, expected_location
+):
+    with app.app_context():
+        admin = AdminUser(username="redirect-test-admin", role="super_admin")
+        admin.set_password("redirect-test-password")
+        db.session.add(admin)
+        db.session.commit()
+
+    response = client.post(
+        "/admin/login",
+        query_string={"next": next_url},
+        data={"username": "redirect-test-admin", "password": "redirect-test-password"},
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == expected_location
 
 
 def test_tracking_identifiers_have_more_entropy_and_lookup_is_rate_limited(app, client):
