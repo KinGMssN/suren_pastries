@@ -1,7 +1,16 @@
 import secrets
 
 from app.extensions import db
-from app.models import AdminUser, DeliveryPerson, Order, OrderItem
+from app.models import (
+    AdminUser,
+    Category,
+    Customer,
+    CustomerAddress,
+    DeliveryPerson,
+    MenuItem,
+    Order,
+    OrderItem,
+)
 
 
 def create_order(person=None, status="ready", channel="cod"):
@@ -147,3 +156,55 @@ def test_delivery_requires_ready_status_and_cod_confirmation(app, client):
     )
     assert response.status_code == 400
     assert response.get_json()["error"] == "Only ready orders can be marked delivered."
+
+
+def test_checkout_rejects_client_prices_and_invalid_quantities(app, client):
+    with app.app_context():
+        category = Category(name="Test category")
+        customer = Customer(phone="1234567890", name="Test Customer")
+        db.session.add_all([category, customer])
+        db.session.flush()
+        item = MenuItem(
+            name="Server-priced pastry",
+            price=120,
+            emoji="🥐",
+            category_id=category.id,
+            is_available=True,
+            in_stock=True,
+        )
+        address = CustomerAddress(
+            customer_id=customer.id,
+            address_line="1 Test Street",
+            city="Test City",
+            pincode="123456",
+            is_default=True,
+        )
+        db.session.add_all([item, address])
+        db.session.commit()
+        customer_id = customer.id
+        item_id = item.id
+        address_id = address.id
+
+    with client.session_transaction() as browser_session:
+        browser_session["customer_id"] = customer_id
+
+    def submit(items):
+        return client.post("/api/checkout", json={
+            "items": items,
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        })
+
+    assert submit([{"item_id": item_id, "qty": 1, "price": 1}]).status_code == 400
+    assert submit([{"item_id": item_id, "qty": 0}]).status_code == 400
+    assert submit([{"item_id": item_id, "qty": "1"}]).status_code == 400
+
+    response = submit([{"item_id": item_id, "qty": 1}])
+    assert response.status_code == 200
+    assert response.get_json()["total"] == 166
+    with app.app_context():
+        created = Order.query.one()
+        assert created.subtotal == 120
+        assert created.items[0].name == "Server-priced pastry"
+        assert created.items[0].price == 120

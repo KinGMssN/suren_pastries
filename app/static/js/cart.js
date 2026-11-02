@@ -157,7 +157,7 @@ async function checkout(method) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: cart,
+        items: cart.map(item => ({ item_id: item.id, qty: item.qty })),
         channel: method,
         coupon_code: appliedCoupon,
         phone: customer.phone,

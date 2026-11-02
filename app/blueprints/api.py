@@ -38,6 +38,10 @@ def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
 
 
+def _normalize_phone(phone):
+    return re.sub(r"\D", "", phone or "")
+
+
 def delivery_access_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -358,14 +362,24 @@ def apply_coupon():
 
 def checkout():
     payload = request.get_json(silent=True) or {}
-    cart_items = payload.get("items") or []
+    if not isinstance(payload, dict):
+        return error("Invalid checkout details.")
+    cart_items = payload.get("items")
     channel = payload.get("channel", "whatsapp")
-    coupon_code = (payload.get("coupon_code") or "").strip().upper() or None
-    phone = _normalize_phone(payload.get("phone"))
+    coupon_code = payload.get("coupon_code") or ""
+    phone_value = payload.get("phone")
+    if not isinstance(coupon_code, str) or not isinstance(phone_value, str):
+        return error("Invalid checkout details.")
+    coupon_code = coupon_code.strip().upper() or None
+    phone = _normalize_phone(phone_value)
     address_id = payload.get("address_id")
+    if type(address_id) is not int or address_id < 1:
+        return error("Please select a delivery address.")
 
-    if not cart_items:
+    if not isinstance(cart_items, list) or not cart_items:
         return error("Your cart is empty.")
+    if len(cart_items) > 50:
+        return error("Your cart contains too many different items.")
     if len(phone) != 10:
         return error("Please log in to place an order.", 401)
 
@@ -379,10 +393,37 @@ def checkout():
     if not address:
         return error("Please select a delivery address.")
 
-    if channel not in ORDER_CHANNELS:
-        channel = "whatsapp"
+    if not isinstance(channel, str) or channel not in ORDER_CHANNELS:
+        return error("Invalid checkout method.")
 
-    subtotal = sum(int(i["price"]) * int(i["qty"]) for i in cart_items)
+    requested_items = []
+    item_ids = set()
+    for row in cart_items:
+        if not isinstance(row, dict) or set(row) != {"item_id", "qty"}:
+            return error("Each cart item must contain only an item ID and quantity.")
+        item_id = row["item_id"]
+        quantity = row["qty"]
+        if type(item_id) is not int or item_id < 1:
+            return error("Invalid menu item.")
+        if type(quantity) is not int or not 1 <= quantity <= 20:
+            return error("Item quantities must be whole numbers between 1 and 20.")
+        if item_id in item_ids:
+            return error("Each menu item may appear only once in the cart.")
+        item_ids.add(item_id)
+        requested_items.append((item_id, quantity))
+
+    menu_items = {
+        item.id: item
+        for item in MenuItem.query.filter(MenuItem.id.in_(item_ids)).all()
+    }
+    if len(menu_items) != len(requested_items):
+        return error("One or more menu items are no longer available.")
+    for item_id, _quantity in requested_items:
+        item = menu_items[item_id]
+        if not item.is_available or not item.in_stock:
+            return error(f"{item.name} is currently unavailable.")
+
+    subtotal = sum(menu_items[item_id].price * quantity for item_id, quantity in requested_items)
     delivery_fee = 0 if subtotal >= current_app.config["FREE_DELIVERY_THRESHOLD"] else current_app.config["DELIVERY_FEE"]
     tax = round(subtotal * current_app.config["TAX_RATE"])
 
@@ -415,15 +456,16 @@ def checkout():
     db.session.add(order)
     db.session.flush()  # get order.id before adding items
     
-    for i in cart_items:
+    for item_id, quantity in requested_items:
+        item = menu_items[item_id]
         db.session.add(
             OrderItem(
                 order_id=order.id,
-                menu_item_id=i.get("id"),
-                name=i.get("name", "Item"),
-                price=int(i.get("price", 0)),
-                emoji=i.get("emoji", "🍽️"),
-                qty=int(i.get("qty", 1)),
+                menu_item_id=item.id,
+                name=item.name,
+                price=item.price,
+                emoji=item.emoji,
+                qty=quantity,
             )
         )
 
