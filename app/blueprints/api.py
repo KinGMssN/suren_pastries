@@ -991,6 +991,20 @@ def admin_content():
 
 # ── Team / Chefs ──
 
+@api_bp.route("/team")
+def public_team():
+    members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
+    return jsonify([
+        {
+            "name": member.name,
+            "role": member.role,
+            "avatar": member.avatar_emoji,
+            "photo": member.photo_data or None,
+        }
+        for member in members
+    ])
+
+
 @api_bp.route("/admin/team", methods=["GET", "POST"])
 @login_required
 @super_admin_required

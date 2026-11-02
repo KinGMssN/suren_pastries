@@ -14,6 +14,7 @@ from app.models import (
     MenuItem,
     Order,
     OrderItem,
+    TeamMember,
 )
 
 
@@ -635,3 +636,35 @@ def test_legacy_whatsapp_orders_cannot_be_assigned_or_fulfilled(app, client):
         f"/api/delivery/orders/{ready_order_id}/deliver",
         json={},
     ).status_code == 409
+
+
+def test_public_team_endpoint_returns_sorted_public_fields(app, client):
+    with app.app_context():
+        db.session.add_all([
+            TeamMember(
+                name="Second Member",
+                role="Baker",
+                avatar_emoji="🍞",
+                sort_order=2,
+            ),
+            TeamMember(
+                name="First Member",
+                role="Chef",
+                avatar_emoji="👩‍🍳",
+                sort_order=1,
+            ),
+        ])
+        db.session.commit()
+
+    response = client.get("/api/team")
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {"name": "First Member", "role": "Chef", "avatar": "👩‍🍳", "photo": None},
+        {"name": "Second Member", "role": "Baker", "avatar": "🍞", "photo": None},
+    ]
+
+
+def test_about_page_starts_with_non_mock_team_content(client):
+    response = client.get("/about")
+    assert response.status_code == 200
+    assert b"Ravi Kumar" not in response.data
