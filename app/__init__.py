@@ -7,8 +7,6 @@ from urllib.parse import urlsplit
 
 from flask import Flask, g, request, session
 from flask_cors import CORS
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 from app.extensions import csrf, db, login_manager, limiter
@@ -24,31 +22,6 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     csrf.init_app(app)
 
-    with app.app_context():
-        try:
-            db.session.execute(text(
-                "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role "
-                "VARCHAR(30) NOT NULL DEFAULT 'super_admin'"
-            ))
-            db.session.commit()
-        except SQLAlchemyError:
-            db.session.rollback()
-
-        for stmt in [
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(255)",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_attempts INTEGER NOT NULL DEFAULT 0",
-        ]:
-            try:
-                db.session.execute(text(stmt))
-                db.session.commit()
-            except SQLAlchemyError:
-                db.session.rollback()
-        db.create_all()
-    
     CORS(
         app,
         supports_credentials=True,
@@ -70,6 +43,16 @@ def create_app(config_class=Config):
     csrf.exempt(api_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+
+    @app.cli.command("db-upgrade")
+    def db_upgrade_command():
+        from migrations.runner import upgrade
+
+        applied = upgrade()
+        if applied:
+            print(f"Applied database migrations: {', '.join(applied)}")
+        else:
+            print("Database schema is already up to date.")
 
     for rule in app.url_map.iter_rules():
         if not rule.endpoint.startswith("api."):
