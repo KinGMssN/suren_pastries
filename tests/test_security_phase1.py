@@ -301,7 +301,16 @@ def test_tax_and_percent_discount_round_half_up(app, client):
     assert response.get_json()["tax"] == 1
     assert response.get_json()["total"] == 51
     tracked = client.get("/api/orders/track/" + response.get_json()["order_number"])
-    assert tracked.get_json()["tax"] == 1
+    tracked_order = tracked.get_json()
+    assert tracked_order["tax"] == 1
+    assert tracked_order["total"] == 51
+    assert "customer_phone" not in tracked_order
+    assert "delivery_address" not in tracked_order
+    assert "delivery_city" not in tracked_order
+    assert "delivery_pincode" not in tracked_order
+    assert "delivery_person_id" not in tracked_order
+    assert "cod_collected" not in tracked_order
+    assert "id" not in tracked_order
 
 
 def test_api_mutations_reject_untrusted_origins(client):
@@ -317,3 +326,15 @@ def test_api_mutations_reject_untrusted_origins(client):
 
     response = client.post("/api/checkout", json={})
     assert response.status_code == 400
+
+
+def test_tracking_identifiers_have_more_entropy_and_lookup_is_rate_limited(app, client):
+    with app.app_context():
+        assert len(Order.generate_order_number()) == 20
+
+    responses = [
+        client.get("/api/orders/track/SP0000000000000000")
+        for _ in range(31)
+    ]
+    assert all(response.status_code == 404 for response in responses[:30])
+    assert responses[30].status_code == 429

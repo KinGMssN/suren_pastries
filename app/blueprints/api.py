@@ -522,13 +522,31 @@ def checkout():
 
 # ───────────────────────── public: order tracking ─────────────────────────
 @api_bp.route("/orders/track/<order_number>")
+@limiter.limit("30 per minute")
 def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
     if not order:
         return error("Order not found. Check the order number and try again.", 404)
-    d = order.to_dict()
-    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
-    return jsonify(d)
+    return jsonify({
+        "order_number": order.order_number,
+        "channel": order.channel,
+        "status": order.status,
+        "subtotal": order.subtotal,
+        "delivery_fee": order.delivery_fee,
+        "tax": order.tax,
+        "discount": order.discount,
+        "total": order.total,
+        "created_at": order.created_at.strftime("%d %b %Y, %I:%M %p"),
+        "delivered_at": (
+            order.delivered_at.strftime("%d %b %Y, %I:%M %p")
+            if order.delivered_at else None
+        ),
+        "has_delivery_person": bool(order.delivery_person_id),
+        "items": [
+            {"name": item.name, "qty": item.qty, "price": item.price}
+            for item in order.items
+        ],
+    })
 
 
 @api_bp.route("/delivery/orders/<int:order_id>")

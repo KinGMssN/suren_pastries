@@ -259,7 +259,7 @@ class Order(db.Model):
 
     @staticmethod
     def generate_order_number():
-        return "SP" + secrets.token_hex(3).upper()
+        return "SP" + secrets.token_hex(9).upper()
     
     def item_count(self):
         return sum(i.qty for i in self.items)
