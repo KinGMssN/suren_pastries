@@ -236,6 +236,7 @@ def test_checkout_rolls_back_order_when_commit_fails(app, client, monkeypatch):
             category_id=category.id,
             is_available=True,
             in_stock=True,
+            stock_quantity=2,
         )
         address = CustomerAddress(customer_id=customer.id, address_line="Atomic address")
         db.session.add_all([item, address])
@@ -267,6 +268,9 @@ def test_checkout_rolls_back_order_when_commit_fails(app, client, monkeypatch):
     with app.app_context():
         assert Order.query.count() == 0
         assert OrderItem.query.count() == 0
+        item = db.session.get(MenuItem, item_id)
+        assert item.stock_quantity == 2
+        assert item.in_stock is True
 
 
 def test_tax_and_percent_discount_round_half_up(app, client):
@@ -668,3 +672,92 @@ def test_about_page_starts_with_non_mock_team_content(client):
     response = client.get("/about")
     assert response.status_code == 200
     assert b"Ravi Kumar" not in response.data
+
+
+def test_checkout_atomically_decrements_finite_stock(app, client):
+    with app.app_context():
+        category = Category(name="Finite stock category")
+        customer = Customer(phone="1234567890", name="Stock Customer")
+        db.session.add_all([category, customer])
+        db.session.flush()
+        item = MenuItem(
+            name="Two-stock pastry",
+            price=100,
+            category_id=category.id,
+            is_available=True,
+            in_stock=True,
+            stock_quantity=2,
+        )
+        address = CustomerAddress(customer_id=customer.id, address_line="Stock address")
+        db.session.add_all([item, address])
+        db.session.commit()
+        customer_id, item_id, address_id = customer.id, item.id, address.id
+
+    with client.session_transaction() as browser_session:
+        browser_session["customer_id"] = customer_id
+
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 2}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "test-finite-stock-checkout-key-001"},
+    )
+    assert response.status_code == 200
+    with app.app_context():
+        item = db.session.get(MenuItem, item_id)
+        assert item.stock_quantity == 0
+        assert item.in_stock is False
+        assert MenuItem.query.get(item_id).to_dict()["in_stock"] is False
+
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 1}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "test-finite-stock-retry-key-0001"},
+    )
+    assert response.status_code == 400
+    with app.app_context():
+        assert Order.query.count() == 1
+
+
+def test_admin_must_set_stock_for_new_menu_items(app, client):
+    with app.app_context():
+        admin = AdminUser(username="stock-admin", role="super_admin")
+        admin.set_password("stock-admin-password")
+        db.session.add(admin)
+        db.session.commit()
+
+    assert client.post(
+        "/admin/login",
+        data={"username": "stock-admin", "password": "stock-admin-password"},
+    ).status_code == 302
+    payload = {
+        "name": "Stock-managed pastry",
+        "price": 100,
+        "category": "Stock management",
+        "in_stock": True,
+    }
+    missing_stock = client.post("/api/admin/menu", json=payload)
+    assert missing_stock.status_code == 400
+
+    created = client.post(
+        "/api/admin/menu",
+        json={**payload, "stock_quantity": 3},
+    )
+    assert created.status_code == 201
+    item = created.get_json()["item"]
+    assert item["stock_quantity"] == 3
+    updated = client.put(
+        f"/api/admin/menu/{item['id']}",
+        json={"stock_quantity": 0},
+    )
+    assert updated.status_code == 200
+    assert updated.get_json()["item"]["in_stock"] is False

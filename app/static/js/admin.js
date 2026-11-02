@@ -217,6 +217,7 @@ async function loadMenuEditor() {
             </div>
             <div class="me-cat">${i.category || 'Uncategorized'}${i.tag ? ' · ' + i.tag : ''}</div>
             <div class="me-price">₹${i.price}</div>
+            <div class="me-cat">Stock: ${i.stock_quantity === null ? 'Unlimited' : i.stock_quantity}</div>
           </div>
         </div>
         <div class="me-actions">
@@ -238,6 +239,7 @@ function showModal() {
   pendingImageData = null;
   document.getElementById('menu-modal-title').textContent = 'Add menu item';
   ['id', 'name', 'price', 'description', 'category', 'tag', 'emoji'].forEach(f => document.getElementById('mi-' + f).value = '');
+  document.getElementById('mi-stock-quantity').value = '0';
   document.getElementById('mi-image-file').value = '';
   document.getElementById('mi-image-preview').style.display = 'none';
   document.getElementById('mi-in-stock').checked = true;
@@ -255,6 +257,8 @@ function openEditModal(item) {
   document.getElementById('mi-category').value = item.category || '';
   document.getElementById('mi-tag').value = item.tag || '';
   document.getElementById('mi-emoji').value = item.emoji || '';
+  document.getElementById('mi-stock-quantity').value =
+    item.stock_quantity === null ? '' : String(item.stock_quantity);
   document.getElementById('mi-image-file').value = '';
   const preview = document.getElementById('mi-image-preview');
   if (item.image) { preview.src = item.image; preview.style.display = 'block'; }
@@ -266,6 +270,15 @@ function openEditModal(item) {
 function hideModal() { document.getElementById('modal').classList.remove('show'); }
 
 async function submitMenuItem() {
+  const stockValue = document.getElementById('mi-stock-quantity').value.trim();
+  const stockQuantity = stockValue === '' ? null : Number(stockValue);
+  if (
+    (!editingItemId && stockQuantity === null)
+    || (stockQuantity !== null && (!Number.isInteger(stockQuantity) || stockQuantity < 0))
+  ) {
+    toast('Enter a non-negative whole-number stock quantity');
+    return;
+  }
   const payload = {
     name: document.getElementById('mi-name').value.trim(),
     price: parseInt(document.getElementById('mi-price').value || '0', 10),
@@ -275,6 +288,7 @@ async function submitMenuItem() {
     emoji: document.getElementById('mi-emoji').value.trim() || '🍽️',
     in_stock: document.getElementById('mi-in-stock').checked,
     is_special: document.getElementById('mi-is-special').checked,
+    stock_quantity: stockQuantity,
   };
   if (pendingImageData) payload.image = pendingImageData;
   if (!payload.name || !payload.category || !payload.price) {

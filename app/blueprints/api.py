@@ -547,6 +547,8 @@ def checkout():
         item = menu_items[item_id]
         if not item.is_available or not item.in_stock:
             return error(f"{item.name} is currently unavailable.")
+        if item.stock_quantity is not None and item.stock_quantity < _quantity:
+            return error(f"Not enough stock remains for {item.name}.", 409)
 
     subtotal = sum(menu_items[item_id].price * quantity for item_id, quantity in requested_items)
     delivery_fee = 0 if subtotal >= current_app.config["FREE_DELIVERY_THRESHOLD"] else current_app.config["DELIVERY_FEE"]
@@ -562,6 +564,26 @@ def checkout():
             if coupon and coupon.is_valid():
                 discount = coupon.compute_discount(subtotal)
                 coupon.uses = (coupon.uses or 0) + 1
+
+        for item_id, quantity in requested_items:
+            item = menu_items[item_id]
+            if item.stock_quantity is None:
+                continue
+            updated = MenuItem.query.filter(
+                MenuItem.id == item_id,
+                MenuItem.is_available.is_(True),
+                MenuItem.in_stock.is_(True),
+                MenuItem.stock_quantity >= quantity,
+            ).update(
+                {MenuItem.stock_quantity: MenuItem.stock_quantity - quantity},
+                synchronize_session=False,
+            )
+            if updated != 1:
+                db.session.rollback()
+                return error("Stock changed while placing your order. Please try again.", 409)
+            db.session.expire(item, ["stock_quantity"])
+            if item.stock_quantity == 0:
+                item.in_stock = False
 
         total = max(subtotal + delivery_fee + tax - discount, 0)
         order = Order(
@@ -784,15 +806,21 @@ def admin_update_order_status(order_id):
 def admin_menu_collection():
     if request.method == "GET":
         items = MenuItem.query.order_by(MenuItem.category_id, MenuItem.id).all()
-        return jsonify([{**i.to_dict(), "category_id": i.category_id} for i in items])
+        return jsonify([
+            {**i.to_dict(), "category_id": i.category_id, "stock_quantity": i.stock_quantity}
+            for i in items
+        ])
 
     payload = request.get_json(silent=True) or {}
     name = (payload.get("name") or "").strip()
     price = payload.get("price")
     category_name = (payload.get("category") or "").strip()
+    stock_quantity = payload.get("stock_quantity")
 
     if not name or price is None or not category_name:
         return error("Name, price and category are required.")
+    if type(stock_quantity) is not int or stock_quantity < 0:
+        return error("Enter a non-negative stock quantity for new items.")
 
     img_error = validate_image_data_uri(payload.get("image"))
     if img_error:
@@ -812,13 +840,21 @@ def admin_menu_collection():
         tag=(payload.get("tag") or "").strip(),
         category_id=category.id,
         is_available=True,
-        in_stock=bool(payload.get("in_stock", True)),
+        in_stock=bool(payload.get("in_stock", True)) and stock_quantity > 0,
+        stock_quantity=stock_quantity,
         is_special=bool(payload.get("is_special", False)),
         image_data=(payload.get("image") or None),
     )
     db.session.add(item)
     db.session.commit()
-    return jsonify({"ok": True, "item": {**item.to_dict(), "category_id": item.category_id}}), 201
+    return jsonify({
+        "ok": True,
+        "item": {
+            **item.to_dict(),
+            "category_id": item.category_id,
+            "stock_quantity": item.stock_quantity,
+        },
+    }), 201
 
 
 @api_bp.route("/admin/menu/<int:item_id>", methods=["PUT", "DELETE"])
@@ -835,6 +871,15 @@ def admin_menu_item(item_id):
         return jsonify({"ok": True})
 
     payload = request.get_json(silent=True) or {}
+    if "stock_quantity" in payload:
+        stock_quantity = payload["stock_quantity"]
+        if stock_quantity is not None and (
+            type(stock_quantity) is not int or stock_quantity < 0
+        ):
+            return error("Stock quantity must be a non-negative whole number or blank.")
+        item.stock_quantity = stock_quantity
+        if stock_quantity == 0:
+            item.in_stock = False
     if "image" in payload:
         img_error = validate_image_data_uri(payload["image"])
         if img_error:
@@ -864,7 +909,14 @@ def admin_menu_item(item_id):
         item.image_data = payload["image"] or None
 
     db.session.commit()
-    return jsonify({"ok": True, "item": {**item.to_dict(), "category_id": item.category_id}})
+    return jsonify({
+        "ok": True,
+        "item": {
+            **item.to_dict(),
+            "category_id": item.category_id,
+            "stock_quantity": item.stock_quantity,
+        },
+    })
 
 
 @api_bp.route("/admin/menu/<int:item_id>/toggle", methods=["POST"])
@@ -882,6 +934,8 @@ def admin_toggle_menu_item(item_id):
 @menu_access_required
 def admin_toggle_stock(item_id):
     item = MenuItem.query.get_or_404(item_id)
+    if not item.in_stock and item.stock_quantity == 0:
+        return error("Set a positive stock quantity before marking this item in stock.")
     item.in_stock = not item.in_stock
     db.session.commit()
     return jsonify({"ok": True, "in_stock": item.in_stock})

@@ -58,6 +58,7 @@ class MenuItem(db.Model):
     price = db.Column(db.Integer, nullable=False)  # stored in rupees, whole numbers
     emoji = db.Column(db.String(10), default="🍽️")
     tag = db.Column(db.String(40), default="")
+    stock_quantity = db.Column(db.Integer, nullable=True)  # NULL denotes unlimited stock.
     is_available = db.Column(db.Boolean, default=True, nullable=False)  # hidden from menu entirely when False
     in_stock = db.Column(db.Boolean, default=True, nullable=False)      # shown but not orderable when False
     is_special = db.Column(db.Boolean, default=False, nullable=False)   # featured on landing page "Chef's specials"
@@ -76,7 +77,9 @@ class MenuItem(db.Model):
             "tag": self.tag or None,
             "category": self.category.name if self.category else None,
             "is_available": self.is_available,
-            "in_stock": self.in_stock,
+            "in_stock": self.in_stock and (
+                self.stock_quantity is None or self.stock_quantity > 0
+            ),
             "is_special": self.is_special,
         }
 
