@@ -130,7 +130,22 @@ def create_app(config_class=Config):
                 return SiteContent.get(key, default)
             except Exception:
                 return default
-        return {"content": content}
+        public_canonical_endpoints = {
+            "main.index",
+            "main.home",
+            "main.menu",
+            "main.about",
+            "main.privacy",
+            "main.refund_policy",
+            "main.terms",
+            "main.cookies",
+        }
+        public_site_url = app.config.get("PUBLIC_SITE_URL", "")
+        canonical_url = None
+        if public_site_url and request.endpoint in public_canonical_endpoints:
+            path = "/home" if request.endpoint == "main.index" else request.path
+            canonical_url = public_site_url + path
+        return {"content": content, "canonical_url": canonical_url}
 
     # ── Security headers on every response ──
     @app.before_request

@@ -21,3 +21,8 @@ password, then start PostgreSQL with `docker compose up -d db`. The published
 database port is bound to loopback only; `POSTGRES_PORT` can change its host
 port. Configure `DATABASE_URL` to use the same local database credentials.
 The `.env` file is ignored by Git and must not be committed.
+
+Set `PUBLIC_SITE_URL` in the deployment environment to the canonical public
+site origin (scheme and host only, with no trailing path). This enables absolute
+canonical links, `robots.txt` sitemap discovery, and `/sitemap.xml`. The
+sitemap is unavailable until this origin is configured.

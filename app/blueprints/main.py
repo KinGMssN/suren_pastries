@@ -1,8 +1,20 @@
-from flask import Blueprint, render_template
+from xml.sax.saxutils import escape
+
+from flask import Blueprint, Response, current_app, render_template
 
 from app.models import Category, MenuItem
 
 main_bp = Blueprint("main", __name__)
+
+SITEMAP_PATHS = (
+    "/home",
+    "/menu",
+    "/about",
+    "/privacy",
+    "/refund-policy",
+    "/terms",
+    "/cookies",
+)
 
 
 @main_bp.route("/")
@@ -86,3 +98,43 @@ def track(order_number):
 @main_bp.route("/delivery/order/<int:order_id>")
 def delivery_order(order_id):
     return render_template("delivery_order.html", order_id=order_id)
+
+
+@main_bp.route("/robots.txt")
+def robots_txt():
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /account",
+        "Disallow: /cart",
+        "Disallow: /delivery",
+        "Disallow: /delivery/order/",
+        "Disallow: /login",
+        "Disallow: /signup",
+        "Disallow: /track/",
+    ]
+    public_site_url = current_app.config.get("PUBLIC_SITE_URL", "")
+    if public_site_url:
+        lines.append(f"Sitemap: {public_site_url}/sitemap.xml")
+    return Response("\n".join(lines) + "\n", mimetype="text/plain")
+
+
+@main_bp.route("/sitemap.xml")
+def sitemap_xml():
+    public_site_url = current_app.config.get("PUBLIC_SITE_URL", "")
+    if not public_site_url:
+        return Response(
+            "Set PUBLIC_SITE_URL to enable the sitemap.\n",
+            status=503,
+            mimetype="text/plain",
+        )
+    locations = "".join(
+        f"<url><loc>{escape(public_site_url + path)}</loc></url>"
+        for path in SITEMAP_PATHS
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f"{locations}</urlset>"
+    )
+    return Response(xml, mimetype="application/xml")

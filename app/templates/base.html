@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>{% block title %}Suren Pastries{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}Freshly prepared pastries and South Indian favourites from Suren Pastries.{% endblock %}"/>
+{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}"/>{% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 {% block page_css %}{% endblock %}
 </head>
