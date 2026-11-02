@@ -179,7 +179,7 @@ def create_app(config_class=Config):
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{g.csp_nonce}'; "
             f"style-src 'self' 'nonce-{g.csp_nonce}'; "
-            "style-src-attr 'none'; "
+            "style-src-attr 'unsafe-inline'; "
             "font-src 'self'; "
             "img-src 'self' data:; "
             "connect-src 'self'; "

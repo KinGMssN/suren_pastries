@@ -668,6 +668,17 @@ def test_public_team_endpoint_returns_sorted_public_fields(app, client):
     ]
 
 
+def test_csp_allows_existing_inline_styles_without_relaxing_script_policy(client):
+    response = client.get("/cart")
+    policy = response.headers["Content-Security-Policy"]
+    assert "style-src-attr 'unsafe-inline'" in policy
+    script_policy = next(
+        directive for directive in policy.split(";")
+        if directive.strip().startswith("script-src ")
+    )
+    assert "'unsafe-inline'" not in script_policy
+
+
 def test_about_page_starts_with_non_mock_team_content(client):
     response = client.get("/about")
     assert response.status_code == 200
