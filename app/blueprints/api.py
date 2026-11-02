@@ -2,8 +2,9 @@ import base64
 import re
 import secrets
 from datetime import datetime, timedelta
+from functools import wraps
 
-from flask import Blueprint, current_app, jsonify, request, session
+from flask import Blueprint, current_app, g, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import inspect as sqlalchemy_inspect
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -35,6 +36,49 @@ api_bp = Blueprint("api", __name__)
 
 def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
+
+
+def delivery_access_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if current_user.is_authenticated:
+            if getattr(current_user, "role", None) == "super_admin":
+                g.delivery_admin = True
+                g.delivery_person = None
+                return view(*args, **kwargs)
+            return error("Full admin access required.", 403)
+
+        person_id = session.get("delivery_person_id")
+        person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
+        if not person:
+            session.pop("delivery_person_id", None)
+            return error("Delivery staff login required.", 401)
+        g.delivery_admin = False
+        g.delivery_person = person
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def _delivery_order_dict(order):
+    return {
+        "id": order.id,
+        "order_number": order.order_number,
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+        "status": order.status,
+        "channel": order.channel,
+        "total": order.total,
+        "delivery_address": order.delivery_address,
+        "delivery_city": order.delivery_city,
+        "delivery_pincode": order.delivery_pincode,
+        "delivery_person_id": order.delivery_person_id,
+        "delivery_person": order.delivery_person.name if order.delivery_person else None,
+        "items": [
+            {"name": item.name, "qty": item.qty, "price": item.price}
+            for item in order.items
+        ],
+    }
 
 
 def archive_before_delete(record, deleted_by_username=None):
@@ -406,11 +450,12 @@ def track_order(order_number):
 
 
 @api_bp.route("/delivery/orders/<int:order_id>")
+@delivery_access_required
 def delivery_order_detail(order_id):
     order = Order.query.get_or_404(order_id)
-    d = order.to_dict()
-    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
-    return jsonify(d)
+    if not g.delivery_admin and order.delivery_person_id != g.delivery_person.id:
+        return error("Order not found.", 404)
+    return jsonify(_delivery_order_dict(order))
 
 
 # ═══════════════════════ ADMIN JSON API (login required) ═══════════════════════
@@ -504,7 +549,20 @@ def admin_update_order_status(order_id):
     status = payload.get("status")
     if status not in ORDER_STATUSES:
         return error("Invalid status.")
+    valid_next_status = {
+        "pending": "preparing",
+        "preparing": "ready",
+        "ready": "delivered",
+        "delivered": "delivered",
+    }
+    if status != valid_next_status.get(order.status):
+        return error("Invalid order status transition.")
+    if status == "delivered" and order.channel == "cod" and payload.get("cod_collected") is not True:
+        return error("Confirm that the COD payment was collected.")
     order.status = status
+    if status == "delivered":
+        order.delivered_at = datetime.utcnow()
+        order.cod_collected = order.channel == "cod"
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -798,12 +856,18 @@ def admin_delivery_people():
     name = (payload.get("name") or "").strip()
     if not name:
         return error("Name is required.")
+    if DeliveryPerson.query.filter(db.func.lower(DeliveryPerson.name) == name.lower()).first():
+        return error("A delivery person with that name already exists.")
 
     person = DeliveryPerson(
         name=name,
         phone=(payload.get("phone") or "").strip(),
         active=True,
     )
+    password = payload.get("password") or ""
+    if not isinstance(password, str) or len(password) < 12:
+        return error("A delivery password of at least 12 characters is required.")
+    person.set_password(password)
     db.session.add(person)
     db.session.commit()
     return jsonify({"ok": True, "person": person.to_dict()}), 201
@@ -823,9 +887,20 @@ def admin_delivery_person_detail(person_id):
 
     payload = request.get_json(silent=True) or {}
     if "name" in payload:
-        person.name = payload["name"].strip()
+        name = payload["name"].strip()
+        duplicate = DeliveryPerson.query.filter(
+            db.func.lower(DeliveryPerson.name) == name.lower(),
+            DeliveryPerson.id != person.id,
+        ).first()
+        if not name or duplicate:
+            return error("A unique delivery person name is required.")
+        person.name = name
     if "phone" in payload:
         person.phone = payload["phone"].strip()
+    if "password" in payload and payload["password"]:
+        if not isinstance(payload["password"], str) or len(payload["password"]) < 12:
+            return error("A delivery password must be at least 12 characters.")
+        person.set_password(payload["password"])
 
     db.session.commit()
     return jsonify({"ok": True, "person": person.to_dict()})
@@ -841,40 +916,62 @@ def admin_toggle_delivery_person(person_id):
     return jsonify({"ok": True, "active": person.active})
 
 
-# ═══════════════════════ DELIVERY PORTAL (no login yet═══════════════════════
+# ═════════════════════════════ DELIVERY PORTAL ══════════════════════════════
+
+@api_bp.route("/delivery/login", methods=["POST"])
+@limiter.limit("5 per minute")
+def delivery_login():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    password = payload.get("password") or ""
+    person = DeliveryPerson.query.filter_by(name=name, active=True).first()
+    if not person or not person.check_password(password):
+        return error("Invalid delivery login.", 401)
+
+    session.clear()
+    session.permanent = True
+    session["delivery_person_id"] = person.id
+    return jsonify({"ok": True, "name": person.name})
+
+
+@api_bp.route("/delivery/logout", methods=["POST"])
+@delivery_access_required
+def delivery_logout():
+    session.clear()
+    return jsonify({"ok": True})
 
 @api_bp.route("/delivery/people")
+@delivery_access_required
 def delivery_people_list():
+    if not g.delivery_admin:
+        return error("Full admin access required.", 403)
     people = DeliveryPerson.query.filter_by(active=True).order_by(DeliveryPerson.name).all()
     return jsonify([p.to_dict() for p in people])
 
 
 @api_bp.route("/delivery/orders")
+@delivery_access_required
 def delivery_orders_list():
-    """Orders that still need delivering (not yet marked delivered),
-    optionally filtered to a specific delivery person via ?assigned_to=<id>."""
-    assigned_to = request.args.get("assigned_to")
     q = Order.query.filter(Order.status != "delivered")
-    if assigned_to:
-        q = q.filter(Order.delivery_person_id == int(assigned_to))
+    if not g.delivery_admin:
+        q = q.filter(Order.delivery_person_id == g.delivery_person.id)
     orders = q.order_by(Order.created_at.asc()).all()
-
-    result = []
-    for o in orders:
-        d = o.to_dict()
-        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
-        result.append(d)
-    return jsonify(result)
+    return jsonify([_delivery_order_dict(order) for order in orders])
 
 
 @api_bp.route("/delivery/orders/<int:order_id>/assign", methods=["POST"])
+@delivery_access_required
 def delivery_assign_order(order_id):
+    if not g.delivery_admin:
+        return error("Full admin access required.", 403)
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
     person_id = payload.get("delivery_person_id")
-    person = DeliveryPerson.query.get(person_id) if person_id else None
+    person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
     if not person:
-        return error("Select who you are first.")
+        return error("Select an active delivery person.")
+    if order.status not in {"pending", "preparing"}:
+        return error("Only pending or preparing orders can be assigned.")
 
     order.delivery_person_id = person.id
     if order.status == "pending":
@@ -884,17 +981,21 @@ def delivery_assign_order(order_id):
 
 
 @api_bp.route("/delivery/orders/<int:order_id>/deliver", methods=["POST"])
+@delivery_access_required
 def delivery_mark_delivered(order_id):
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
 
-    if payload.get("delivery_person_id"):
-        order.delivery_person_id = payload["delivery_person_id"]
+    if not g.delivery_admin and order.delivery_person_id != g.delivery_person.id:
+        return error("Order is not assigned to this delivery person.", 403)
+    if order.status != "ready":
+        return error("Only ready orders can be marked delivered.")
+    if order.channel == "cod" and payload.get("cod_collected") is not True:
+        return error("Confirm that the COD payment was collected.")
 
     order.status = "delivered"
     order.delivered_at = datetime.utcnow()
-    if order.channel == "cod":
-        order.cod_collected = bool(payload.get("cod_collected"))
+    order.cod_collected = order.channel == "cod"
 
     db.session.commit()
     return jsonify({"ok": True})

@@ -155,7 +155,14 @@ async function loadOrders() {
 
 async function updateOrderStatus(id, status) {
   try {
-    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
+    const codCollected = status === 'delivered'
+      ? confirm('Confirm that any COD payment for this order has been collected.')
+      : false;
+    if (status === 'delivered' && !codCollected) {
+      loadOrders();
+      return;
+    }
+    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status, cod_collected: codCollected }) });
     toast('Order status updated');
     loadOrders();
   } catch (err) { toast(err.message); }
@@ -498,6 +505,8 @@ function showDeliveryModal() {
   editingDeliveryId = null;
   document.getElementById('delivery-modal-title').textContent = 'Add delivery person';
   ['id', 'name', 'phone'].forEach(f => document.getElementById('dp-' + f).value = '');
+  document.getElementById('dp-password').value = '';
+  document.getElementById('dp-password').required = true;
   document.getElementById('deliveryModal').classList.add('show');
 }
 function openEditDeliveryModal(person) {
@@ -506,6 +515,8 @@ function openEditDeliveryModal(person) {
   document.getElementById('dp-id').value = person.id;
   document.getElementById('dp-name').value = person.name;
   document.getElementById('dp-phone').value = person.phone || '';
+  document.getElementById('dp-password').value = '';
+  document.getElementById('dp-password').required = false;
   document.getElementById('deliveryModal').classList.add('show');
 }
 function hideDeliveryModal() { document.getElementById('deliveryModal').classList.remove('show'); }
@@ -514,8 +525,13 @@ async function submitDeliveryPerson() {
   const payload = {
     name: document.getElementById('dp-name').value.trim(),
     phone: document.getElementById('dp-phone').value.trim(),
+    password: document.getElementById('dp-password').value,
   };
   if (!payload.name) { toast('Name is required'); return; }
+  if (!editingDeliveryId && payload.password.length < 12) {
+    toast('A delivery password of at least 12 characters is required');
+    return;
+  }
   try {
     if (editingDeliveryId) {
       await api(`/delivery-people/${editingDeliveryId}`, { method: 'PUT', body: JSON.stringify(payload) });

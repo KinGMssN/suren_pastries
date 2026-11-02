@@ -147,7 +147,7 @@
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
         Manage who can pick and deliver orders. They use this list to identify
-        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a> — no login required there yet.
+        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a>. Set a password for each delivery person.
       </p>
       <div class="menu-editor-grid" id="delivery-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
     </div>{% endif %}
@@ -277,6 +277,7 @@
     <input type="hidden" id="dp-id"/>
     <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="dp-name" placeholder="e.g. Suresh"/></div>
     <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="dp-phone" placeholder="10-digit mobile number"/></div>
+    <div class="form-group"><label class="form-label" for="dp-password">Password (at least 12 characters; leave blank to keep current password)</label><input class="form-input" id="dp-password" type="password" minlength="12" autocomplete="new-password"/></div>
     <div class="modal-footer">
       <button class="btn-sm btn-outline" data-action="hide-delivery-modal">Cancel</button>
       <button class="btn-sm btn-primary" data-action="submit-delivery-person">Save</button>

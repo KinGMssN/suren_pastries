@@ -203,8 +203,15 @@ class DeliveryPerson(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), default="")
+    password_hash = db.Column(db.String(255), nullable=True)
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, raw_password: str) -> None:
+        self.password_hash = generate_password_hash(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        return bool(self.password_hash) and check_password_hash(self.password_hash, raw_password)
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "phone": self.phone, "active": self.active}
