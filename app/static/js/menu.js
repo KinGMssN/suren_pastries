@@ -4,8 +4,9 @@ function encodeObj(obj) {
 function decodeObj(str) {
   return JSON.parse(decodeURIComponent(atob(str)));
 }
-function encodeAttr(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+function escapeHTML(value) {
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
 }
 
 let menu = {};
@@ -33,7 +34,7 @@ function renderTabs() {
   let allCount = cats.reduce((sum, c) => sum + menu[c].length, 0);
   let tabsHTML = `<button class="tab ${active === 'All' ? 'active' : ''}" data-action="set-active-cat" data-cat="All">All <span style="font-size:11px;opacity:0.6">(${allCount})</span></button>`;
   tabsHTML += cats.map(c => `
-    <button class="tab ${c === active ? 'active' : ''}" data-action="set-active-cat" data-cat="${encodeAttr(c)}">${c} <span style="font-size:11px;opacity:0.6">(${menu[c].length})</span></button>
+    <button class="tab ${c === active ? 'active' : ''}" data-action="set-active-cat" data-cat="${escapeHTML(c)}">${escapeHTML(c)} <span style="font-size:11px;opacity:0.6">(${menu[c].length})</span></button>
   `).join('');
   document.getElementById('tabs').innerHTML = tabsHTML;
 }
@@ -44,7 +45,7 @@ function renderItems() {
   const area = document.getElementById('items-area');
   if (q) {
     const results = cats.flatMap(c => menu[c].filter(i => i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)));
-    if (!results.length) { area.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>No dishes found for "${q}"</p></div>`; return; }
+    if (!results.length) { area.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>No dishes found for "${escapeHTML(q)}"</p></div>`; return; }
     area.innerHTML = `<div class="category-label">Search results (${results.length})</div><div class="items-grid">${results.map(itemHTML).join('')}</div>`;
     return;
   }
@@ -54,36 +55,40 @@ function renderItems() {
     cats.forEach((c, idx) => {
       const items = menu[c];
       if (!items.length) return;
-      html += `<div class="category-label" ${idx > 0 ? 'style="margin-top:40px"' : ''}>${c} — ${items.length} dishes</div>`;
+      html += `<div class="category-label" ${idx > 0 ? 'style="margin-top:40px"' : ''}>${escapeHTML(c)} — ${items.length} dishes</div>`;
       html += `<div class="items-grid">${items.map(itemHTML).join('')}</div>`;
     });
     area.innerHTML = html || `<div class="empty"><div class="empty-icon">🍽️</div><p>The menu is empty right now.</p></div>`;
   } else {
     const items = menu[active] || [];
     area.innerHTML = `
-      <div class="category-label">${active} — ${items.length} dishes</div>
+      <div class="category-label">${escapeHTML(active)} — ${items.length} dishes</div>
       <div class="items-grid">${items.map(itemHTML).join('')}</div>
     `;
   }
 }
 function itemHTML(i) {
-  const media = i.image
-    ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${i.image}" alt="${i.name}" style="width:100%;height:100%;object-fit:cover"/></div>`
-    : `<div class="item-emoji">${i.emoji}</div>`;
+  const image = typeof i.image === 'string'
+    && /^data:image\/(?:png|jpe?g);base64,[A-Za-z0-9+/]+={0,2}$/.test(i.image)
+    ? i.image
+    : '';
+  const media = image
+    ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${escapeHTML(image)}" alt="${escapeHTML(i.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`
+    : `<div class="item-emoji">${escapeHTML(i.emoji)}</div>`;
   const outOfStock = i.in_stock === false;
   return `<div class="item" style="${outOfStock ? 'opacity:.55' : ''}">
     ${media}
     <div class="item-body">
       <div class="item-top">
-        <div class="item-name">${i.name}</div>
-        ${outOfStock ? `<div class="item-tag" style="background:#7A7570">Out of stock</div>` : (i.tag ? `<div class="item-tag">${i.tag}</div>` : '')}
+        <div class="item-name">${escapeHTML(i.name)}</div>
+          ${outOfStock ? `<div class="item-tag" style="background:#7A7570">Out of stock</div>` : (i.tag ? `<div class="item-tag">${escapeHTML(i.tag)}</div>` : '')}
       </div>
-      <div class="item-desc">${i.desc || ''}</div>
+        <div class="item-desc">${escapeHTML(i.desc)}</div>
       <div class="item-foot">
         <div class="price">₹${i.price}</div>
         ${outOfStock
           ? `<button class="add-btn" disabled style="opacity:.5;cursor:not-allowed">Unavailable</button>`
-          : `<button class="add-btn" data-action="add-cart" data-id="${i.id}" data-name="${encodeAttr(i.name)}" data-price="${i.price}" data-emoji="${encodeAttr(i.emoji)}">+ Add</button>`}
+          : `<button class="add-btn" data-action="add-cart" data-id="${i.id}" data-name="${escapeHTML(i.name)}" data-price="${i.price}" data-emoji="${escapeHTML(i.emoji)}">+ Add</button>`}
       </div>
     </div>
   </div>`;
