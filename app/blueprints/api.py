@@ -235,6 +235,108 @@ def customer_delete_account():
     return jsonify({"ok": True})
 
 
+@api_bp.route("/customer/request-otp", methods=["POST"])
+@limiter.limit("3 per minute")
+def customer_request_otp():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid verification request.")
+
+    phone_value = payload.get("phone")
+    mode = payload.get("mode")
+    if not isinstance(phone_value, str) or not isinstance(mode, str) or mode not in {"login", "signup"}:
+        return error("Invalid verification request.")
+    phone = _normalize_phone(phone_value)
+    if len(phone) != 10:
+        return error("Enter a valid 10-digit phone number.")
+
+    name = payload.get("name", "")
+    if mode == "signup":
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 120:
+            return error("Enter a name of 1 to 120 characters.")
+        name = name.strip()
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if mode == "login" and not customer:
+        return jsonify({"ok": False, "needs_name": True, "error": "No account found."}), 404
+    if mode == "signup" and customer and not customer.otp_hash:
+        return error("An account already exists for this phone number.", 409)
+
+    debug_otp = current_app.config.get("CUSTOMER_OTP_DEBUG", False)
+    sender = current_app.config.get("CUSTOMER_OTP_SENDER")
+    if not debug_otp and not callable(sender):
+        current_app.logger.error("Customer OTP delivery is not configured.")
+        return error("Phone verification is temporarily unavailable.", 503)
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    if customer is None:
+        customer = Customer(phone=phone, name=name)
+        db.session.add(customer)
+    elif mode == "signup":
+        customer.name = name
+    customer.otp_hash = generate_password_hash(code)
+    customer.otp_expires_at = datetime.utcnow() + timedelta(
+        seconds=current_app.config.get("CUSTOMER_OTP_TTL_SECONDS", 600)
+    )
+    customer.otp_attempts = 0
+
+    try:
+        if not debug_otp:
+            sender(phone, code)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error("Customer OTP delivery failed (%s).", type(exc).__name__)
+        return error("Could not send a verification code. Please try again.", 502)
+
+    response = {"ok": True}
+    if debug_otp:
+        response["debug_code"] = code
+    return jsonify(response)
+
+
+@api_bp.route("/customer/verify-otp", methods=["POST"])
+@limiter.limit("10 per minute")
+def customer_verify_otp():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid verification request.")
+    phone_value = payload.get("phone")
+    code = payload.get("code")
+    if not isinstance(phone_value, str) or not isinstance(code, str):
+        return error("Invalid verification request.")
+    phone = _normalize_phone(phone_value)
+    if len(phone) != 10 or not re.fullmatch(r"\d{6}", code):
+        return error("Enter a valid phone number and six-digit code.")
+
+    customer = Customer.query.filter_by(phone=phone).with_for_update().first()
+    if not customer or not customer.otp_hash or not customer.otp_expires_at:
+        return error("The verification code is invalid or expired.", 400)
+    if customer.otp_expires_at <= datetime.utcnow():
+        return error("The verification code has expired. Request a new one.", 400)
+    if customer.otp_attempts >= 5:
+        return error("Too many incorrect codes. Request a new one.", 429)
+    if not check_password_hash(customer.otp_hash, code):
+        customer.otp_attempts += 1
+        db.session.commit()
+        return error("The verification code is invalid or expired.", 400)
+
+    customer.otp_hash = None
+    customer.otp_expires_at = None
+    customer.otp_attempts = 0
+    db.session.commit()
+    session.pop("customer_id", None)
+    session.permanent = True
+    session["customer_id"] = customer.id
+    return jsonify({"ok": True, "customer": customer.to_dict(include_addresses=False)})
+
+
+@api_bp.route("/customer/logout", methods=["POST"])
+def customer_logout():
+    session.pop("customer_id", None)
+    return jsonify({"ok": True})
+
+
 def _get_current_customer():
     customer_id = session.get("customer_id")
     return Customer.query.get(customer_id) if customer_id else None
@@ -244,7 +346,7 @@ def _get_current_customer():
 def customer_addresses():
     customer = _get_current_customer()
     if not customer:
-        return error("Please log in first.", 404)
+        return error("Please log in first.", 401)
 
     if request.method == "GET":
         return jsonify([a.to_dict() for a in customer.addresses])
@@ -274,8 +376,10 @@ def customer_addresses():
 def customer_address_detail(address_id):
     addr = CustomerAddress.query.get_or_404(address_id)
     customer = _get_current_customer()
-    if not customer or addr.customer_id != customer.id:
-        return error("Please log in first.", 404)
+    if not customer:
+        return error("Please log in first.", 401)
+    if addr.customer_id != customer.id:
+        return error("Address not found.", 404)
 
     if request.method == "DELETE":
         archive_before_delete(addr)
@@ -304,7 +408,7 @@ def customer_address_detail(address_id):
 def customer_orders():
     customer = _get_current_customer()
     if not customer:
-        return error("Please log in first.", 404)
+        return error("Please log in first.", 401)
 
     orders = (
         Order.query.filter_by(customer_id=customer.id)

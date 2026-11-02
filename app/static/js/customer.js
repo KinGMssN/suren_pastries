@@ -132,10 +132,16 @@ async function verifyCustomerOtp(event) {
   }
 }
 
-function customerLogout() {
-  fetch(CUSTOMER_API_BASE + '/api/customer/logout', { method: 'POST' });
-  clearCustomer();
-  window.location.href = '/home';
+async function customerLogout() {
+  try {
+    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/logout', { method: 'POST' });
+    const data = await readCustomerResponse(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not log out.');
+    clearCustomer();
+    window.location.href = '/home';
+  } catch (err) {
+    alert(err.message || 'Could not reach the server. Please try again.');
+  }
 }
 
 async function deleteCustomerAccount() {
