@@ -240,7 +240,7 @@ nav.site-nav { flex-wrap: nowrap; }
 .request-status[hidden] { display: none; }
 .submit-cake { min-width: 200px; justify-content: center; }
 
-.special-order { background: var(--cake-dark); color: #fff; padding: 52px max(6vw,32px); display: grid; grid-template-columns: 1fr 230px; gap: 40px; align-items: center; }
+.special-order { background: var(--cake-dark); color: #fff; padding: 52px max(6vw,32px); }
 .special-order-copy { max-width: 730px; }
 .special-order .cake-eyebrow { color: var(--cake-gold); }
 .special-order h2 { margin: 10px 0; }
@@ -249,8 +249,6 @@ nav.site-nav { flex-wrap: nowrap; }
 .special-order textarea { max-width: 600px; display: block; resize: vertical; }
 .contact-button { margin-top: 14px; display: inline-flex; align-items: center; padding: 12px 18px; border-radius: 7px; background: var(--cake-accent); color: #fff; text-decoration: none; font-size: 12px; font-weight: 600; transition: transform .2s,background .2s; }
 .contact-button:hover { background: #a83e1e; transform: translateY(-1px); }
-.special-order-art { height: 190px; border: 1px solid rgba(212,168,83,.2); border-radius: 50% 50% 45% 45%; display: grid; place-items: center; position: relative; color: var(--cake-gold); background: radial-gradient(ellipse,rgba(212,168,83,.13),transparent 70%); }
-.special-order-art span { position: absolute; font-size: 45px; }.special-order-art span:nth-child(1) { transform: translate(-31px,-4px); font-size: 62px; color: #d78c89; }.special-order-art span:nth-child(2) { transform: translate(48px,-30px); }.special-order-art span:nth-child(3) { transform: translate(46px,40px); color: #e7c2ae; }
 
 footer { background: var(--cake-darker); padding: 48px max(5vw,24px) 24px; color: rgba(255,255,255,.6); }
 .footer-top { display: flex; justify-content: space-between; align-items: center; gap: 22px; flex-wrap: wrap; padding-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,.08); }
@@ -305,8 +303,7 @@ footer { background: var(--cake-darker); padding: 48px max(5vw,24px) 24px; color
   .summary-list { padding: 8px 13px; }
   .summary-list > div { grid-template-columns: minmax(90px,.7fr) minmax(0,1fr) auto; gap: 7px; }
   .price-note { padding: 13px; }
-  .special-order { grid-template-columns: 1fr; padding: 42px 22px; }
-  .special-order-art { display: none; }
+  .special-order { padding: 42px 22px; }
   .footer-top,.footer-bottom { flex-direction: column; text-align: center; }
   .footer-links { justify-content: center; }
 }
