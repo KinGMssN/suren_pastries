@@ -226,6 +226,7 @@ class Order(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
+    idempotency_key = db.Column(db.String(64), unique=True, nullable=True)
     customer_name = db.Column(db.String(120), default="Guest")
     customer_phone = db.Column(db.String(30), default="")
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)

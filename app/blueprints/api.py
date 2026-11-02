@@ -389,6 +389,19 @@ def checkout():
     if phone and phone != customer.phone:
         return error("Please log in to place an order.", 401)
 
+    idempotency_key = request.headers.get("Idempotency-Key", "")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{16,64}", idempotency_key):
+        return error("A valid checkout request key is required.")
+    existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+    if existing_order:
+        if existing_order.customer_id != customer.id:
+            return error("This checkout request key has already been used.", 409)
+        return jsonify({
+            "ok": True,
+            "order_number": existing_order.order_number,
+            "total": existing_order.total,
+        })
+
     address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
     if not address:
         return error("Please select a delivery address.")
@@ -428,48 +441,59 @@ def checkout():
     tax = round(subtotal * current_app.config["TAX_RATE"])
 
     discount = 0
-    if coupon_code:
-        coupon = Coupon.query.filter_by(code=coupon_code).first()
-        if coupon and coupon.is_valid():
-            discount = coupon.compute_discount(subtotal)
-            coupon.uses = (coupon.uses or 0) + 1
+    try:
+        if coupon_code:
+            coupon = Coupon.query.filter_by(code=coupon_code).first()
+            if coupon and coupon.is_valid():
+                discount = coupon.compute_discount(subtotal)
+                coupon.uses = (coupon.uses or 0) + 1
 
-    total = max(subtotal + delivery_fee + tax - discount, 0)
-
-    order = Order(
-        order_number=Order.generate_order_number(),
-        customer_name=customer.name or "Guest",
-        customer_phone=customer.phone,
-        customer_id=customer.id,
-        channel=channel,
-        status="pending",
-        delivery_address=address.address_line,
-        delivery_city=address.city,
-        delivery_pincode=address.pincode,
-        subtotal=subtotal,
-        delivery_fee=delivery_fee,
-        tax=tax,
-        discount=discount,
-        total=total,
-        coupon_code=coupon_code if discount else None,
-    )
-    db.session.add(order)
-    db.session.flush()  # get order.id before adding items
-    
-    for item_id, quantity in requested_items:
-        item = menu_items[item_id]
-        db.session.add(
-            OrderItem(
-                order_id=order.id,
-                menu_item_id=item.id,
-                name=item.name,
-                price=item.price,
-                emoji=item.emoji,
-                qty=quantity,
-            )
+        total = max(subtotal + delivery_fee + tax - discount, 0)
+        order = Order(
+            order_number=Order.generate_order_number(),
+            idempotency_key=idempotency_key,
+            customer_name=customer.name or "Guest",
+            customer_phone=customer.phone,
+            customer_id=customer.id,
+            channel=channel,
+            status="pending",
+            delivery_address=address.address_line,
+            delivery_city=address.city,
+            delivery_pincode=address.pincode,
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            tax=tax,
+            discount=discount,
+            total=total,
+            coupon_code=coupon_code if discount else None,
         )
+        db.session.add(order)
+        db.session.flush()
 
+        for item_id, quantity in requested_items:
+            item = menu_items[item_id]
+            db.session.add(
+                OrderItem(
+                    order_id=order.id,
+                    menu_item_id=item.id,
+                    name=item.name,
+                    price=item.price,
+                    emoji=item.emoji,
+                    qty=quantity,
+                )
+            )
         db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error("Checkout transaction failed (%s).", type(exc).__name__)
+        existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+        if existing_order and existing_order.customer_id == customer.id:
+            return jsonify({
+                "ok": True,
+                "order_number": existing_order.order_number,
+                "total": existing_order.total,
+            })
+        return error("Could not place your order. Please try again.", 500)
 
     return jsonify(
         {

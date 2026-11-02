@@ -189,12 +189,16 @@ def test_checkout_rejects_client_prices_and_invalid_quantities(app, client):
         browser_session["customer_id"] = customer_id
 
     def submit(items):
-        return client.post("/api/checkout", json={
-            "items": items,
-            "channel": "cod",
-            "phone": "1234567890",
-            "address_id": address_id,
-        })
+        return client.post(
+            "/api/checkout",
+            json={
+                "items": items,
+                "channel": "cod",
+                "phone": "1234567890",
+                "address_id": address_id,
+            },
+            headers={"Idempotency-Key": "test-checkout-request-key-001"},
+        )
 
     assert submit([{"item_id": item_id, "qty": 1, "price": 1}]).status_code == 400
     assert submit([{"item_id": item_id, "qty": 0}]).status_code == 400
@@ -203,8 +207,58 @@ def test_checkout_rejects_client_prices_and_invalid_quantities(app, client):
     response = submit([{"item_id": item_id, "qty": 1}])
     assert response.status_code == 200
     assert response.get_json()["total"] == 166
+    retry = submit([{"item_id": item_id, "qty": 1}])
+    assert retry.status_code == 200
+    assert retry.get_json()["order_number"] == response.get_json()["order_number"]
     with app.app_context():
         created = Order.query.one()
         assert created.subtotal == 120
         assert created.items[0].name == "Server-priced pastry"
         assert created.items[0].price == 120
+
+
+def test_checkout_rolls_back_order_when_commit_fails(app, client, monkeypatch):
+    from sqlalchemy.orm import Session
+
+    with app.app_context():
+        category = Category(name="Atomic category")
+        customer = Customer(phone="1234567890", name="Atomic Customer")
+        db.session.add_all([category, customer])
+        db.session.flush()
+        item = MenuItem(
+            name="Atomic pastry",
+            price=100,
+            category_id=category.id,
+            is_available=True,
+            in_stock=True,
+        )
+        address = CustomerAddress(customer_id=customer.id, address_line="Atomic address")
+        db.session.add_all([item, address])
+        db.session.commit()
+        customer_id = customer.id
+        item_id = item.id
+        address_id = address.id
+
+    with client.session_transaction() as browser_session:
+        browser_session["customer_id"] = customer_id
+
+    def fail_commit(_self):
+        raise RuntimeError("simulated commit failure")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 1}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "test-atomic-checkout-key-001"},
+    )
+    assert response.status_code == 500
+    monkeypatch.undo()
+
+    with app.app_context():
+        assert Order.query.count() == 0
+        assert OrderItem.query.count() == 0

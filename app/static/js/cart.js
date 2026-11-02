@@ -152,17 +152,20 @@ async function checkout(method) {
   if (!customer) { window.location.href = '/login'; return; }
   if (!selectedAddressId) { alert('Please select a delivery address.'); return; }
 
+  const checkoutPayload = {
+    items: cart.map(item => ({ item_id: item.id, qty: item.qty })),
+    channel: method,
+    coupon_code: appliedCoupon,
+    phone: customer.phone,
+    address_id: selectedAddressId,
+  };
+
   try {
+    const idempotencyKey = checkoutIdempotencyKey(checkoutPayload);
     const res = await fetch((window.API_BASE || '') + '/api/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: cart.map(item => ({ item_id: item.id, qty: item.qty })),
-        channel: method,
-        coupon_code: appliedCoupon,
-        phone: customer.phone,
-        address_id: selectedAddressId,
-      })
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(checkoutPayload)
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -172,11 +175,30 @@ async function checkout(method) {
     }
 
     cart = []; discountAmt = 0; appliedCoupon = null;
+    sessionStorage.removeItem('surenCheckoutRequest');
     save();
     window.location.href = '/track/' + data.order_number;
   } catch (err) {
     alert('Could not reach the server, please check your connection and try again.');
   }
+}
+
+function checkoutIdempotencyKey(payload) {
+  const fingerprint = JSON.stringify(payload);
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem('surenCheckoutRequest') || 'null');
+  } catch (err) {
+    sessionStorage.removeItem('surenCheckoutRequest');
+  }
+  if (!saved || saved.fingerprint !== fingerprint) {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const key = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    saved = { fingerprint, key };
+    sessionStorage.setItem('surenCheckoutRequest', JSON.stringify(saved));
+  }
+  return saved.key;
 }
 
 function closeModal() {
