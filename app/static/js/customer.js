@@ -1,5 +1,9 @@
 const CUSTOMER_API_BASE = window.API_BASE || '';
 
+function customerFetch(path, options = {}) {
+  return fetch(CUSTOMER_API_BASE + path, { ...options, credentials: 'include' });
+}
+
 function getCustomer() {
   const raw = localStorage.getItem('surenCustomer');
   return raw ? JSON.parse(raw) : null;
@@ -46,7 +50,7 @@ async function customerLogin(event) {
   if (errBox) errBox.style.display = 'none';
 
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/request-otp', {
+    const res = await customerFetch('/api/customer/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, mode: 'login' }),
@@ -75,7 +79,7 @@ async function customerSignup(event) {
   const errBox = document.getElementById('signup-error');
   if (errBox) errBox.style.display = 'none';
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/request-otp', {
+    const res = await customerFetch('/api/customer/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, name, mode: 'signup' }),
@@ -94,7 +98,7 @@ async function verifySignupOtp(event) {
   event.preventDefault();
   const errBox = document.getElementById('signup-error');
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/verify-otp', {
+    const res = await customerFetch('/api/customer/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -115,7 +119,7 @@ async function verifyCustomerOtp(event) {
   event.preventDefault();
   const errBox = document.getElementById('login-error');
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/verify-otp', {
+    const res = await customerFetch('/api/customer/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -134,7 +138,7 @@ async function verifyCustomerOtp(event) {
 
 async function customerLogout() {
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/logout', { method: 'POST' });
+    const res = await customerFetch('/api/customer/logout', { method: 'POST' });
     const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not log out.');
     clearCustomer();
@@ -147,7 +151,7 @@ async function customerLogout() {
 async function deleteCustomerAccount() {
   if (!confirm('Delete your account and saved addresses? Your completed orders will be retained without your personal details.')) return;
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/account', { method: 'DELETE' });
+    const res = await customerFetch('/api/customer/account', { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not delete your account.');
     clearCustomer();
@@ -176,7 +180,7 @@ async function loadAddresses() {
   if (!list || !customer) return;
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/addresses');
+    const res = await customerFetch('/api/customer/addresses');
     const addresses = await res.json();
     if (!addresses.length) {
       list.innerHTML = '<p style="color:var(--muted);font-size:13px">No saved addresses yet. Add one below.</p>';
@@ -210,7 +214,7 @@ async function addAddress(event) {
   };
   if (!payload.address_line) { alert('Address is required'); return; }
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/addresses', {
+    const res = await customerFetch('/api/customer/addresses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -228,14 +232,14 @@ async function addAddress(event) {
 async function deleteAddress(id) {
   if (!confirm('Delete this address?')) return;
   try {
-    await fetch(CUSTOMER_API_BASE + '/api/customer/addresses/' + id, { method: 'DELETE' });
+    await customerFetch('/api/customer/addresses/' + id, { method: 'DELETE' });
     loadAddresses();
   } catch (err) { alert('Could not delete address.'); }
 }
 
 async function setDefaultAddress(id) {
   try {
-    await fetch(CUSTOMER_API_BASE + '/api/customer/addresses/' + id, {
+    await customerFetch('/api/customer/addresses/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_default: true }),
@@ -250,7 +254,7 @@ async function loadOrderHistory() {
   if (!list || !customer) return;
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
   try {
-    const res = await fetch(CUSTOMER_API_BASE + '/api/customer/orders');
+    const res = await customerFetch('/api/customer/orders');
     const orders = await res.json();
     if (!orders.length) {
       list.innerHTML = '<p style="color:var(--muted);font-size:13px">No past orders yet.</p>';
@@ -293,8 +297,22 @@ document.addEventListener('submit', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  updateAccountNav();
   const signupPhone = new URLSearchParams(window.location.search).get('phone');
   if (signupPhone && document.getElementById('signup-phone')) document.getElementById('signup-phone').value = signupPhone;
-  if (document.getElementById('address-list')) loadAccountPage();
+  customerFetch('/api/customer/me')
+    .then(readCustomerResponse)
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Could not restore your login session.');
+      if (data.authenticated) setCustomer(data.customer);
+      else clearCustomer();
+      updateAccountNav();
+      if (document.getElementById('address-list')) loadAccountPage();
+      if (document.getElementById('checkout-area')) renderCheckoutArea();
+    })
+    .catch(err => {
+      console.error('Unable to restore the customer login session.', err);
+      updateAccountNav();
+      if (document.getElementById('address-list')) loadAccountPage();
+      if (document.getElementById('checkout-area')) renderCheckoutArea();
+    });
 });

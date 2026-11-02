@@ -22,8 +22,7 @@
     const customer = getCustomer();
     if (!customer) return;
     try {
-      const base = window.API_BASE || '';
-      const res = await fetch(base + '/api/customer/orders');
+      const res = await customerFetch('/api/customer/orders');
       if (!res.ok) throw new Error(`Order request failed (${res.status})`);
       const orders = await res.json();
       if (!Array.isArray(orders)) throw new Error('Invalid order response');

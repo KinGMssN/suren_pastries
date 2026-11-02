@@ -349,6 +349,19 @@ def _get_current_customer():
     return Customer.query.get(customer_id) if customer_id else None
 
 
+@api_bp.route("/customer/me")
+def customer_me():
+    customer = _get_current_customer()
+    if not customer:
+        session.pop("customer_id", None)
+        return jsonify({"ok": True, "authenticated": False})
+    return jsonify({
+        "ok": True,
+        "authenticated": True,
+        "customer": customer.to_dict(include_addresses=False),
+    })
+
+
 @api_bp.route("/customer/addresses", methods=["GET", "POST"])
 def customer_addresses():
     customer = _get_current_customer()

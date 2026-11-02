@@ -79,7 +79,7 @@ async function renderCheckoutArea() {
   }
 
   try {
-    const res = await fetch((window.API_BASE || '') + '/api/customer/addresses');
+    const res = await customerFetch('/api/customer/addresses');
     addresses = await res.json();
   } catch (err) {
     addresses = [];
@@ -161,7 +161,7 @@ async function checkout(method) {
 
   try {
     const idempotencyKey = checkoutIdempotencyKey(checkoutPayload);
-    const res = await fetch((window.API_BASE || '') + '/api/checkout', {
+    const res = await customerFetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(checkoutPayload)
