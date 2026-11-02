@@ -12,6 +12,7 @@ function setTab(name, el) {
   if (name === 'team') loadTeam();
   if (name === 'delivery') loadDeliveryStaff();
   if (name === 'content') loadContent();
+  if (name === 'deleted-records') loadDeletedRecords();
 }
 
 function toast(msg) {
@@ -79,6 +80,7 @@ document.addEventListener('click', (e) => {
     case 'edit-delivery-person': openEditDeliveryModal(decodeObj(el.dataset.item)); break;
     case 'toggle-delivery-person': toggleDeliveryPerson(id); break;
     case 'delete-delivery-person': deleteDeliveryPerson(id); break;
+    case 'purge-deleted-record': purgeDeletedRecord(id); break;
     case 'save-content': saveContent(); break;
   }
 });
@@ -593,6 +595,46 @@ async function saveContent() {
   try {
     await api('/content', { method: 'POST', body: JSON.stringify(payload) });
     toast('Changes saved!');
+  } catch (err) { toast(err.message); }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
+async function loadDeletedRecords() {
+  const body = document.getElementById('deleted-records-body');
+  body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>`;
+  try {
+    const records = await api('/deleted-records');
+    if (!records.length) {
+      body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No archived records</td></tr>`;
+      return;
+    }
+    body.innerHTML = records.map(record => `
+      <tr>
+        <td>${escapeHtml(record.table)}</td>
+        <td>${escapeHtml(record.data.name || '')}</td>
+        <td>${escapeHtml(record.data.phone || '')}</td>
+        <td>${escapeHtml(new Date(record.deleted_at).toLocaleString())}</td>
+        <td><button class="btn-sm btn-outline" data-action="purge-deleted-record" data-id="${Number(record.id)}">Purge</button></td>
+      </tr>
+    `).join('');
+  } catch (err) { toast(err.message); }
+}
+
+async function purgeDeletedRecord(id) {
+  if (!confirm('Permanently purge this archived record? This cannot be undone.')) return;
+  try {
+    await api(`/deleted-records/${id}`, { method: 'DELETE' });
+    toast('Archived record purged');
+    loadDeletedRecords();
   } catch (err) { toast(err.message); }
 }
 

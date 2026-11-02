@@ -25,6 +25,7 @@
       <button class="sb-link" data-tab="team" data-action="set-tab"><span class="sb-icon">👥</span>Team</button>
       <button class="sb-link" data-tab="delivery" data-action="set-tab"><span class="sb-icon">🚚</span>Delivery Staff</button>
       <button class="sb-link" data-tab="content" data-action="set-tab"><span class="sb-icon">📝</span>Content</button>
+      <button class="sb-link" data-tab="deleted-records" data-action="set-tab"><span class="sb-icon">🗄️</span>Deleted records</button>
       {% endif %}
       <a class="sb-link" href="{{ url_for('main.home') }}"><span class="sb-icon">🌐</span>View site</a>
     </div>
@@ -182,6 +183,24 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-deleted-records">
+      <div class="top-bar"><div class="page-title">Deleted records</div></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Customer names and mobile numbers are retained here until manually purged.
+        Orders remain available with customer and delivery details anonymized.
+        Purging permanently removes the selected archived record.
+      </p>
+      <div class="table-card">
+        <div class="tc-head"><div class="tc-title">Archived records</div></div>
+        <table class="table">
+          <thead><tr><th>Record type</th><th>Customer name</th><th>Mobile</th><th>Deleted</th><th>Action</th></tr></thead>
+          <tbody id="deleted-records-body">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Select this tab to load archived records</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

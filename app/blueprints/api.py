@@ -87,10 +87,12 @@ def _delivery_order_dict(order):
     }
 
 
-def archive_before_delete(record, deleted_by_username=None):
+def archive_before_delete(record, deleted_by_username=None, retained_fields=None):
     """Store a database-column snapshot before removing a record."""
     data = {}
     for column in sqlalchemy_inspect(record).mapper.columns:
+        if retained_fields is not None and column.key not in retained_fields:
+            continue
         value = getattr(record, column.key)
         data[column.key] = value.isoformat() if isinstance(value, datetime) else value
     user = current_user if getattr(current_user, "is_authenticated", False) else None
@@ -219,15 +221,19 @@ def customer_delete_account():
         return error("Please log in first.", 401)
 
     deleted_by = f"customer:{customer.phone}"
-    for address in list(customer.addresses):
-        archive_before_delete(address, deleted_by_username=deleted_by)
-
-    archive_before_delete(customer, deleted_by_username=deleted_by)
+    archive_before_delete(
+        customer,
+        deleted_by_username=deleted_by,
+        retained_fields={"name", "phone"},
+    )
     Order.query.filter_by(customer_id=customer.id).update(
         {
             "customer_id": None,
             "customer_name": "Deleted customer",
             "customer_phone": "",
+            "delivery_address": "",
+            "delivery_city": "",
+            "delivery_pincode": "",
         }
     )
     db.session.delete(customer)
@@ -383,7 +389,6 @@ def customer_address_detail(address_id):
         return error("Address not found.", 404)
 
     if request.method == "DELETE":
-        archive_before_delete(addr)
         db.session.delete(addr)
         db.session.commit()
         return jsonify({"ok": True})
@@ -745,12 +750,26 @@ def admin_deleted_records():
             "id": record.id,
             "table": record.table_name,
             "original_id": record.original_id,
-            "data": record.record_data,
+            "data": {
+                key: record.record_data[key]
+                for key in ("name", "phone")
+                if key in record.record_data
+            } if record.table_name == "customers" else {},
             "deleted_by": record.deleted_by_username,
             "deleted_at": record.deleted_at.isoformat(),
         }
         for record in records
     ])
+
+
+@api_bp.route("/admin/deleted-records/<int:record_id>", methods=["DELETE"])
+@login_required
+@super_admin_required
+def admin_purge_deleted_record(record_id):
+    record = DeletedRecord.query.get_or_404(record_id)
+    db.session.delete(record)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 # ── Orders ──
