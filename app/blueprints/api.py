@@ -475,6 +475,10 @@ def checkout():
     phone_value = payload.get("phone")
     if not isinstance(coupon_code, str) or not isinstance(phone_value, str):
         return error("Invalid checkout details.")
+    if not isinstance(channel, str) or channel not in ORDER_CHANNELS:
+        return error("Invalid checkout method.")
+    if channel == "online":
+        return error("Online payments are not configured. Choose another checkout method.", 503)
     coupon_code = coupon_code.strip().upper() or None
     phone = _normalize_phone(phone_value)
     address_id = payload.get("address_id")
@@ -514,9 +518,6 @@ def checkout():
     address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
     if not address:
         return error("Please select a delivery address.")
-
-    if not isinstance(channel, str) or channel not in ORDER_CHANNELS:
-        return error("Invalid checkout method.")
 
     requested_items = []
     item_ids = set()
@@ -761,6 +762,8 @@ def admin_update_order_status(order_id):
     }
     if status != valid_next_status.get(order.status):
         return error("Invalid order status transition.")
+    if order.channel == "online":
+        return error("Online payment verification is not configured for this order.", 409)
     if status == "delivered" and order.channel == "cod" and payload.get("cod_collected") is not True:
         return error("Confirm that the COD payment was collected.")
     order.status = status
@@ -1170,6 +1173,8 @@ def delivery_assign_order(order_id):
         return error("Full admin access required.", 403)
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
+    if order.channel == "online":
+        return error("Online payment verification is not configured for this order.", 409)
     person_id = payload.get("delivery_person_id")
     person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
     if not person:
@@ -1194,6 +1199,8 @@ def delivery_mark_delivered(order_id):
         return error("Order is not assigned to this delivery person.", 403)
     if order.status != "ready":
         return error("Only ready orders can be marked delivered.")
+    if order.channel == "online":
+        return error("Online payment verification is not configured for this order.", 409)
     if order.channel == "cod" and payload.get("cod_collected") is not True:
         return error("Confirm that the COD payment was collected.")
 

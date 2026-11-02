@@ -514,3 +514,67 @@ def test_customer_session_only_accesses_its_own_records(app, client):
         assert db.session.get(CustomerAddress, other_address_id) is not None
     orders = client.get("/api/customer/orders").get_json()
     assert [order["order_number"] for order in orders] == ["SPSESSIONOWN000001"]
+
+
+def test_online_checkout_is_rejected_without_a_payment_provider(app, client):
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [],
+            "channel": "online",
+            "phone": "1234567890",
+            "address_id": 1,
+        },
+        headers={"Idempotency-Key": "test-online-payment-rejection-001"},
+    )
+    assert response.status_code == 503
+    assert response.get_json()["ok"] is False
+    with app.app_context():
+        assert Order.query.count() == 0
+
+
+def test_unverified_online_orders_cannot_be_assigned_or_fulfilled(app, client):
+    with app.app_context():
+        admin = AdminUser(username="payment-test-admin", role="super_admin")
+        admin.set_password("payment-test-password")
+        person = DeliveryPerson(name="Payment Test Courier", active=True)
+        person.set_password("payment-test-courier-password")
+        db.session.add_all([admin, person])
+        db.session.flush()
+        pending_order = create_order(status="pending", channel="online")
+        ready_order = create_order(
+            person=person,
+            status="ready",
+            channel="online",
+        )
+        pending_order_id = pending_order.id
+        ready_order_id = ready_order.id
+        person_id = person.id
+
+    login = client.post(
+        "/admin/login",
+        data={"username": "payment-test-admin", "password": "payment-test-password"},
+    )
+    assert login.status_code == 302
+    assert client.post(
+        f"/api/admin/orders/{pending_order_id}/status",
+        json={"status": "preparing"},
+    ).status_code == 409
+    assert client.post(
+        f"/api/delivery/orders/{pending_order_id}/assign",
+        json={"delivery_person_id": person_id},
+    ).status_code == 409
+
+    courier_login = client.post(
+        "/api/delivery/login",
+        json={"name": "Payment Test Courier", "password": "payment-test-courier-password"},
+    )
+    assert courier_login.status_code == 200
+    assert client.post(
+        f"/api/delivery/orders/{ready_order_id}/deliver",
+        json={},
+    ).status_code == 409
+
+    with app.app_context():
+        assert db.session.get(Order, pending_order_id).status == "pending"
+        assert db.session.get(Order, ready_order_id).status == "ready"

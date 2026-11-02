@@ -68,8 +68,10 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 /* CHECKOUT BUTTONS */
 .checkout-stack{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 .co-btn{padding:15px;border-radius:10px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s}
+.co-btn:disabled{opacity:.55;cursor:not-allowed}
 .co-online{background:var(--accent);color:#fff}
 .co-online:hover{background:#a83e1e;transform:translateY(-1px)}
+.co-online:disabled:hover{background:var(--accent);transform:none}
 .co-wa{background:var(--success);color:#fff}
 .co-wa:hover{background:#1da851;transform:translateY(-1px)}
 .co-cod{background:var(--dark);color:#fff}
