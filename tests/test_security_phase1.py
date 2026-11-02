@@ -4,6 +4,7 @@ from app.extensions import db
 from app.models import (
     AdminUser,
     Category,
+    Coupon,
     Customer,
     CustomerAddress,
     DeliveryPerson,
@@ -262,3 +263,42 @@ def test_checkout_rolls_back_order_when_commit_fails(app, client, monkeypatch):
     with app.app_context():
         assert Order.query.count() == 0
         assert OrderItem.query.count() == 0
+
+
+def test_tax_and_percent_discount_round_half_up(app, client):
+    with app.app_context():
+        category = Category(name="Rounding category")
+        customer = Customer(phone="1234567890", name="Rounding Customer")
+        db.session.add_all([category, customer])
+        db.session.flush()
+        item = MenuItem(
+            name="Ten-rupee item",
+            price=10,
+            category_id=category.id,
+            is_available=True,
+            in_stock=True,
+        )
+        address = CustomerAddress(customer_id=customer.id, address_line="Rounding address")
+        db.session.add_all([item, address])
+        db.session.commit()
+        customer_id, item_id, address_id = customer.id, item.id, address.id
+        coupon = Coupon(code="HALF", discount_type="percent", value=5)
+        assert coupon.compute_discount(10) == 1
+
+    with client.session_transaction() as browser_session:
+        browser_session["customer_id"] = customer_id
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 1}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "test-rounding-checkout-key-001"},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["tax"] == 1
+    assert response.get_json()["total"] == 51
+    tracked = client.get("/api/orders/track/" + response.get_json()["order_number"])
+    assert tracked.get_json()["tax"] == 1

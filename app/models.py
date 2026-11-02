@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -124,7 +125,8 @@ class Coupon(db.Model):
 
     def compute_discount(self, subtotal: int) -> int:
         if self.discount_type == "percent":
-            return round(subtotal * (self.value / 100))
+            amount = Decimal(subtotal) * Decimal(self.value) / Decimal(100)
+            return int(amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         return min(self.value, subtotal)
 
 
@@ -270,6 +272,10 @@ class Order(db.Model):
             "customer_phone": self.customer_phone,
             "channel": self.channel,
             "status": self.status,
+            "subtotal": self.subtotal,
+            "delivery_fee": self.delivery_fee,
+            "tax": self.tax,
+            "discount": self.discount,
             "total": self.total,
             "item_count": self.item_count(),
             "created_at": self.created_at.strftime("%d %b %Y, %I:%M %p"),

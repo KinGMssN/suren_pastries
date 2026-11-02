@@ -49,7 +49,7 @@ async function render() {
 function updateSummary() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const delivery = sub >= 499 ? 0 : 40;
-  const tax = Math.round(sub * 0.05);
+  const tax = Math.floor(sub * 0.05 + 0.5);
   const total = Math.max(sub + delivery + tax - discountAmt, 0);
   document.getElementById('subtotal').textContent = '₹' + sub;
   document.getElementById('delivery').textContent = delivery === 0 ? 'FREE' : '₹' + delivery;

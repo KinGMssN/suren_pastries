@@ -2,6 +2,7 @@ import base64
 import re
 import secrets
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 
 from flask import Blueprint, current_app, g, jsonify, request, session
@@ -399,6 +400,10 @@ def checkout():
         return jsonify({
             "ok": True,
             "order_number": existing_order.order_number,
+            "subtotal": existing_order.subtotal,
+            "delivery_fee": existing_order.delivery_fee,
+            "tax": existing_order.tax,
+            "discount": existing_order.discount,
             "total": existing_order.total,
         })
 
@@ -438,7 +443,10 @@ def checkout():
 
     subtotal = sum(menu_items[item_id].price * quantity for item_id, quantity in requested_items)
     delivery_fee = 0 if subtotal >= current_app.config["FREE_DELIVERY_THRESHOLD"] else current_app.config["DELIVERY_FEE"]
-    tax = round(subtotal * current_app.config["TAX_RATE"])
+    tax = int(
+        (Decimal(subtotal) * Decimal(str(current_app.config["TAX_RATE"])))
+        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
 
     discount = 0
     try:
@@ -491,6 +499,10 @@ def checkout():
             return jsonify({
                 "ok": True,
                 "order_number": existing_order.order_number,
+                "subtotal": existing_order.subtotal,
+                "delivery_fee": existing_order.delivery_fee,
+                "tax": existing_order.tax,
+                "discount": existing_order.discount,
                 "total": existing_order.total,
             })
         return error("Could not place your order. Please try again.", 500)
@@ -499,6 +511,10 @@ def checkout():
         {
             "ok": True,
             "order_number": order.order_number,
+            "subtotal": order.subtotal,
+            "delivery_fee": order.delivery_fee,
+            "tax": order.tax,
+            "discount": order.discount,
             "total": order.total,
         }
     )

@@ -56,6 +56,11 @@ function render(order) {
   document.getElementById('tr-items').innerHTML = order.items.map(i =>
     `<div class="tr-item-row"><span>${i.qty}× ${i.name}</span><span>₹${i.price * i.qty}</span></div>`
   ).join('');
+  document.getElementById('tr-subtotal').textContent = '₹' + order.subtotal;
+  document.getElementById('tr-delivery-fee').textContent = order.delivery_fee === 0 ? 'FREE' : '₹' + order.delivery_fee;
+  document.getElementById('tr-tax').textContent = '₹' + order.tax;
+  document.getElementById('tr-discount').textContent = '−₹' + order.discount;
+  document.getElementById('tr-discount-row').hidden = !order.discount;
   document.getElementById('tr-total').textContent = '₹' + order.total;
   document.getElementById('tr-address').textContent =
     [order.delivery_address, order.delivery_city, order.delivery_pincode].filter(Boolean).join(', ');
