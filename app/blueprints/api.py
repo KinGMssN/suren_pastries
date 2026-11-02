@@ -1,4 +1,5 @@
 import base64
+import binascii
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -120,7 +121,7 @@ def validate_image_data_uri(data_uri):
         return f"Unsupported image type ({mime_type}) — please use PNG or JPG."
     try:
         raw = base64.b64decode(b64data, validate=True)
-    except Exception:
+    except (binascii.Error, ValueError):
         return "Could not read that image — please try a different file."
     if len(raw) > MAX_IMAGE_BYTES:
         return f"Image is too large ({len(raw) // 1024}KB) — please use one under {MAX_IMAGE_BYTES // (1024 * 1024)}MB."
@@ -445,8 +446,13 @@ def get_menu():
 
 @api_bp.route("/coupon/apply", methods=["POST"])
 def apply_coupon():
-    payload = request.get_json(silent=True) or {}
-    code = (payload.get("code") or "").strip().upper()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid coupon details.")
+    code_value = payload.get("code", "")
+    if not isinstance(code_value, str):
+        return error("Coupon code is required.")
+    code = code_value.strip().upper()
     subtotal = int(payload.get("subtotal") or 0)
 
     if not code:
@@ -985,11 +991,14 @@ def admin_coupons_collection():
         return error("A coupon with that code already exists.")
 
     expires_at = None
-    if payload.get("expires_at"):
+    expires_value = payload.get("expires_at")
+    if expires_value is not None and not isinstance(expires_value, str):
+        return error("Expiry date must use YYYY-MM-DD format.")
+    if expires_value:
         try:
-            expires_at = datetime.strptime(payload["expires_at"], "%Y-%m-%d")
+            expires_at = datetime.strptime(expires_value, "%Y-%m-%d")
         except ValueError:
-            pass
+            return error("Expiry date must use YYYY-MM-DD format.")
 
     coupon = Coupon(
         code=code,

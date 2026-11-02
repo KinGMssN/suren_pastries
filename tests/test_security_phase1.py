@@ -14,6 +14,7 @@ from app.models import (
     MenuItem,
     Order,
     OrderItem,
+    SiteContent,
     TeamMember,
 )
 
@@ -677,6 +678,50 @@ def test_csp_allows_existing_inline_styles_without_relaxing_script_policy(client
         if directive.strip().startswith("script-src ")
     )
     assert "'unsafe-inline'" not in script_policy
+
+
+def test_admin_coupon_rejects_malformed_expiry_dates(app, client):
+    with app.app_context():
+        admin = AdminUser(username="coupon-date-admin", role="super_admin")
+        admin.set_password("coupon-date-password")
+        db.session.add(admin)
+        db.session.commit()
+
+    assert client.post(
+        "/admin/login",
+        data={"username": "coupon-date-admin", "password": "coupon-date-password"},
+    ).status_code == 302
+    invalid = client.post(
+        "/api/admin/coupons",
+        json={"code": "BADDATE", "discount_type": "percent", "value": 10, "expires_at": "not-a-date"},
+    )
+    assert invalid.status_code == 400
+    assert "YYYY-MM-DD" in invalid.get_json()["error"]
+
+    invalid_type = client.post(
+        "/api/admin/coupons",
+        json={"code": "BADTYPE", "discount_type": "percent", "value": 10, "expires_at": []},
+    )
+    assert invalid_type.status_code == 400
+
+    valid = client.post(
+        "/api/admin/coupons",
+        json={"code": "GOODDATE", "discount_type": "percent", "value": 10, "expires_at": "2030-01-01"},
+    )
+    assert valid.status_code == 201
+    with app.app_context():
+        assert Coupon.query.count() == 1
+
+
+def test_site_content_database_errors_are_not_silently_replaced_with_defaults(
+    app, client, monkeypatch
+):
+    def fail_content_lookup(_key, _default=""):
+        raise RuntimeError("site content storage unavailable")
+
+    monkeypatch.setattr(SiteContent, "get", staticmethod(fail_content_lookup))
+    with pytest.raises(RuntimeError, match="site content storage unavailable"):
+        client.get("/about")
 
 
 def test_about_page_starts_with_non_mock_team_content(client):

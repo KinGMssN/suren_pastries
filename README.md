@@ -14,6 +14,13 @@ It creates the base schema when needed, applies outstanding migrations, and
 records completed versions in `schema_migrations`. Back up production data
 before applying migrations.
 
+For local development and tests, install the pinned development requirements:
+
+```text
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
 ## Local PostgreSQL
 
 Copy `.env.example` to `.env`, set a unique local database username and strong

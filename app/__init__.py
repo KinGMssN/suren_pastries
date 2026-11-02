@@ -126,10 +126,7 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_site_content():
         def content(key, default=""):
-            try:
-                return SiteContent.get(key, default)
-            except Exception:
-                return default
+            return SiteContent.get(key, default)
         public_canonical_endpoints = {
             "main.index",
             "main.home",
