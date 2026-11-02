@@ -131,6 +131,7 @@ def create_app(config_class=Config):
             "main.index",
             "main.home",
             "main.menu",
+            "main.customized_cake",
             "main.about",
             "main.privacy",
             "main.refund_policy",

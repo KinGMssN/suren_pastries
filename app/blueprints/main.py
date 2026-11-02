@@ -2,13 +2,14 @@ from xml.sax.saxutils import escape
 
 from flask import Blueprint, Response, current_app, render_template
 
-from app.models import Category, MenuItem
+from app.models import Category, MenuItem, SiteContent
 
 main_bp = Blueprint("main", __name__)
 
 SITEMAP_PATHS = (
     "/home",
     "/menu",
+    "/customized-cake",
     "/about",
     "/privacy",
     "/refund-policy",
@@ -38,6 +39,17 @@ def home():
 def menu():
     categories = Category.query.order_by(Category.sort_order, Category.name).all()
     return render_template("menu.html", categories=categories)
+
+
+@main_bp.route("/customized-cake")
+def customized_cake():
+    whatsapp_number = "".join(
+        character for character in SiteContent.get("whatsapp", "") if character.isdigit()
+    )
+    return render_template(
+        "customized_cake.html",
+        whatsapp_number=whatsapp_number,
+    )
 
 
 @main_bp.route("/about")
