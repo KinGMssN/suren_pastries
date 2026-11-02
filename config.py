@@ -7,7 +7,15 @@ load_dotenv(os.path.join(basedir, ".env"))
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(32)
+    IS_PRODUCTION = os.environ.get("RENDER", "") != ""
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    if IS_PRODUCTION and (
+        not SECRET_KEY or len(SECRET_KEY.encode("utf-8")) < 32
+    ):
+        raise RuntimeError(
+            "SECRET_KEY must be configured with at least 32 bytes in production."
+        )
+    SECRET_KEY = SECRET_KEY or os.urandom(32)
 
     # SQLAlchemy's psycopg3 dialect is explicit so existing deployment URLs
     # without a driver suffix continue to work after the driver migration.
@@ -36,7 +44,6 @@ class Config:
     # Secure. Both are only safe over HTTPS, which Render provides by
     # default — locally, IS_PRODUCTION stays False so cookies still work
     # over plain http://localhost.
-    IS_PRODUCTION = os.environ.get("RENDER", "") != ""
     SESSION_COOKIE_SAMESITE = "None" if IS_PRODUCTION else "Lax"
     SESSION_COOKIE_SECURE = IS_PRODUCTION
     REMEMBER_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE
