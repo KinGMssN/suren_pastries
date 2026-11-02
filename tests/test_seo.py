@@ -1,9 +1,5 @@
 from xml.etree import ElementTree
 
-from app.extensions import db
-from app.models import SiteContent
-
-
 def test_public_pages_get_descriptions_and_configured_canonical_urls(app, client):
     app.config["PUBLIC_SITE_URL"] = "https://shop.example"
     response = client.get("/menu")
@@ -49,10 +45,8 @@ def test_sitemap_does_not_guess_deployment_domain(app, client):
     assert "Sitemap:" not in client.get("/robots.txt").get_data(as_text=True)
 
 
-def test_customized_cake_page_uses_configured_contact_and_has_customization_flow(app, client):
+def test_customized_cake_page_has_customization_flow_without_whatsapp_redirect(app, client):
     app.config["PUBLIC_SITE_URL"] = "https://shop.example"
-    SiteContent.set("whatsapp", "+91 90327 17635")
-    db.session.commit()
 
     response = client.get("/customized-cake")
 
@@ -65,15 +59,6 @@ def test_customized_cake_page_uses_configured_contact_and_has_customization_flow
     assert "Your Cake Summary" in html
     assert "Final Price" in html
     assert "To Be Confirmed by the Bakery" in html
-    assert "https://wa.me/919032717635?" in html
-    assert "Hi%21%20I%20would%20like%20to%20discuss%20a%20customized%20cake%20order." in html
-    assert client.post("/customized-cake", data={}).status_code == 405
-
-
-def test_customized_cake_does_not_guess_a_whatsapp_number(app, client):
-    response = client.get("/customized-cake")
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert "WhatsApp enquiries are unavailable" in html
     assert "https://wa.me/" not in html
+    assert "Call the bakery about your idea" in html
+    assert client.post("/customized-cake", data={}).status_code == 405

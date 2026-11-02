@@ -15,27 +15,14 @@ nav.site-nav { flex-wrap: nowrap; }
 .cake-hero {
   min-height: 490px;
   padding: 72px max(6vw, 32px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, .82fr);
+  display: flex;
   align-items: center;
-  gap: clamp(32px, 7vw, 100px);
   overflow: hidden;
   background: var(--cake-dark);
   color: #fff;
   position: relative;
 }
-.cake-hero::before {
-  content: "";
-  width: 440px;
-  height: 440px;
-  border: 1px solid rgba(212,168,83,.12);
-  border-radius: 50%;
-  position: absolute;
-  right: 3%;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.cake-hero-copy { max-width: 650px; position: relative; z-index: 1; }
+.cake-hero-copy { max-width: 820px; position: relative; z-index: 1; }
 .cake-eyebrow,.step-kicker {
   color: var(--cake-gold);
   font-size: 11px;
@@ -72,67 +59,6 @@ nav.site-nav { flex-wrap: nowrap; }
 .btn-hero-outline:hover { border-color: #fff; background: rgba(255,255,255,.07); }
 .cake-hero-note { display: flex; align-items: center; gap: 9px; color: rgba(255,255,255,.5); font-size: 12px; margin-top: 30px; }
 .cake-hero-note span { color: var(--cake-gold); }
-.cake-hero-art {
-  min-height: 330px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  position: relative;
-  isolation: isolate;
-  animation: cakeFloat 5s ease-in-out infinite;
-}
-.cake-hero-art::before {
-  content: "";
-  z-index: -1;
-  position: absolute;
-  width: 290px;
-  height: 290px;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(212,168,83,.18), rgba(212,168,83,0) 69%);
-}
-.cake-plate {
-  width: min(100%, 340px);
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(180deg,#f8e9cf,#d5b987);
-  box-shadow: 0 15px 25px rgba(0,0,0,.24);
-  position: relative;
-}
-.cake-plate::after { content: ""; position: absolute; inset: 5px 16px; border: 1px solid rgba(116,79,37,.23); border-radius: 50%; }
-.cake-tier {
-  position: relative;
-  display: block;
-  background: linear-gradient(110deg,#fff3e5,#f2d5b5 49%,#fff0dd);
-  box-shadow: inset 0 -7px rgba(183,112,81,.15), 0 5px 12px rgba(0,0,0,.11);
-}
-.cake-tier-bottom { width: 268px; height: 113px; border-radius: 17px 17px 22px 22px; }
-.cake-tier-top { width: 190px; height: 91px; border-radius: 17px 17px 14px 14px; margin-bottom: -2px; }
-.cake-tier-bottom::before,.cake-tier-top::before {
-  content: "";
-  position: absolute;
-  top: -9px;
-  left: 0;
-  width: 100%;
-  height: 23px;
-  border-radius: 50%;
-  background: #fff6ea;
-}
-.cake-tier-bottom::after { content: ""; position: absolute; left: 16%; right: 16%; top: 48%; height: 2px; background: rgba(200,80,42,.22); }
-.cake-topper { position: absolute; z-index: 1; top: -32px; left: 50%; color: var(--cake-accent); font-size: 28px; transform: translateX(-50%); }
-.cake-drip { position: absolute; top: 8px; right: 24px; width: 15px; height: 23px; border-radius: 0 0 10px 10px; background: #fff6ea; }
-.cake-flower { position: absolute; z-index: 2; color: var(--cake-accent); font-size: 25px; }
-.flower-one { left: 29px; bottom: 17px; }.flower-two { right: 38px; top: 34px; color: #D4A853; }
-.cake-berry { position: absolute; z-index: 2; width: 13px; height: 13px; background: #C8502A; border-radius: 50% 50% 42% 42%; transform: rotate(45deg); }
-.cake-berry::after { content: ""; position: absolute; width: 7px; height: 4px; background: #66734d; border-radius: 100% 0; top: -4px; left: 4px; transform: rotate(-40deg); }
-.berry-one { left: 45px; top: 34px; }.berry-two { right: 48px; top: 54px; width: 10px; height: 10px; }
-.cake-art-spark { position: absolute; color: var(--cake-gold); }
-.spark-one { left: 14%; top: 28%; font-size: 24px; }.spark-two { right: 11%; top: 15%; font-size: 34px; }
-.cake-art-caption { position: absolute; right: -3%; bottom: 31%; color: rgba(255,255,255,.55); font: italic 15px/1.5 'Playfair Display', Georgia, serif; transform: rotate(-6deg); }
-@keyframes cakeFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
 .cake-builder { padding: 72px max(5vw, 24px) 84px; background: var(--cake-cream); }
 .builder-heading { max-width: 720px; margin: 0 auto 34px; text-align: center; }
@@ -321,10 +247,8 @@ nav.site-nav { flex-wrap: nowrap; }
 .special-order-copy > p { color: rgba(255,255,255,.62); font-size: 13px; line-height: 1.75; max-width: 670px; margin-bottom: 22px; }
 .special-order-copy > label { display: block; margin-bottom: 8px; color: rgba(255,255,255,.8); }
 .special-order textarea { max-width: 600px; display: block; resize: vertical; }
-.whatsapp-button { margin-top: 14px; display: inline-flex; align-items: center; gap: 9px; padding: 12px 18px; border-radius: 7px; background: #25D366; color: #123b22; text-decoration: none; font-size: 12px; font-weight: 700; transition: transform .2s,background .2s; }
-.whatsapp-button:hover { background: #34e476; transform: translateY(-1px); }
-.whatsapp-button svg { width: 19px; height: 19px; fill: currentColor; }
-.whatsapp-unavailable { color: #f0c4ae; font-size: 12px; margin-top: 14px; }
+.contact-button { margin-top: 14px; display: inline-flex; align-items: center; padding: 12px 18px; border-radius: 7px; background: var(--cake-accent); color: #fff; text-decoration: none; font-size: 12px; font-weight: 600; transition: transform .2s,background .2s; }
+.contact-button:hover { background: #a83e1e; transform: translateY(-1px); }
 .special-order-art { height: 190px; border: 1px solid rgba(212,168,83,.2); border-radius: 50% 50% 45% 45%; display: grid; place-items: center; position: relative; color: var(--cake-gold); background: radial-gradient(ellipse,rgba(212,168,83,.13),transparent 70%); }
 .special-order-art span { position: absolute; font-size: 45px; }.special-order-art span:nth-child(1) { transform: translate(-31px,-4px); font-size: 62px; color: #d78c89; }.special-order-art span:nth-child(2) { transform: translate(48px,-30px); }.special-order-art span:nth-child(3) { transform: translate(46px,40px); color: #e7c2ae; }
 
@@ -340,8 +264,7 @@ footer { background: var(--cake-darker); padding: 48px max(5vw,24px) 24px; color
 .footer-copy { font-size: 10px; color: rgba(255,255,255,.35); }
 
 @media (max-width: 900px) {
-  .cake-hero { grid-template-columns: 1fr minmax(270px,.72fr); padding: 60px 32px; gap: 26px; }
-  .cake-hero-art { transform: scale(.88); }
+  .cake-hero { padding: 60px 32px; }
   .cake-layout { grid-template-columns: minmax(0,1fr) 190px; gap: 16px; }
   .option-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .design-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
@@ -351,13 +274,11 @@ footer { background: var(--cake-darker); padding: 48px max(5vw,24px) 24px; color
   nav.site-nav .logo { font-size: 17px; }
   nav.site-nav .nav-links { width: 100%; justify-content: center; gap: 1px; }
   nav.site-nav .nl { font-size: 11px; padding: 6px 9px; }
-  .cake-hero { display: flex; flex-direction: column; align-items: stretch; padding: 48px 22px 28px; gap: 8px; }
+  .cake-hero { display: flex; flex-direction: column; align-items: stretch; padding: 48px 22px; }
   .cake-hero h1 { font-size: clamp(39px,11vw,55px); }
   .cake-hero-copy > p { font-size: 13px; }
   .cake-hero-actions { gap: 9px; }
   .cake-hero-actions .btn-hero,.cake-hero-actions .btn-hero-outline { flex: 1 1 170px; text-align: center; padding: 12px 14px; font-size: 12px; }
-  .cake-hero-art { min-height: 260px; transform: scale(.82); transform-origin: top center; margin: 8px 0 -38px; }
-  .cake-art-caption { right: 0; }
   .cake-builder { padding: 48px 14px 56px; }
   .builder-heading { margin: 0 auto 25px; padding: 0 8px; }
   .builder-heading h2 { font-size: 32px; }

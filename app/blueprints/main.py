@@ -2,7 +2,7 @@ from xml.sax.saxutils import escape
 
 from flask import Blueprint, Response, current_app, render_template
 
-from app.models import Category, MenuItem, SiteContent
+from app.models import Category, MenuItem
 
 main_bp = Blueprint("main", __name__)
 
@@ -43,13 +43,7 @@ def menu():
 
 @main_bp.route("/customized-cake")
 def customized_cake():
-    whatsapp_number = "".join(
-        character for character in SiteContent.get("whatsapp", "") if character.isdigit()
-    )
-    return render_template(
-        "customized_cake.html",
-        whatsapp_number=whatsapp_number,
-    )
+    return render_template("customized_cake.html")
 
 
 @main_bp.route("/about")

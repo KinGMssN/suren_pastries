@@ -11,8 +11,6 @@
   const uploadError = document.getElementById("upload-error");
   const addressField = document.getElementById("address-field");
   const addressInput = document.getElementById("delivery-address");
-  const specialEnquiry = document.getElementById("special-enquiry");
-  const whatsappButton = document.querySelector(".whatsapp-button");
   let currentStep = 1;
   let previewUrl = "";
 
@@ -179,14 +177,6 @@
     previewWrap.hidden = false;
   });
   document.getElementById("remove-upload").addEventListener("click", clearPreview);
-  whatsappButton?.addEventListener("click", () => {
-    const url = new URL(whatsappButton.href);
-    const baseMessage = "Hi! I would like to discuss a customized cake order. I have a specific design in mind.";
-    const idea = specialEnquiry.value.trim();
-    url.searchParams.set("text", idea ? `${baseMessage}\n\nMy cake idea: ${idea}` : baseMessage);
-    whatsappButton.href = url.toString();
-  });
-
   function focusFirstInvalid() {
     const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
     if (!invalid) return false;
