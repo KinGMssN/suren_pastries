@@ -49,7 +49,7 @@ async function render() {
 function updateSummary() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const delivery = sub >= 499 ? 0 : 40;
-  const tax = Math.round(sub * 0.05);
+  const tax = Math.floor(sub * 0.05 + 0.5);
   const total = Math.max(sub + delivery + tax - discountAmt, 0);
   document.getElementById('subtotal').textContent = '₹' + sub;
   document.getElementById('delivery').textContent = delivery === 0 ? 'FREE' : '₹' + delivery;
@@ -108,9 +108,8 @@ async function renderCheckoutArea() {
       </select>
     </div>
     <div class="checkout-stack">
-      <button class="co-btn co-wa" data-action="checkout" data-method="whatsapp">💬 Order via WhatsApp</button>
-      <button class="co-btn co-online" data-action="checkout" data-method="online">💳 Pay online</button>
-      <button class="co-btn co-cod" data-action="checkout" data-method="cod">💵 Cash on delivery</button>
+      <button class="co-btn co-online" type="button" disabled title="Online payments are not configured">💳 Pay online (unavailable)</button>
+      <button class="co-btn co-cod" data-action="checkout" data-method="cod">💵 Place cash-on-delivery order</button>
     </div>
   `;
 }
@@ -152,17 +151,20 @@ async function checkout(method) {
   if (!customer) { window.location.href = '/login'; return; }
   if (!selectedAddressId) { alert('Please select a delivery address.'); return; }
 
+  const checkoutPayload = {
+    items: cart.map(item => ({ item_id: item.id, qty: item.qty })),
+    channel: method,
+    coupon_code: appliedCoupon,
+    phone: customer.phone,
+    address_id: selectedAddressId,
+  };
+
   try {
+    const idempotencyKey = checkoutIdempotencyKey(checkoutPayload);
     const res = await fetch((window.API_BASE || '') + '/api/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: cart,
-        channel: method,
-        coupon_code: appliedCoupon,
-        phone: customer.phone,
-        address_id: selectedAddressId,
-      })
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(checkoutPayload)
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -172,11 +174,30 @@ async function checkout(method) {
     }
 
     cart = []; discountAmt = 0; appliedCoupon = null;
+    sessionStorage.removeItem('surenCheckoutRequest');
     save();
     window.location.href = '/track/' + data.order_number;
   } catch (err) {
     alert('Could not reach the server, please check your connection and try again.');
   }
+}
+
+function checkoutIdempotencyKey(payload) {
+  const fingerprint = JSON.stringify(payload);
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem('surenCheckoutRequest') || 'null');
+  } catch (err) {
+    sessionStorage.removeItem('surenCheckoutRequest');
+  }
+  if (!saved || saved.fingerprint !== fingerprint) {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const key = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    saved = { fingerprint, key };
+    sessionStorage.setItem('surenCheckoutRequest', JSON.stringify(saved));
+  }
+  return saved.key;
 }
 
 function closeModal() {

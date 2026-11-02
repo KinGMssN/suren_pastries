@@ -15,16 +15,22 @@
 <div class="dl-page">
   <div class="dl-header">
     <div class="dl-title">🚚 Delivery</div>
-    <div class="dl-sub">No login yet — just pick your name below to get started</div>
+    <div class="dl-sub">Sign in with the credentials provided by your administrator.</div>
   </div>
 
-  <div class="dl-picker">
-    <label>Who are you?</label>
-    <label for="who-am-i">Select your delivery profile</label>
-    <select id="who-am-i"></select>
-  </div>
+  <form class="dl-picker" id="delivery-login-form">
+    <label for="delivery-name">Name</label>
+    <input class="dl-input" id="delivery-name" name="name" autocomplete="username" required/>
+    <label for="delivery-password">Password</label>
+    <input class="dl-input" id="delivery-password" name="password" type="password" autocomplete="current-password" required/>
+    <p class="dl-error" id="delivery-error" role="alert" hidden></p>
+    <button class="dl-btn dl-btn-assign" type="submit">Sign in</button>
+  </form>
 
-  <div id="delivery-orders"></div>
+  <section id="delivery-work" hidden>
+    <button class="dl-btn dl-btn-logout" type="button" data-action="delivery-logout">Sign out</button>
+    <div id="delivery-orders"></div>
+  </section>
 </div>
 {% endblock %}
 {% block page_js %}

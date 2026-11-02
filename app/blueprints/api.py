@@ -1,9 +1,12 @@
 import base64
+import binascii
 import re
 import secrets
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
+from functools import wraps
 
-from flask import Blueprint, current_app, jsonify, request, session
+from flask import Blueprint, current_app, g, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import inspect as sqlalchemy_inspect
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -37,10 +40,59 @@ def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
 
 
-def archive_before_delete(record, deleted_by_username=None):
+def _normalize_phone(phone):
+    return re.sub(r"\D", "", phone or "")
+
+
+def delivery_access_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if current_user.is_authenticated:
+            if getattr(current_user, "role", None) == "super_admin":
+                g.delivery_admin = True
+                g.delivery_person = None
+                return view(*args, **kwargs)
+            return error("Full admin access required.", 403)
+
+        person_id = session.get("delivery_person_id")
+        person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
+        if not person:
+            session.pop("delivery_person_id", None)
+            return error("Delivery staff login required.", 401)
+        g.delivery_admin = False
+        g.delivery_person = person
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def _delivery_order_dict(order):
+    return {
+        "id": order.id,
+        "order_number": order.order_number,
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+        "status": order.status,
+        "channel": order.channel,
+        "total": order.total,
+        "delivery_address": order.delivery_address,
+        "delivery_city": order.delivery_city,
+        "delivery_pincode": order.delivery_pincode,
+        "delivery_person_id": order.delivery_person_id,
+        "delivery_person": order.delivery_person.name if order.delivery_person else None,
+        "items": [
+            {"name": item.name, "qty": item.qty, "price": item.price}
+            for item in order.items
+        ],
+    }
+
+
+def archive_before_delete(record, deleted_by_username=None, retained_fields=None):
     """Store a database-column snapshot before removing a record."""
     data = {}
     for column in sqlalchemy_inspect(record).mapper.columns:
+        if retained_fields is not None and column.key not in retained_fields:
+            continue
         value = getattr(record, column.key)
         data[column.key] = value.isoformat() if isinstance(value, datetime) else value
     user = current_user if getattr(current_user, "is_authenticated", False) else None
@@ -71,7 +123,7 @@ def validate_image_data_uri(data_uri):
         return f"Unsupported image type ({mime_type}) — please use PNG or JPG."
     try:
         raw = base64.b64decode(b64data, validate=True)
-    except Exception:
+    except (binascii.Error, ValueError):
         return "Could not read that image — please try a different file."
     if len(raw) > MAX_IMAGE_BYTES:
         return f"Image is too large ({len(raw) // 1024}KB) — please use one under {MAX_IMAGE_BYTES // (1024 * 1024)}MB."
@@ -169,19 +221,125 @@ def customer_delete_account():
         return error("Please log in first.", 401)
 
     deleted_by = f"customer:{customer.phone}"
-    for address in list(customer.addresses):
-        archive_before_delete(address, deleted_by_username=deleted_by)
-
-    archive_before_delete(customer, deleted_by_username=deleted_by)
+    archive_before_delete(
+        customer,
+        deleted_by_username=deleted_by,
+        retained_fields={"name", "phone"},
+    )
     Order.query.filter_by(customer_id=customer.id).update(
         {
             "customer_id": None,
             "customer_name": "Deleted customer",
             "customer_phone": "",
+            "delivery_address": "",
+            "delivery_city": "",
+            "delivery_pincode": "",
         }
     )
     db.session.delete(customer)
     db.session.commit()
+    session.pop("customer_id", None)
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/customer/request-otp", methods=["POST"])
+@limiter.limit("3 per minute")
+def customer_request_otp():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid verification request.")
+
+    phone_value = payload.get("phone")
+    mode = payload.get("mode")
+    if not isinstance(phone_value, str) or not isinstance(mode, str) or mode not in {"login", "signup"}:
+        return error("Invalid verification request.")
+    phone = _normalize_phone(phone_value)
+    if len(phone) != 10:
+        return error("Enter a valid 10-digit phone number.")
+
+    name = payload.get("name", "")
+    if mode == "signup":
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 120:
+            return error("Enter a name of 1 to 120 characters.")
+        name = name.strip()
+
+    customer = Customer.query.filter_by(phone=phone).first()
+    if mode == "login" and not customer:
+        return jsonify({"ok": False, "needs_name": True, "error": "No account found."}), 404
+    if mode == "signup" and customer and not customer.otp_hash:
+        return error("An account already exists for this phone number.", 409)
+
+    debug_otp = current_app.config.get("CUSTOMER_OTP_DEBUG", False)
+    sender = current_app.config.get("CUSTOMER_OTP_SENDER")
+    if not debug_otp and not callable(sender):
+        current_app.logger.error("Customer OTP delivery is not configured.")
+        return error("Phone verification is temporarily unavailable.", 503)
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    if customer is None:
+        customer = Customer(phone=phone, name=name)
+        db.session.add(customer)
+    elif mode == "signup":
+        customer.name = name
+    customer.otp_hash = generate_password_hash(code)
+    customer.otp_expires_at = datetime.utcnow() + timedelta(
+        seconds=current_app.config.get("CUSTOMER_OTP_TTL_SECONDS", 600)
+    )
+    customer.otp_attempts = 0
+
+    try:
+        if not debug_otp:
+            sender(phone, code)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error("Customer OTP delivery failed (%s).", type(exc).__name__)
+        return error("Could not send a verification code. Please try again.", 502)
+
+    response = {"ok": True}
+    if debug_otp:
+        response["debug_code"] = code
+    return jsonify(response)
+
+
+@api_bp.route("/customer/verify-otp", methods=["POST"])
+@limiter.limit("10 per minute")
+def customer_verify_otp():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid verification request.")
+    phone_value = payload.get("phone")
+    code = payload.get("code")
+    if not isinstance(phone_value, str) or not isinstance(code, str):
+        return error("Invalid verification request.")
+    phone = _normalize_phone(phone_value)
+    if len(phone) != 10 or not re.fullmatch(r"\d{6}", code):
+        return error("Enter a valid phone number and six-digit code.")
+
+    customer = Customer.query.filter_by(phone=phone).with_for_update().first()
+    if not customer or not customer.otp_hash or not customer.otp_expires_at:
+        return error("The verification code is invalid or expired.", 400)
+    if customer.otp_expires_at <= datetime.utcnow():
+        return error("The verification code has expired. Request a new one.", 400)
+    if customer.otp_attempts >= 5:
+        return error("Too many incorrect codes. Request a new one.", 429)
+    if not check_password_hash(customer.otp_hash, code):
+        customer.otp_attempts += 1
+        db.session.commit()
+        return error("The verification code is invalid or expired.", 400)
+
+    customer.otp_hash = None
+    customer.otp_expires_at = None
+    customer.otp_attempts = 0
+    db.session.commit()
+    session.pop("customer_id", None)
+    session.permanent = True
+    session["customer_id"] = customer.id
+    return jsonify({"ok": True, "customer": customer.to_dict(include_addresses=False)})
+
+
+@api_bp.route("/customer/logout", methods=["POST"])
+def customer_logout():
     session.pop("customer_id", None)
     return jsonify({"ok": True})
 
@@ -195,7 +353,7 @@ def _get_current_customer():
 def customer_addresses():
     customer = _get_current_customer()
     if not customer:
-        return error("Please log in first.", 404)
+        return error("Please log in first.", 401)
 
     if request.method == "GET":
         return jsonify([a.to_dict() for a in customer.addresses])
@@ -225,11 +383,12 @@ def customer_addresses():
 def customer_address_detail(address_id):
     addr = CustomerAddress.query.get_or_404(address_id)
     customer = _get_current_customer()
-    if not customer or addr.customer_id != customer.id:
-        return error("Please log in first.", 404)
+    if not customer:
+        return error("Please log in first.", 401)
+    if addr.customer_id != customer.id:
+        return error("Address not found.", 404)
 
     if request.method == "DELETE":
-        archive_before_delete(addr)
         db.session.delete(addr)
         db.session.commit()
         return jsonify({"ok": True})
@@ -255,7 +414,7 @@ def customer_address_detail(address_id):
 def customer_orders():
     customer = _get_current_customer()
     if not customer:
-        return error("Please log in first.", 404)
+        return error("Please log in first.", 401)
 
     orders = (
         Order.query.filter_by(customer_id=customer.id)
@@ -292,8 +451,13 @@ def get_menu():
 
 @api_bp.route("/coupon/apply", methods=["POST"])
 def apply_coupon():
-    payload = request.get_json(silent=True) or {}
-    code = (payload.get("code") or "").strip().upper()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return error("Invalid coupon details.")
+    code_value = payload.get("code", "")
+    if not isinstance(code_value, str):
+        return error("Coupon code is required.")
+    code = code_value.strip().upper()
     subtotal = int(payload.get("subtotal") or 0)
 
     if not code:
@@ -314,14 +478,30 @@ def apply_coupon():
 
 def checkout():
     payload = request.get_json(silent=True) or {}
-    cart_items = payload.get("items") or []
+    if not isinstance(payload, dict):
+        return error("Invalid checkout details.")
+    cart_items = payload.get("items")
     channel = payload.get("channel", "whatsapp")
-    coupon_code = (payload.get("coupon_code") or "").strip().upper() or None
-    phone = _normalize_phone(payload.get("phone"))
+    coupon_code = payload.get("coupon_code") or ""
+    phone_value = payload.get("phone")
+    if not isinstance(coupon_code, str) or not isinstance(phone_value, str):
+        return error("Invalid checkout details.")
+    if not isinstance(channel, str) or channel not in ORDER_CHANNELS:
+        return error("Invalid checkout method.")
+    if channel == "online":
+        return error("Online payments are not configured. Choose another checkout method.", 503)
+    if channel == "whatsapp":
+        return error("WhatsApp ordering is unavailable. Place a cash-on-delivery order instead.", 503)
+    coupon_code = coupon_code.strip().upper() or None
+    phone = _normalize_phone(phone_value)
     address_id = payload.get("address_id")
+    if type(address_id) is not int or address_id < 1:
+        return error("Please select a delivery address.")
 
-    if not cart_items:
+    if not isinstance(cart_items, list) or not cart_items:
         return error("Your cart is empty.")
+    if len(cart_items) > 50:
+        return error("Your cart contains too many different items.")
     if len(phone) != 10:
         return error("Please log in to place an order.", 401)
 
@@ -331,64 +511,150 @@ def checkout():
     if phone and phone != customer.phone:
         return error("Please log in to place an order.", 401)
 
+    idempotency_key = request.headers.get("Idempotency-Key", "")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{16,64}", idempotency_key):
+        return error("A valid checkout request key is required.")
+    existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+    if existing_order:
+        if existing_order.customer_id != customer.id:
+            return error("This checkout request key has already been used.", 409)
+        return jsonify({
+            "ok": True,
+            "order_number": existing_order.order_number,
+            "subtotal": existing_order.subtotal,
+            "delivery_fee": existing_order.delivery_fee,
+            "tax": existing_order.tax,
+            "discount": existing_order.discount,
+            "total": existing_order.total,
+        })
+
     address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
     if not address:
         return error("Please select a delivery address.")
 
-    if channel not in ORDER_CHANNELS:
-        channel = "whatsapp"
+    requested_items = []
+    item_ids = set()
+    for row in cart_items:
+        if not isinstance(row, dict) or set(row) != {"item_id", "qty"}:
+            return error("Each cart item must contain only an item ID and quantity.")
+        item_id = row["item_id"]
+        quantity = row["qty"]
+        if type(item_id) is not int or item_id < 1:
+            return error("Invalid menu item.")
+        if type(quantity) is not int or not 1 <= quantity <= 20:
+            return error("Item quantities must be whole numbers between 1 and 20.")
+        if item_id in item_ids:
+            return error("Each menu item may appear only once in the cart.")
+        item_ids.add(item_id)
+        requested_items.append((item_id, quantity))
 
-    subtotal = sum(int(i["price"]) * int(i["qty"]) for i in cart_items)
+    menu_items = {
+        item.id: item
+        for item in MenuItem.query.filter(MenuItem.id.in_(item_ids)).all()
+    }
+    if len(menu_items) != len(requested_items):
+        return error("One or more menu items are no longer available.")
+    for item_id, _quantity in requested_items:
+        item = menu_items[item_id]
+        if not item.is_available or not item.in_stock:
+            return error(f"{item.name} is currently unavailable.")
+        if item.stock_quantity is not None and item.stock_quantity < _quantity:
+            return error(f"Not enough stock remains for {item.name}.", 409)
+
+    subtotal = sum(menu_items[item_id].price * quantity for item_id, quantity in requested_items)
     delivery_fee = 0 if subtotal >= current_app.config["FREE_DELIVERY_THRESHOLD"] else current_app.config["DELIVERY_FEE"]
-    tax = round(subtotal * current_app.config["TAX_RATE"])
+    tax = int(
+        (Decimal(subtotal) * Decimal(str(current_app.config["TAX_RATE"])))
+        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
 
     discount = 0
-    if coupon_code:
-        coupon = Coupon.query.filter_by(code=coupon_code).first()
-        if coupon and coupon.is_valid():
-            discount = coupon.compute_discount(subtotal)
-            coupon.uses = (coupon.uses or 0) + 1
+    try:
+        if coupon_code:
+            coupon = Coupon.query.filter_by(code=coupon_code).first()
+            if coupon and coupon.is_valid():
+                discount = coupon.compute_discount(subtotal)
+                coupon.uses = (coupon.uses or 0) + 1
 
-    total = max(subtotal + delivery_fee + tax - discount, 0)
-
-    order = Order(
-        order_number=Order.generate_order_number(),
-        customer_name=customer.name or "Guest",
-        customer_phone=customer.phone,
-        customer_id=customer.id,
-        channel=channel,
-        status="pending",
-        delivery_address=address.address_line,
-        delivery_city=address.city,
-        delivery_pincode=address.pincode,
-        subtotal=subtotal,
-        delivery_fee=delivery_fee,
-        tax=tax,
-        discount=discount,
-        total=total,
-        coupon_code=coupon_code if discount else None,
-    )
-    db.session.add(order)
-    db.session.flush()  # get order.id before adding items
-    
-    for i in cart_items:
-        db.session.add(
-            OrderItem(
-                order_id=order.id,
-                menu_item_id=i.get("id"),
-                name=i.get("name", "Item"),
-                price=int(i.get("price", 0)),
-                emoji=i.get("emoji", "🍽️"),
-                qty=int(i.get("qty", 1)),
+        for item_id, quantity in requested_items:
+            item = menu_items[item_id]
+            if item.stock_quantity is None:
+                continue
+            updated = MenuItem.query.filter(
+                MenuItem.id == item_id,
+                MenuItem.is_available.is_(True),
+                MenuItem.in_stock.is_(True),
+                MenuItem.stock_quantity >= quantity,
+            ).update(
+                {MenuItem.stock_quantity: MenuItem.stock_quantity - quantity},
+                synchronize_session=False,
             )
-        )
+            if updated != 1:
+                db.session.rollback()
+                return error("Stock changed while placing your order. Please try again.", 409)
+            db.session.expire(item, ["stock_quantity"])
+            if item.stock_quantity == 0:
+                item.in_stock = False
 
+        total = max(subtotal + delivery_fee + tax - discount, 0)
+        order = Order(
+            order_number=Order.generate_order_number(),
+            idempotency_key=idempotency_key,
+            customer_name=customer.name or "Guest",
+            customer_phone=customer.phone,
+            customer_id=customer.id,
+            channel=channel,
+            status="pending",
+            delivery_address=address.address_line,
+            delivery_city=address.city,
+            delivery_pincode=address.pincode,
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            tax=tax,
+            discount=discount,
+            total=total,
+            coupon_code=coupon_code if discount else None,
+        )
+        db.session.add(order)
+        db.session.flush()
+
+        for item_id, quantity in requested_items:
+            item = menu_items[item_id]
+            db.session.add(
+                OrderItem(
+                    order_id=order.id,
+                    menu_item_id=item.id,
+                    name=item.name,
+                    price=item.price,
+                    emoji=item.emoji,
+                    qty=quantity,
+                )
+            )
         db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error("Checkout transaction failed (%s).", type(exc).__name__)
+        existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+        if existing_order and existing_order.customer_id == customer.id:
+            return jsonify({
+                "ok": True,
+                "order_number": existing_order.order_number,
+                "subtotal": existing_order.subtotal,
+                "delivery_fee": existing_order.delivery_fee,
+                "tax": existing_order.tax,
+                "discount": existing_order.discount,
+                "total": existing_order.total,
+            })
+        return error("Could not place your order. Please try again.", 500)
 
     return jsonify(
         {
             "ok": True,
             "order_number": order.order_number,
+            "subtotal": order.subtotal,
+            "delivery_fee": order.delivery_fee,
+            "tax": order.tax,
+            "discount": order.discount,
             "total": order.total,
         }
     )
@@ -396,21 +662,40 @@ def checkout():
 
 # ───────────────────────── public: order tracking ─────────────────────────
 @api_bp.route("/orders/track/<order_number>")
+@limiter.limit("30 per minute")
 def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
     if not order:
         return error("Order not found. Check the order number and try again.", 404)
-    d = order.to_dict()
-    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
-    return jsonify(d)
+    return jsonify({
+        "order_number": order.order_number,
+        "channel": order.channel,
+        "status": order.status,
+        "subtotal": order.subtotal,
+        "delivery_fee": order.delivery_fee,
+        "tax": order.tax,
+        "discount": order.discount,
+        "total": order.total,
+        "created_at": order.created_at.strftime("%d %b %Y, %I:%M %p"),
+        "delivered_at": (
+            order.delivered_at.strftime("%d %b %Y, %I:%M %p")
+            if order.delivered_at else None
+        ),
+        "has_delivery_person": bool(order.delivery_person_id),
+        "items": [
+            {"name": item.name, "qty": item.qty, "price": item.price}
+            for item in order.items
+        ],
+    })
 
 
 @api_bp.route("/delivery/orders/<int:order_id>")
+@delivery_access_required
 def delivery_order_detail(order_id):
     order = Order.query.get_or_404(order_id)
-    d = order.to_dict()
-    d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in order.items]
-    return jsonify(d)
+    if not g.delivery_admin and order.delivery_person_id != g.delivery_person.id:
+        return error("Order not found.", 404)
+    return jsonify(_delivery_order_dict(order))
 
 
 # ═══════════════════════ ADMIN JSON API (login required) ═══════════════════════
@@ -465,12 +750,26 @@ def admin_deleted_records():
             "id": record.id,
             "table": record.table_name,
             "original_id": record.original_id,
-            "data": record.record_data,
+            "data": {
+                key: record.record_data[key]
+                for key in ("name", "phone")
+                if key in record.record_data
+            } if record.table_name == "customers" else {},
             "deleted_by": record.deleted_by_username,
             "deleted_at": record.deleted_at.isoformat(),
         }
         for record in records
     ])
+
+
+@api_bp.route("/admin/deleted-records/<int:record_id>", methods=["DELETE"])
+@login_required
+@super_admin_required
+def admin_purge_deleted_record(record_id):
+    record = DeletedRecord.query.get_or_404(record_id)
+    db.session.delete(record)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 # ── Orders ──
@@ -504,7 +803,22 @@ def admin_update_order_status(order_id):
     status = payload.get("status")
     if status not in ORDER_STATUSES:
         return error("Invalid status.")
+    valid_next_status = {
+        "pending": "preparing",
+        "preparing": "ready",
+        "ready": "delivered",
+        "delivered": "delivered",
+    }
+    if status != valid_next_status.get(order.status):
+        return error("Invalid order status transition.")
+    if order.channel in {"online", "whatsapp"}:
+        return error("Payment verification is not configured for this order.", 409)
+    if status == "delivered" and order.channel == "cod" and payload.get("cod_collected") is not True:
+        return error("Confirm that the COD payment was collected.")
     order.status = status
+    if status == "delivered":
+        order.delivered_at = datetime.utcnow()
+        order.cod_collected = order.channel == "cod"
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -517,15 +831,21 @@ def admin_update_order_status(order_id):
 def admin_menu_collection():
     if request.method == "GET":
         items = MenuItem.query.order_by(MenuItem.category_id, MenuItem.id).all()
-        return jsonify([{**i.to_dict(), "category_id": i.category_id} for i in items])
+        return jsonify([
+            {**i.to_dict(), "category_id": i.category_id, "stock_quantity": i.stock_quantity}
+            for i in items
+        ])
 
     payload = request.get_json(silent=True) or {}
     name = (payload.get("name") or "").strip()
     price = payload.get("price")
     category_name = (payload.get("category") or "").strip()
+    stock_quantity = payload.get("stock_quantity")
 
     if not name or price is None or not category_name:
         return error("Name, price and category are required.")
+    if type(stock_quantity) is not int or stock_quantity < 0:
+        return error("Enter a non-negative stock quantity for new items.")
 
     img_error = validate_image_data_uri(payload.get("image"))
     if img_error:
@@ -545,13 +865,21 @@ def admin_menu_collection():
         tag=(payload.get("tag") or "").strip(),
         category_id=category.id,
         is_available=True,
-        in_stock=bool(payload.get("in_stock", True)),
+        in_stock=bool(payload.get("in_stock", True)) and stock_quantity > 0,
+        stock_quantity=stock_quantity,
         is_special=bool(payload.get("is_special", False)),
         image_data=(payload.get("image") or None),
     )
     db.session.add(item)
     db.session.commit()
-    return jsonify({"ok": True, "item": {**item.to_dict(), "category_id": item.category_id}}), 201
+    return jsonify({
+        "ok": True,
+        "item": {
+            **item.to_dict(),
+            "category_id": item.category_id,
+            "stock_quantity": item.stock_quantity,
+        },
+    }), 201
 
 
 @api_bp.route("/admin/menu/<int:item_id>", methods=["PUT", "DELETE"])
@@ -568,6 +896,15 @@ def admin_menu_item(item_id):
         return jsonify({"ok": True})
 
     payload = request.get_json(silent=True) or {}
+    if "stock_quantity" in payload:
+        stock_quantity = payload["stock_quantity"]
+        if stock_quantity is not None and (
+            type(stock_quantity) is not int or stock_quantity < 0
+        ):
+            return error("Stock quantity must be a non-negative whole number or blank.")
+        item.stock_quantity = stock_quantity
+        if stock_quantity == 0:
+            item.in_stock = False
     if "image" in payload:
         img_error = validate_image_data_uri(payload["image"])
         if img_error:
@@ -597,7 +934,14 @@ def admin_menu_item(item_id):
         item.image_data = payload["image"] or None
 
     db.session.commit()
-    return jsonify({"ok": True, "item": {**item.to_dict(), "category_id": item.category_id}})
+    return jsonify({
+        "ok": True,
+        "item": {
+            **item.to_dict(),
+            "category_id": item.category_id,
+            "stock_quantity": item.stock_quantity,
+        },
+    })
 
 
 @api_bp.route("/admin/menu/<int:item_id>/toggle", methods=["POST"])
@@ -615,6 +959,8 @@ def admin_toggle_menu_item(item_id):
 @menu_access_required
 def admin_toggle_stock(item_id):
     item = MenuItem.query.get_or_404(item_id)
+    if not item.in_stock and item.stock_quantity == 0:
+        return error("Set a positive stock quantity before marking this item in stock.")
     item.in_stock = not item.in_stock
     db.session.commit()
     return jsonify({"ok": True, "in_stock": item.in_stock})
@@ -664,11 +1010,14 @@ def admin_coupons_collection():
         return error("A coupon with that code already exists.")
 
     expires_at = None
-    if payload.get("expires_at"):
+    expires_value = payload.get("expires_at")
+    if expires_value is not None and not isinstance(expires_value, str):
+        return error("Expiry date must use YYYY-MM-DD format.")
+    if expires_value:
         try:
-            expires_at = datetime.strptime(payload["expires_at"], "%Y-%m-%d")
+            expires_at = datetime.strptime(expires_value, "%Y-%m-%d")
         except ValueError:
-            pass
+            return error("Expiry date must use YYYY-MM-DD format.")
 
     coupon = Coupon(
         code=code,
@@ -723,6 +1072,20 @@ def admin_content():
 
 
 # ── Team / Chefs ──
+
+@api_bp.route("/team")
+def public_team():
+    members = TeamMember.query.order_by(TeamMember.sort_order, TeamMember.id).all()
+    return jsonify([
+        {
+            "name": member.name,
+            "role": member.role,
+            "avatar": member.avatar_emoji,
+            "photo": member.photo_data or None,
+        }
+        for member in members
+    ])
+
 
 @api_bp.route("/admin/team", methods=["GET", "POST"])
 @login_required
@@ -798,12 +1161,18 @@ def admin_delivery_people():
     name = (payload.get("name") or "").strip()
     if not name:
         return error("Name is required.")
+    if DeliveryPerson.query.filter(db.func.lower(DeliveryPerson.name) == name.lower()).first():
+        return error("A delivery person with that name already exists.")
 
     person = DeliveryPerson(
         name=name,
         phone=(payload.get("phone") or "").strip(),
         active=True,
     )
+    password = payload.get("password") or ""
+    if not isinstance(password, str) or len(password) < 12:
+        return error("A delivery password of at least 12 characters is required.")
+    person.set_password(password)
     db.session.add(person)
     db.session.commit()
     return jsonify({"ok": True, "person": person.to_dict()}), 201
@@ -823,9 +1192,20 @@ def admin_delivery_person_detail(person_id):
 
     payload = request.get_json(silent=True) or {}
     if "name" in payload:
-        person.name = payload["name"].strip()
+        name = payload["name"].strip()
+        duplicate = DeliveryPerson.query.filter(
+            db.func.lower(DeliveryPerson.name) == name.lower(),
+            DeliveryPerson.id != person.id,
+        ).first()
+        if not name or duplicate:
+            return error("A unique delivery person name is required.")
+        person.name = name
     if "phone" in payload:
         person.phone = payload["phone"].strip()
+    if "password" in payload and payload["password"]:
+        if not isinstance(payload["password"], str) or len(payload["password"]) < 12:
+            return error("A delivery password must be at least 12 characters.")
+        person.set_password(payload["password"])
 
     db.session.commit()
     return jsonify({"ok": True, "person": person.to_dict()})
@@ -841,40 +1221,64 @@ def admin_toggle_delivery_person(person_id):
     return jsonify({"ok": True, "active": person.active})
 
 
-# ═══════════════════════ DELIVERY PORTAL (no login yet═══════════════════════
+# ═════════════════════════════ DELIVERY PORTAL ══════════════════════════════
+
+@api_bp.route("/delivery/login", methods=["POST"])
+@limiter.limit("5 per minute")
+def delivery_login():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    password = payload.get("password") or ""
+    person = DeliveryPerson.query.filter_by(name=name, active=True).first()
+    if not person or not person.check_password(password):
+        return error("Invalid delivery login.", 401)
+
+    session.clear()
+    session.permanent = True
+    session["delivery_person_id"] = person.id
+    return jsonify({"ok": True, "name": person.name})
+
+
+@api_bp.route("/delivery/logout", methods=["POST"])
+@delivery_access_required
+def delivery_logout():
+    session.clear()
+    return jsonify({"ok": True})
 
 @api_bp.route("/delivery/people")
+@delivery_access_required
 def delivery_people_list():
+    if not g.delivery_admin:
+        return error("Full admin access required.", 403)
     people = DeliveryPerson.query.filter_by(active=True).order_by(DeliveryPerson.name).all()
     return jsonify([p.to_dict() for p in people])
 
 
 @api_bp.route("/delivery/orders")
+@delivery_access_required
 def delivery_orders_list():
-    """Orders that still need delivering (not yet marked delivered),
-    optionally filtered to a specific delivery person via ?assigned_to=<id>."""
-    assigned_to = request.args.get("assigned_to")
     q = Order.query.filter(Order.status != "delivered")
-    if assigned_to:
-        q = q.filter(Order.delivery_person_id == int(assigned_to))
+    if not g.delivery_admin:
+        q = q.filter(Order.delivery_person_id == g.delivery_person.id)
     orders = q.order_by(Order.created_at.asc()).all()
-
-    result = []
-    for o in orders:
-        d = o.to_dict()
-        d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
-        result.append(d)
-    return jsonify(result)
+    return jsonify([_delivery_order_dict(order) for order in orders])
 
 
 @api_bp.route("/delivery/orders/<int:order_id>/assign", methods=["POST"])
+@delivery_access_required
 def delivery_assign_order(order_id):
+    if not g.delivery_admin:
+        return error("Full admin access required.", 403)
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
+    if order.channel in {"online", "whatsapp"}:
+        return error("Payment verification is not configured for this order.", 409)
     person_id = payload.get("delivery_person_id")
-    person = DeliveryPerson.query.get(person_id) if person_id else None
+    person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
     if not person:
-        return error("Select who you are first.")
+        return error("Select an active delivery person.")
+    if order.status not in {"pending", "preparing"}:
+        return error("Only pending or preparing orders can be assigned.")
 
     order.delivery_person_id = person.id
     if order.status == "pending":
@@ -884,17 +1288,23 @@ def delivery_assign_order(order_id):
 
 
 @api_bp.route("/delivery/orders/<int:order_id>/deliver", methods=["POST"])
+@delivery_access_required
 def delivery_mark_delivered(order_id):
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
 
-    if payload.get("delivery_person_id"):
-        order.delivery_person_id = payload["delivery_person_id"]
+    if not g.delivery_admin and order.delivery_person_id != g.delivery_person.id:
+        return error("Order is not assigned to this delivery person.", 403)
+    if order.status != "ready":
+        return error("Only ready orders can be marked delivered.")
+    if order.channel in {"online", "whatsapp"}:
+        return error("Payment verification is not configured for this order.", 409)
+    if order.channel == "cod" and payload.get("cod_collected") is not True:
+        return error("Confirm that the COD payment was collected.")
 
     order.status = "delivered"
     order.delivered_at = datetime.utcnow()
-    if order.channel == "cod":
-        order.cod_collected = bool(payload.get("cod_collected"))
+    order.cod_collected = order.channel == "cod"
 
     db.session.commit()
     return jsonify({"ok": True})

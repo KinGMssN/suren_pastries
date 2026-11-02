@@ -5,7 +5,9 @@
 
 .dl-picker{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:24px}
 .dl-picker label{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px}
-.dl-picker select{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none}
+.dl-picker select,.dl-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:12px}
+.dl-error{color:#a33;font-size:13px}
+.dl-btn-logout{margin-bottom:16px;background:var(--dark);color:#fff}
 
 .dl-empty{text-align:center;color:var(--muted);font-size:13px;padding:32px}
 

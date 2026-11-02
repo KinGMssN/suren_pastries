@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -57,6 +58,7 @@ class MenuItem(db.Model):
     price = db.Column(db.Integer, nullable=False)  # stored in rupees, whole numbers
     emoji = db.Column(db.String(10), default="🍽️")
     tag = db.Column(db.String(40), default="")
+    stock_quantity = db.Column(db.Integer, nullable=True)  # NULL denotes unlimited stock.
     is_available = db.Column(db.Boolean, default=True, nullable=False)  # hidden from menu entirely when False
     in_stock = db.Column(db.Boolean, default=True, nullable=False)      # shown but not orderable when False
     is_special = db.Column(db.Boolean, default=False, nullable=False)   # featured on landing page "Chef's specials"
@@ -75,7 +77,9 @@ class MenuItem(db.Model):
             "tag": self.tag or None,
             "category": self.category.name if self.category else None,
             "is_available": self.is_available,
-            "in_stock": self.in_stock,
+            "in_stock": self.in_stock and (
+                self.stock_quantity is None or self.stock_quantity > 0
+            ),
             "is_special": self.is_special,
         }
 
@@ -124,7 +128,8 @@ class Coupon(db.Model):
 
     def compute_discount(self, subtotal: int) -> int:
         if self.discount_type == "percent":
-            return round(subtotal * (self.value / 100))
+            amount = Decimal(subtotal) * Decimal(self.value) / Decimal(100)
+            return int(amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         return min(self.value, subtotal)
 
 
@@ -203,8 +208,15 @@ class DeliveryPerson(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), default="")
+    password_hash = db.Column(db.String(255), nullable=True)
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, raw_password: str) -> None:
+        self.password_hash = generate_password_hash(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        return bool(self.password_hash) and check_password_hash(self.password_hash, raw_password)
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "phone": self.phone, "active": self.active}
@@ -219,6 +231,7 @@ class Order(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
+    idempotency_key = db.Column(db.String(64), unique=True, nullable=True)
     customer_name = db.Column(db.String(120), default="Guest")
     customer_phone = db.Column(db.String(30), default="")
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)
@@ -249,7 +262,7 @@ class Order(db.Model):
 
     @staticmethod
     def generate_order_number():
-        return "SP" + secrets.token_hex(3).upper()
+        return "SP" + secrets.token_hex(9).upper()
     
     def item_count(self):
         return sum(i.qty for i in self.items)
@@ -262,6 +275,10 @@ class Order(db.Model):
             "customer_phone": self.customer_phone,
             "channel": self.channel,
             "status": self.status,
+            "subtotal": self.subtotal,
+            "delivery_fee": self.delivery_fee,
+            "tax": self.tax,
+            "discount": self.discount,
             "total": self.total,
             "item_count": self.item_count(),
             "created_at": self.created_at.strftime("%d %b %Y, %I:%M %p"),

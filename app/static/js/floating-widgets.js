@@ -24,7 +24,9 @@
     try {
       const base = window.API_BASE || '';
       const res = await fetch(base + '/api/customer/orders');
+      if (!res.ok) throw new Error(`Order request failed (${res.status})`);
       const orders = await res.json();
+      if (!Array.isArray(orders)) throw new Error('Invalid order response');
       const active = orders.find(o => o.status !== 'delivered');
       const existing = document.getElementById('floating-track-btn');
       if (!active) { if (existing) existing.remove(); return; }
@@ -36,7 +38,11 @@
       btn.href = '/track/' + active.order_number;
       btn.innerHTML = `📦 Track order <span class="floating-track-status">${active.status}</span>`;
       document.body.appendChild(btn);
-    } catch (err) { }
+    } catch (err) {
+      const existing = document.getElementById('floating-track-btn');
+      if (existing) existing.remove();
+      console.warn('Unable to refresh the order-tracking widget.', err);
+    }
   }
 
   renderCartBubble();

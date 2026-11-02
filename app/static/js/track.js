@@ -32,7 +32,7 @@ function render(order) {
   const messages = {
     pending: ['Order received!', "We've got your order and we're getting started."],
     preparing: ['Your food is being prepared 👨‍🍳', 'Our kitchen is working on it right now.'],
-    ready: [order.delivery_person ? 'Food is prepared! On the way 🚴' : 'Food is ready!', order.delivery_person ? `${order.delivery_person} has your order.` : 'Waiting for a delivery partner to pick it up.'],
+    ready: [order.has_delivery_person ? 'Food is prepared! On the way 🚴' : 'Food is ready!', order.has_delivery_person ? 'A delivery partner has your order.' : 'Waiting for a delivery partner to pick it up.'],
     delivered: ['Delivered! Enjoy your meal 🎉', order.delivered_at ? `Delivered at ${order.delivered_at}` : ''],
   };
   const [msg, sub] = messages[order.status] || ['Order status: ' + order.status, ''];
@@ -40,15 +40,9 @@ function render(order) {
   document.getElementById('tr-submessage').textContent = sub;
 
   const partnerEl = document.getElementById('tr-partner');
-  if (order.delivery_person && order.status !== 'delivered') {
+  if (order.has_delivery_person && order.status !== 'delivered') {
     partnerEl.style.display = 'flex';
-    partnerEl.innerHTML = `
-      <div class="tr-partner-avatar">🚴</div>
-      <div>
-        <div class="tr-partner-name">${order.delivery_person}</div>
-        <div class="tr-partner-role">Your delivery partner</div>
-      </div>
-    `;
+    partnerEl.textContent = 'A delivery partner has been assigned to your order.';
   } else {
     partnerEl.style.display = 'none';
   }
@@ -56,11 +50,14 @@ function render(order) {
   document.getElementById('tr-items').innerHTML = order.items.map(i =>
     `<div class="tr-item-row"><span>${i.qty}× ${i.name}</span><span>₹${i.price * i.qty}</span></div>`
   ).join('');
+  document.getElementById('tr-subtotal').textContent = '₹' + order.subtotal;
+  document.getElementById('tr-delivery-fee').textContent = order.delivery_fee === 0 ? 'FREE' : '₹' + order.delivery_fee;
+  document.getElementById('tr-tax').textContent = '₹' + order.tax;
+  document.getElementById('tr-discount').textContent = '−₹' + order.discount;
+  document.getElementById('tr-discount-row').hidden = !order.discount;
   document.getElementById('tr-total').textContent = '₹' + order.total;
-  document.getElementById('tr-address').textContent =
-    [order.delivery_address, order.delivery_city, order.delivery_pincode].filter(Boolean).join(', ');
   document.getElementById('tr-payment').textContent =
-    order.channel === 'cod' ? 'Cash on delivery' + (order.cod_collected ? ' (paid)' : '') : order.channel;
+    order.channel === 'cod' ? 'Cash on delivery' : 'Payment status unavailable';
 }
 
 loadTrackedOrder();

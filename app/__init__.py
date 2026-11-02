@@ -3,11 +3,10 @@ import json
 import logging
 import secrets
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from flask import Flask, g, request, session
 from flask_cors import CORS
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from config import Config
 from app.extensions import csrf, db, login_manager, limiter
@@ -23,31 +22,6 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     csrf.init_app(app)
 
-    with app.app_context():
-        try:
-            db.session.execute(text(
-                "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role "
-                "VARCHAR(30) NOT NULL DEFAULT 'super_admin'"
-            ))
-            db.session.commit()
-        except SQLAlchemyError:
-            db.session.rollback()
-
-        for stmt in [
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
-            "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(255)",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP",
-            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS otp_attempts INTEGER NOT NULL DEFAULT 0",
-        ]:
-            try:
-                db.session.execute(text(stmt))
-                db.session.commit()
-            except SQLAlchemyError:
-                db.session.rollback()
-        db.create_all()
-    
     CORS(
         app,
         supports_credentials=True,
@@ -69,6 +43,16 @@ def create_app(config_class=Config):
     csrf.exempt(api_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+
+    @app.cli.command("db-upgrade")
+    def db_upgrade_command():
+        from migrations.runner import upgrade
+
+        applied = upgrade()
+        if applied:
+            print(f"Applied database migrations: {', '.join(applied)}")
+        else:
+            print("Database schema is already up to date.")
 
     for rule in app.url_map.iter_rules():
         if not rule.endpoint.startswith("api."):
@@ -142,16 +126,54 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_site_content():
         def content(key, default=""):
-            try:
-                return SiteContent.get(key, default)
-            except Exception:
-                return default
-        return {"content": content}
+            return SiteContent.get(key, default)
+        public_canonical_endpoints = {
+            "main.index",
+            "main.home",
+            "main.menu",
+            "main.about",
+            "main.privacy",
+            "main.refund_policy",
+            "main.terms",
+            "main.cookies",
+        }
+        public_site_url = app.config.get("PUBLIC_SITE_URL", "")
+        canonical_url = None
+        if public_site_url and request.endpoint in public_canonical_endpoints:
+            path = "/home" if request.endpoint == "main.index" else request.path
+            canonical_url = public_site_url + path
+        return {"content": content, "canonical_url": canonical_url}
 
     # ── Security headers on every response ──
     @app.before_request
     def set_csp_nonce():
         g.csp_nonce = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
+
+    @app.before_request
+    def validate_api_request_origin():
+        if not request.path.startswith("/api/") or request.method not in {
+            "POST", "PUT", "PATCH", "DELETE"
+        }:
+            return
+
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        parsed_source = urlsplit(source or "")
+        if (
+            parsed_source.scheme not in {"http", "https"}
+            or not parsed_source.netloc
+            or parsed_source.username
+            or parsed_source.password
+        ):
+            return {"error": "A valid request origin is required."}, 403
+
+        request_origin = f"{parsed_source.scheme.lower()}://{parsed_source.netloc.lower()}"
+        configured_origin = urlsplit(app.config["FRONTEND_ORIGIN"])
+        allowed_origins = {
+            f"{configured_origin.scheme.lower()}://{configured_origin.netloc.lower()}",
+            request.host_url.rstrip("/").lower(),
+        }
+        if request_origin not in allowed_origins:
+            return {"error": "Request origin is not allowed."}, 403
 
     @app.after_request
     def set_security_headers(response):
@@ -169,7 +191,7 @@ def create_app(config_class=Config):
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{g.csp_nonce}'; "
             f"style-src 'self' 'nonce-{g.csp_nonce}'; "
-            "style-src-attr 'none'; "
+            "style-src-attr 'unsafe-inline'; "
             "font-src 'self'; "
             "img-src 'self' data:; "
             "connect-src 'self'; "

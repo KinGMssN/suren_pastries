@@ -25,6 +25,7 @@
       <button class="sb-link" data-tab="team" data-action="set-tab"><span class="sb-icon">👥</span>Team</button>
       <button class="sb-link" data-tab="delivery" data-action="set-tab"><span class="sb-icon">🚚</span>Delivery Staff</button>
       <button class="sb-link" data-tab="content" data-action="set-tab"><span class="sb-icon">📝</span>Content</button>
+      <button class="sb-link" data-tab="deleted-records" data-action="set-tab"><span class="sb-icon">🗄️</span>Deleted records</button>
       {% endif %}
       <a class="sb-link" href="{{ url_for('main.home') }}"><span class="sb-icon">🌐</span>View site</a>
     </div>
@@ -147,7 +148,7 @@
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
         Manage who can pick and deliver orders. They use this list to identify
-        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a> — no login required there yet.
+        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a>. Set a password for each delivery person.
       </p>
       <div class="menu-editor-grid" id="delivery-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
     </div>{% endif %}
@@ -185,6 +186,24 @@
       </div>
     </div>
 
+    <div class="tab-content" id="tab-deleted-records">
+      <div class="top-bar"><div class="page-title">Deleted records</div></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Customer names and mobile numbers are retained here until manually purged.
+        Orders remain available with customer and delivery details anonymized.
+        Purging permanently removes the selected archived record.
+      </p>
+      <div class="table-card">
+        <div class="tc-head"><div class="tc-title">Archived records</div></div>
+        <table class="table">
+          <thead><tr><th>Record type</th><th>Customer name</th><th>Mobile</th><th>Deleted</th><th>Action</th></tr></thead>
+          <tbody id="deleted-records-body">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Select this tab to load archived records</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
   </div>{% endif %}
 
@@ -206,6 +225,7 @@
       <div class="form-group"><label class="form-label">Tag (optional)</label><input class="form-input" id="mi-tag" placeholder="Popular, Spicy..."/></div>
     </div>
     <div class="form-group"><label class="form-label">Emoji (used when no photo is uploaded)</label><input class="form-input" id="mi-emoji" placeholder="🍛"/></div>
+    <div class="form-group"><label class="form-label" for="mi-stock-quantity">Stock quantity (new items require a count; blank on an existing item means unlimited)</label><input class="form-input" id="mi-stock-quantity" type="number" min="0" step="1" value="0"/></div>
     <div class="form-group">
       <label class="form-label">Photo (PNG/JPG, optional — overrides the emoji)</label>
       <input class="form-input" type="file" id="mi-image-file" accept="image/png,image/jpeg"/>
@@ -277,6 +297,7 @@
     <input type="hidden" id="dp-id"/>
     <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="dp-name" placeholder="e.g. Suresh"/></div>
     <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="dp-phone" placeholder="10-digit mobile number"/></div>
+    <div class="form-group"><label class="form-label" for="dp-password">Password (at least 12 characters; leave blank to keep current password)</label><input class="form-input" id="dp-password" type="password" minlength="12" autocomplete="new-password"/></div>
     <div class="modal-footer">
       <button class="btn-sm btn-outline" data-action="hide-delivery-modal">Cancel</button>
       <button class="btn-sm btn-primary" data-action="submit-delivery-person">Save</button>

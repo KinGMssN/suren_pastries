@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
@@ -8,6 +9,18 @@ from app.auth import verify_totp
 from app.models import AdminUser
 
 admin_bp = Blueprint("admin", __name__)
+
+
+def _is_safe_relative_redirect(target):
+    if not target or "\\" in target or any(ord(char) < 32 for char in target):
+        return False
+    parsed = urlsplit(target)
+    return (
+        not parsed.scheme
+        and not parsed.netloc
+        and parsed.path.startswith("/")
+        and not parsed.path.startswith("//")
+    )
 
 
 @admin_bp.route("/login", methods=["GET", "POST"])
@@ -36,8 +49,10 @@ def login():
             session.permanent = True
             session["admin_session_version"] = user.session_version
             session["admin_last_activity"] = datetime.utcnow().timestamp()
-            next_url = request.args.get("next")
-            return redirect(next_url or url_for("admin.dashboard"))
+            next_url = request.args.get("next", "")
+            if not _is_safe_relative_redirect(next_url):
+                next_url = url_for("admin.dashboard")
+            return redirect(next_url)
         else:
             if user:
                 user.failed_login_attempts = (user.failed_login_attempts or 0) + 1

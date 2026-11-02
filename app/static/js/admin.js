@@ -12,6 +12,7 @@ function setTab(name, el) {
   if (name === 'team') loadTeam();
   if (name === 'delivery') loadDeliveryStaff();
   if (name === 'content') loadContent();
+  if (name === 'deleted-records') loadDeletedRecords();
 }
 
 function toast(msg) {
@@ -79,6 +80,7 @@ document.addEventListener('click', (e) => {
     case 'edit-delivery-person': openEditDeliveryModal(decodeObj(el.dataset.item)); break;
     case 'toggle-delivery-person': toggleDeliveryPerson(id); break;
     case 'delete-delivery-person': deleteDeliveryPerson(id); break;
+    case 'purge-deleted-record': purgeDeletedRecord(id); break;
     case 'save-content': saveContent(); break;
   }
 });
@@ -155,7 +157,14 @@ async function loadOrders() {
 
 async function updateOrderStatus(id, status) {
   try {
-    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
+    const codCollected = status === 'delivered'
+      ? confirm('Confirm that any COD payment for this order has been collected.')
+      : false;
+    if (status === 'delivered' && !codCollected) {
+      loadOrders();
+      return;
+    }
+    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status, cod_collected: codCollected }) });
     toast('Order status updated');
     loadOrders();
   } catch (err) { toast(err.message); }
@@ -210,6 +219,7 @@ async function loadMenuEditor() {
             </div>
             <div class="me-cat">${i.category || 'Uncategorized'}${i.tag ? ' · ' + i.tag : ''}</div>
             <div class="me-price">₹${i.price}</div>
+            <div class="me-cat">Stock: ${i.stock_quantity === null ? 'Unlimited' : i.stock_quantity}</div>
           </div>
         </div>
         <div class="me-actions">
@@ -231,6 +241,7 @@ function showModal() {
   pendingImageData = null;
   document.getElementById('menu-modal-title').textContent = 'Add menu item';
   ['id', 'name', 'price', 'description', 'category', 'tag', 'emoji'].forEach(f => document.getElementById('mi-' + f).value = '');
+  document.getElementById('mi-stock-quantity').value = '0';
   document.getElementById('mi-image-file').value = '';
   document.getElementById('mi-image-preview').style.display = 'none';
   document.getElementById('mi-in-stock').checked = true;
@@ -248,6 +259,8 @@ function openEditModal(item) {
   document.getElementById('mi-category').value = item.category || '';
   document.getElementById('mi-tag').value = item.tag || '';
   document.getElementById('mi-emoji').value = item.emoji || '';
+  document.getElementById('mi-stock-quantity').value =
+    item.stock_quantity === null ? '' : String(item.stock_quantity);
   document.getElementById('mi-image-file').value = '';
   const preview = document.getElementById('mi-image-preview');
   if (item.image) { preview.src = item.image; preview.style.display = 'block'; }
@@ -259,6 +272,15 @@ function openEditModal(item) {
 function hideModal() { document.getElementById('modal').classList.remove('show'); }
 
 async function submitMenuItem() {
+  const stockValue = document.getElementById('mi-stock-quantity').value.trim();
+  const stockQuantity = stockValue === '' ? null : Number(stockValue);
+  if (
+    (!editingItemId && stockQuantity === null)
+    || (stockQuantity !== null && (!Number.isInteger(stockQuantity) || stockQuantity < 0))
+  ) {
+    toast('Enter a non-negative whole-number stock quantity');
+    return;
+  }
   const payload = {
     name: document.getElementById('mi-name').value.trim(),
     price: parseInt(document.getElementById('mi-price').value || '0', 10),
@@ -268,6 +290,7 @@ async function submitMenuItem() {
     emoji: document.getElementById('mi-emoji').value.trim() || '🍽️',
     in_stock: document.getElementById('mi-in-stock').checked,
     is_special: document.getElementById('mi-is-special').checked,
+    stock_quantity: stockQuantity,
   };
   if (pendingImageData) payload.image = pendingImageData;
   if (!payload.name || !payload.category || !payload.price) {
@@ -498,6 +521,8 @@ function showDeliveryModal() {
   editingDeliveryId = null;
   document.getElementById('delivery-modal-title').textContent = 'Add delivery person';
   ['id', 'name', 'phone'].forEach(f => document.getElementById('dp-' + f).value = '');
+  document.getElementById('dp-password').value = '';
+  document.getElementById('dp-password').required = true;
   document.getElementById('deliveryModal').classList.add('show');
 }
 function openEditDeliveryModal(person) {
@@ -506,6 +531,8 @@ function openEditDeliveryModal(person) {
   document.getElementById('dp-id').value = person.id;
   document.getElementById('dp-name').value = person.name;
   document.getElementById('dp-phone').value = person.phone || '';
+  document.getElementById('dp-password').value = '';
+  document.getElementById('dp-password').required = false;
   document.getElementById('deliveryModal').classList.add('show');
 }
 function hideDeliveryModal() { document.getElementById('deliveryModal').classList.remove('show'); }
@@ -514,8 +541,13 @@ async function submitDeliveryPerson() {
   const payload = {
     name: document.getElementById('dp-name').value.trim(),
     phone: document.getElementById('dp-phone').value.trim(),
+    password: document.getElementById('dp-password').value,
   };
   if (!payload.name) { toast('Name is required'); return; }
+  if (!editingDeliveryId && payload.password.length < 12) {
+    toast('A delivery password of at least 12 characters is required');
+    return;
+  }
   try {
     if (editingDeliveryId) {
       await api(`/delivery-people/${editingDeliveryId}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -563,6 +595,46 @@ async function saveContent() {
   try {
     await api('/content', { method: 'POST', body: JSON.stringify(payload) });
     toast('Changes saved!');
+  } catch (err) { toast(err.message); }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
+async function loadDeletedRecords() {
+  const body = document.getElementById('deleted-records-body');
+  body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>`;
+  try {
+    const records = await api('/deleted-records');
+    if (!records.length) {
+      body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No archived records</td></tr>`;
+      return;
+    }
+    body.innerHTML = records.map(record => `
+      <tr>
+        <td>${escapeHtml(record.table)}</td>
+        <td>${escapeHtml(record.data.name || '')}</td>
+        <td>${escapeHtml(record.data.phone || '')}</td>
+        <td>${escapeHtml(new Date(record.deleted_at).toLocaleString())}</td>
+        <td><button class="btn-sm btn-outline" data-action="purge-deleted-record" data-id="${Number(record.id)}">Purge</button></td>
+      </tr>
+    `).join('');
+  } catch (err) { toast(err.message); }
+}
+
+async function purgeDeletedRecord(id) {
+  if (!confirm('Permanently purge this archived record? This cannot be undone.')) return;
+  try {
+    await api(`/deleted-records/${id}`, { method: 'DELETE' });
+    toast('Archived record purged');
+    loadDeletedRecords();
   } catch (err) { toast(err.message); }
 }
 
