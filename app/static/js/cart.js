@@ -108,9 +108,8 @@ async function renderCheckoutArea() {
       </select>
     </div>
     <div class="checkout-stack">
-      <button class="co-btn co-wa" data-action="checkout" data-method="whatsapp">💬 Order via WhatsApp</button>
       <button class="co-btn co-online" type="button" disabled title="Online payments are not configured">💳 Pay online (unavailable)</button>
-      <button class="co-btn co-cod" data-action="checkout" data-method="cod">💵 Cash on delivery</button>
+      <button class="co-btn co-cod" data-action="checkout" data-method="cod">💵 Place cash-on-delivery order</button>
     </div>
   `;
 }

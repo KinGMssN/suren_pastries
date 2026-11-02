@@ -72,8 +72,6 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 .co-online{background:var(--accent);color:#fff}
 .co-online:hover{background:#a83e1e;transform:translateY(-1px)}
 .co-online:disabled:hover{background:var(--accent);transform:none}
-.co-wa{background:var(--success);color:#fff}
-.co-wa:hover{background:#1da851;transform:translateY(-1px)}
 .co-cod{background:var(--dark);color:#fff}
 .co-cod:hover{background:#000;transform:translateY(-1px)}
 

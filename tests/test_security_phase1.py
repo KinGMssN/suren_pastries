@@ -578,3 +578,60 @@ def test_unverified_online_orders_cannot_be_assigned_or_fulfilled(app, client):
     with app.app_context():
         assert db.session.get(Order, pending_order_id).status == "pending"
         assert db.session.get(Order, ready_order_id).status == "ready"
+
+
+def test_whatsapp_channel_is_not_accepted_as_a_completed_order_flow(app, client):
+    response = client.post(
+        "/api/checkout",
+        json={
+            "items": [],
+            "channel": "whatsapp",
+            "phone": "1234567890",
+            "address_id": 1,
+        },
+        headers={"Idempotency-Key": "test-whatsapp-flow-rejection-001"},
+    )
+    assert response.status_code == 503
+    with app.app_context():
+        assert Order.query.count() == 0
+
+
+def test_legacy_whatsapp_orders_cannot_be_assigned_or_fulfilled(app, client):
+    with app.app_context():
+        admin = AdminUser(username="whatsapp-test-admin", role="super_admin")
+        admin.set_password("whatsapp-test-password")
+        person = DeliveryPerson(name="WhatsApp Test Courier", active=True)
+        person.set_password("whatsapp-test-courier-password")
+        db.session.add_all([admin, person])
+        db.session.flush()
+        pending_order = create_order(status="pending", channel="whatsapp")
+        ready_order = create_order(
+            person=person,
+            status="ready",
+            channel="whatsapp",
+        )
+        pending_order_id = pending_order.id
+        ready_order_id = ready_order.id
+        person_id = person.id
+
+    client.post(
+        "/admin/login",
+        data={"username": "whatsapp-test-admin", "password": "whatsapp-test-password"},
+    )
+    assert client.post(
+        f"/api/admin/orders/{pending_order_id}/status",
+        json={"status": "preparing"},
+    ).status_code == 409
+    assert client.post(
+        f"/api/delivery/orders/{pending_order_id}/assign",
+        json={"delivery_person_id": person_id},
+    ).status_code == 409
+
+    client.post(
+        "/api/delivery/login",
+        json={"name": "WhatsApp Test Courier", "password": "whatsapp-test-courier-password"},
+    )
+    assert client.post(
+        f"/api/delivery/orders/{ready_order_id}/deliver",
+        json={},
+    ).status_code == 409

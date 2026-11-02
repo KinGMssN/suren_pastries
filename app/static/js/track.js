@@ -57,7 +57,7 @@ function render(order) {
   document.getElementById('tr-discount-row').hidden = !order.discount;
   document.getElementById('tr-total').textContent = '₹' + order.total;
   document.getElementById('tr-payment').textContent =
-    order.channel === 'cod' ? 'Cash on delivery' : order.channel;
+    order.channel === 'cod' ? 'Cash on delivery' : 'Payment status unavailable';
 }
 
 loadTrackedOrder();
