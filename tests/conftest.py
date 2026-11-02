@@ -35,4 +35,6 @@ def app():
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    test_client = app.test_client()
+    test_client.environ_base["HTTP_ORIGIN"] = "http://localhost"
+    return test_client

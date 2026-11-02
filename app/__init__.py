@@ -3,6 +3,7 @@ import json
 import logging
 import secrets
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from flask import Flask, g, request, session
 from flask_cors import CORS
@@ -152,6 +153,32 @@ def create_app(config_class=Config):
     @app.before_request
     def set_csp_nonce():
         g.csp_nonce = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
+
+    @app.before_request
+    def validate_api_request_origin():
+        if not request.path.startswith("/api/") or request.method not in {
+            "POST", "PUT", "PATCH", "DELETE"
+        }:
+            return
+
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        parsed_source = urlsplit(source or "")
+        if (
+            parsed_source.scheme not in {"http", "https"}
+            or not parsed_source.netloc
+            or parsed_source.username
+            or parsed_source.password
+        ):
+            return {"error": "A valid request origin is required."}, 403
+
+        request_origin = f"{parsed_source.scheme.lower()}://{parsed_source.netloc.lower()}"
+        configured_origin = urlsplit(app.config["FRONTEND_ORIGIN"])
+        allowed_origins = {
+            f"{configured_origin.scheme.lower()}://{configured_origin.netloc.lower()}",
+            request.host_url.rstrip("/").lower(),
+        }
+        if request_origin not in allowed_origins:
+            return {"error": "Request origin is not allowed."}, 403
 
     @app.after_request
     def set_security_headers(response):

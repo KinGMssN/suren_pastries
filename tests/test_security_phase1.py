@@ -302,3 +302,18 @@ def test_tax_and_percent_discount_round_half_up(app, client):
     assert response.get_json()["total"] == 51
     tracked = client.get("/api/orders/track/" + response.get_json()["order_number"])
     assert tracked.get_json()["tax"] == 1
+
+
+def test_api_mutations_reject_untrusted_origins(client):
+    response = client.post(
+        "/api/checkout",
+        json={},
+        headers={"Origin": "https://attacker.example"},
+    )
+    assert response.status_code == 403
+
+    response = client.post("/api/checkout", json={}, environ_overrides={"HTTP_ORIGIN": ""})
+    assert response.status_code == 403
+
+    response = client.post("/api/checkout", json={})
+    assert response.status_code == 400
