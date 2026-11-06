@@ -7,12 +7,58 @@
   const status = document.getElementById('cake-form-status');
   const submitButton = document.getElementById('cake-submit');
   const dateInput = document.getElementById('cake-date');
+  const referenceImageInput = document.getElementById('cake-reference-image');
+  const referenceImagePreview = document.getElementById('cake-reference-preview');
+  const referenceImagePreviewImage = document.getElementById('cake-reference-preview-image');
+  const referenceImageSelected = document.getElementById('cake-reference-selected');
+  const removeReferenceImageButton = document.getElementById('cake-remove-photo');
+  const maxReferenceImageBytes = 2 * 1024 * 1024;
+  let referencePreviewUrl = null;
   const today = new Date();
   dateInput.min = [
     today.getFullYear(),
     String(today.getMonth() + 1).padStart(2, '0'),
     String(today.getDate()).padStart(2, '0'),
   ].join('-');
+
+  referenceImageInput.addEventListener('change', () => {
+    const [file] = referenceImageInput.files;
+    status.textContent = '';
+    if (!file) {
+      if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+      referencePreviewUrl = null;
+      referenceImagePreview.hidden = true;
+      referenceImagePreviewImage.removeAttribute('src');
+      return;
+    }
+    if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+    referencePreviewUrl = null;
+    referenceImagePreview.hidden = true;
+    referenceImagePreviewImage.removeAttribute('src');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      referenceImageInput.value = '';
+      status.textContent = 'Choose a JPEG, PNG, or WebP cake photo.';
+      return;
+    }
+    if (file.size > maxReferenceImageBytes) {
+      referenceImageInput.value = '';
+      status.textContent = 'The cake photo must be 2 MB or smaller.';
+      return;
+    }
+    referencePreviewUrl = URL.createObjectURL(file);
+    referenceImagePreviewImage.src = referencePreviewUrl;
+    referenceImageSelected.checked = true;
+    referenceImagePreview.hidden = false;
+  });
+
+  removeReferenceImageButton.addEventListener('click', () => {
+    referenceImageInput.value = '';
+    if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+    referencePreviewUrl = null;
+    referenceImagePreviewImage.removeAttribute('src');
+    referenceImagePreview.hidden = true;
+    referenceImageSelected.checked = false;
+  });
 
   async function loadAddresses() {
     if (typeof getCustomer !== 'function' || !getCustomer()) {
@@ -49,8 +95,18 @@
     }
   }
 
-  function idempotencyKey(payload) {
-    const fingerprint = JSON.stringify(payload);
+  async function idempotencyKey(payload) {
+    const fingerprintPayload = { ...payload };
+    if (fingerprintPayload.reference_image) {
+      const digest = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(fingerprintPayload.reference_image),
+      );
+      fingerprintPayload.reference_image_hash = Array.from(new Uint8Array(digest))
+        .map(byte => byte.toString(16).padStart(2, '0')).join('');
+      delete fingerprintPayload.reference_image;
+    }
+    const fingerprint = JSON.stringify(fingerprintPayload);
     let saved;
     try {
       saved = JSON.parse(sessionStorage.getItem('surenCakeRequest') || 'null');
@@ -63,6 +119,15 @@
     const key = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
     sessionStorage.setItem('surenCakeRequest', JSON.stringify({ fingerprint, key }));
     return key;
+  }
+
+  function readReferenceImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => resolve(reader.result));
+      reader.addEventListener('error', () => reject(new Error('Could not read the selected photo.')));
+      reader.readAsDataURL(file);
+    });
   }
 
   form.addEventListener('submit', async event => {
@@ -78,21 +143,22 @@
     submitButton.textContent = 'Sending request…';
     const payload = {
       action: 'custom_cake_request',
-      design: form.elements.design.value,
-      flavour: form.elements.flavour.value,
-      size: form.elements.size.value,
-      cake_message: form.elements.cake_message.value,
+      description: form.elements.description.value,
       required_date: form.elements.required_date.value,
       address_id: Number(form.elements.address_id.value),
       payment_method: form.elements.payment_method.value,
     };
 
     try {
+      const [referenceImage] = referenceImageInput.files;
+      if (referenceImage && referenceImageSelected.checked) {
+        payload.reference_image = await readReferenceImage(referenceImage);
+      }
       const response = await customerFetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey(payload),
+          'Idempotency-Key': await idempotencyKey(payload),
         },
         body: JSON.stringify(payload),
       });

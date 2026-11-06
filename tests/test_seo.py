@@ -55,11 +55,12 @@ def test_customized_cake_page_has_customization_flow_without_whatsapp_redirect(a
     assert '<link rel="canonical" href="https://shop.example/customized-cake"/>' in html
     assert 'aria-current="page">Custom Cakes</a>' in html
     assert "A cake made" in html
-    assert "Classic birthday" in html
-    assert "Berry celebration" in html
-    assert "Black Forest" in html
+    assert 'name="description"' in html
+    assert 'type="file" accept="image/jpeg,image/png,image/webp"' in html
+    assert 'type="checkbox" checked' in html
+    assert 'name="flavour"' not in html
+    assert 'name="size"' not in html
     assert "Send cake request" in html
-    assert "images.unsplash.com" in html
     assert "customized-cake.js" in html
     csp = response.headers["Content-Security-Policy"]
     assert "img-src 'self' data: https://images.unsplash.com" in csp

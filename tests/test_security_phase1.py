@@ -740,6 +740,16 @@ def test_razorpay_payment_is_verified_before_online_order_processing(app, client
         assert paid_order.razorpay_payment_id == "pay_test123"
 
 
+def test_custom_cake_reference_image_validation_rejects_unsupported_and_oversized_data():
+    assert api_module._validate_cake_reference_image(None) is None
+    assert api_module._validate_cake_reference_image(
+        "data:image/svg+xml;base64,PHN2Zy8+"
+    ) is None
+    assert api_module._validate_cake_reference_image(
+        "data:image/png;base64," + ("A" * 2_800_001)
+    ) is None
+
+
 @pytest.mark.parametrize(
     ("payment_method", "expected_status"),
     [("cod", "preparing"), ("online", "accepted")],
@@ -771,10 +781,8 @@ def test_custom_cake_request_quote_and_customer_confirmation(
         "/api/checkout",
         json={
             "action": "custom_cake_request",
-            "design": "birthday",
-            "flavour": "Chocolate",
-            "size": "1 KG",
-            "cake_message": "Happy birthday!",
+            "description": "1 kg chocolate cake with pink flowers and Happy Birthday on top.",
+            "reference_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=",
             "required_date": (datetime.utcnow() + timedelta(days=5)).date().isoformat(),
             "address_id": address_id,
             "payment_method": payment_method,
@@ -787,10 +795,8 @@ def test_custom_cake_request_quote_and_customer_confirmation(
         "/api/checkout",
         json={
             "action": "custom_cake_request",
-            "design": "birthday",
-            "flavour": "Chocolate",
-            "size": "1 KG",
-            "cake_message": "Happy birthday!",
+            "description": "1 kg chocolate cake with pink flowers and Happy Birthday on top.",
+            "reference_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=",
             "required_date": (datetime.utcnow() + timedelta(days=5)).date().isoformat(),
             "address_id": address_id,
             "payment_method": payment_method,
@@ -804,6 +810,7 @@ def test_custom_cake_request_quote_and_customer_confirmation(
         order_id = order.id
         assert order.total == 0
         assert order.custom_cake_details
+        assert "reference_image" in order.custom_cake_details
 
     assert client.post(
         "/admin/login",
@@ -824,8 +831,29 @@ def test_custom_cake_request_quote_and_customer_confirmation(
         assert quoted_order.items[0].price == 2500
 
     tracking = client.get(f"/api/orders/track/{order_number}").get_json()
-    assert tracking["custom_cake_details"]["design"] == "Classic birthday"
+    assert tracking["custom_cake_details"]["description"].startswith("1 kg chocolate cake")
+    assert tracking["custom_cake_details"]["has_reference_image"] is True
+    assert "reference_image" not in tracking["custom_cake_details"]
+    tracking_with_image = client.get(
+        f"/api/orders/track/{order_number}?include_reference_image=1"
+    ).get_json()
+    assert tracking_with_image["custom_cake_details"]["reference_image"].startswith(
+        "data:image/png;base64,"
+    )
     assert tracking["quote_confirmed"] is False
+    admin_orders = client.get("/api/admin/orders").get_json()
+    admin_order = next(order for order in admin_orders if order["id"] == order_id)
+    assert admin_order["custom_cake_details"]["has_reference_image"] is True
+    assert "reference_image" not in admin_order["custom_cake_details"]
+    admin_orders_with_image = client.get(
+        f"/api/admin/orders?reference_image_order_id={order_id}"
+    ).get_json()
+    admin_order_with_image = next(
+        order for order in admin_orders_with_image if order["id"] == order_id
+    )
+    assert admin_order_with_image["custom_cake_details"]["reference_image"].startswith(
+        "data:image/png;base64,"
+    )
 
     with client.session_transaction() as browser_session:
         browser_session["customer_id"] = customer_id

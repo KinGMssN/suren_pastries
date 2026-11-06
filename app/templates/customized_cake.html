@@ -26,49 +26,29 @@
 
   <section class="cake-section" id="cake-request">
     <div class="cake-section-heading">
-      <p class="cake-eyebrow">A few customer favourites</p>
-      <h2>Start with a popular design</h2>
-      <p>Every cake is finished by hand. The photos are design inspiration; details and decoration may vary.</p>
+      <p class="cake-eyebrow">Made to match your idea</p>
+      <h2>Tell us about your cake</h2>
+      <p>Describe the size, flavour, colours, theme, and decoration you have in mind. You can also attach one reference photo.</p>
     </div>
 
     <form id="cake-request-form" class="cake-form">
-      <fieldset class="cake-designs">
-        <legend class="visually-hidden">Choose a cake design</legend>
-        <label class="cake-design-card">
-          <input type="radio" name="design" value="birthday" required>
-          <img src="https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Colourful layered birthday cake with party decorations">
-          <span class="cake-design-copy"><strong>Classic birthday</strong><small>Our go-to celebration cake</small></span>
-        </label>
-        <label class="cake-design-card">
-          <input type="radio" name="design" value="chocolate-drip">
-          <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Layered chocolate cake with piped frosting">
-          <span class="cake-design-copy"><strong>Chocolate drip</strong><small>Rich, glossy, and celebratory</small></span>
-        </label>
-        <label class="cake-design-card">
-          <input type="radio" name="design" value="berry">
-          <img src="https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="White celebration cake topped with fresh berries">
-          <span class="cake-design-copy"><strong>Berry celebration</strong><small>Fresh fruit for a lighter finish</small></span>
-        </label>
-      </fieldset>
-
       <div class="cake-options">
-        <div class="cake-field">
-          <label for="cake-flavour">Flavour</label>
-          <select id="cake-flavour" name="flavour" required>
-            <option value="">Choose a flavour</option>
-            <option>Chocolate</option>
-            <option>Vanilla</option>
-            <option>Black Forest</option>
-          </select>
+        <div class="cake-field cake-field-wide">
+          <label for="cake-description">Cake details</label>
+          <textarea id="cake-description" name="description" rows="5" maxlength="1000" required placeholder="For example: 1 kg chocolate cake, pastel pink and white, with fresh flowers and “Happy Birthday, Maya” written on top."></textarea>
+          <small class="cake-field-note">Include the size, flavour, occasion, colours, decoration, and any message you want.</small>
         </div>
-        <div class="cake-field">
-          <label for="cake-size">Size</label>
-          <select id="cake-size" name="size" required>
-            <option value="">Choose a size</option>
-            <option>0.5 KG</option>
-            <option>1 KG</option>
-            <option>2 KG</option>
-          </select>
+        <div class="cake-field cake-field-wide">
+          <label for="cake-reference-image">Reference cake photo <span>(optional, one photo)</span></label>
+          <input id="cake-reference-image" name="reference_image" type="file" accept="image/jpeg,image/png,image/webp">
+          <small class="cake-field-note">Choose one JPEG, PNG, or WebP image up to 2 MB. You can unselect it or replace it before sending.</small>
+          <div class="cake-reference-preview" id="cake-reference-preview" hidden>
+            <img id="cake-reference-preview-image" alt="Preview of your cake reference photo">
+            <div class="cake-reference-controls">
+              <label><input id="cake-reference-selected" type="checkbox" checked> Include this photo</label>
+              <button class="cake-remove-photo" id="cake-remove-photo" type="button">Remove photo</button>
+            </div>
+          </div>
         </div>
         <div class="cake-field">
           <label for="cake-date">Date needed</label>
@@ -80,10 +60,6 @@
             <option value="">Log in to load saved addresses</option>
           </select>
           <small class="cake-field-note" id="cake-address-note">Use an address saved to your customer account.</small>
-        </div>
-        <div class="cake-field cake-field-wide">
-          <label for="cake-message">Short message on the cake <span>(optional)</span></label>
-          <input id="cake-message" name="cake_message" type="text" maxlength="60" placeholder="e.g. Happy Birthday, Sam!">
         </div>
       </div>
 

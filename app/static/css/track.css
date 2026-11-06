@@ -32,6 +32,9 @@
 .tr-pay-button:disabled{opacity:.6;cursor:wait}
 .tr-payment-message{margin-top:10px;font-size:13px;color:var(--muted)}
 .tr-cake-details{margin-bottom:10px;padding:12px;border-radius:8px;background:#fff8f0;color:#6b3929;font-size:13px;line-height:1.6}
+.tr-reference-button{margin:0 0 12px;padding:8px 12px;border:1px solid #ded5ce;border-radius:7px;background:#fff;color:#6b3929;font:600 12px Arial,sans-serif;cursor:pointer}
+.tr-reference-preview[hidden]{display:none}
+.tr-reference-preview img{display:block;width:min(100%,360px);max-height:300px;object-fit:contain;margin:0 0 14px;border-radius:8px;background:#f4e8df}
 
 /* DELIVERY BOY ORDER DETAIL PAGE (reuses .dl- classes from delivery.css) */
 .do-page{max-width:600px;margin:0 auto;padding:32px 20px}

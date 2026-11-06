@@ -4,6 +4,8 @@ const ORDER_NUMBER = document.body.dataset.orderNumber;
 const payButton = document.getElementById('tr-pay-online');
 const confirmQuoteButton = document.getElementById('tr-confirm-quote');
 const paymentMessage = document.getElementById('tr-payment-message');
+const referenceImageButton = document.getElementById('tr-reference-button');
+const referenceImagePreview = document.getElementById('tr-reference-preview');
 
 async function loadTrackedOrder() {
   try {
@@ -30,13 +32,19 @@ function render(order) {
     const details = order.custom_cake_details;
     cakeDetails.hidden = false;
     cakeDetails.textContent = [
-      `Custom cake: ${details.design}`,
-      `${details.size} · ${details.flavour}`,
+      `Cake details: ${details.description}`,
       `Needed: ${details.required_date}`,
-      details.cake_message ? `Message: ${details.cake_message}` : '',
     ].filter(Boolean).join(' · ');
+    referenceImageButton.hidden = !details.has_reference_image;
+    if (!details.has_reference_image) {
+      referenceImagePreview.hidden = true;
+      referenceImagePreview.replaceChildren();
+    }
   } else {
     cakeDetails.hidden = true;
+    referenceImageButton.hidden = true;
+    referenceImagePreview.hidden = true;
+    referenceImagePreview.replaceChildren();
   }
   document.getElementById('tr-items').innerHTML = order.items.map(i =>
     `<div class="tr-item-row"><span>${i.qty}× ${i.name}</span><span>₹${i.price * i.qty}</span></div>`
@@ -209,6 +217,40 @@ async function confirmCakeQuote() {
     confirmQuoteButton.disabled = false;
   }
 }
+
+referenceImageButton.addEventListener('click', async () => {
+  if (!referenceImagePreview.hidden) {
+    referenceImagePreview.hidden = true;
+    referenceImageButton.textContent = 'View your reference photo';
+    return;
+  }
+  if (referenceImagePreview.firstChild) {
+    referenceImagePreview.hidden = false;
+    referenceImageButton.textContent = 'Hide reference photo';
+    return;
+  }
+  referenceImageButton.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/orders/track/${encodeURIComponent(ORDER_NUMBER)}?include_reference_image=1`
+    );
+    const data = await response.json();
+    const imageData = data.custom_cake_details?.reference_image;
+    if (!response.ok || !imageData) {
+      throw new Error(data.error || 'Could not load your reference photo.');
+    }
+    const image = document.createElement('img');
+    image.src = imageData;
+    image.alt = 'Your cake reference photo';
+    referenceImagePreview.replaceChildren(image);
+    referenceImagePreview.hidden = false;
+    referenceImageButton.textContent = 'Hide reference photo';
+  } catch (error) {
+    paymentMessage.textContent = error.message || 'Could not load your reference photo.';
+  } finally {
+    referenceImageButton.disabled = false;
+  }
+});
 
 payButton.addEventListener('click', payOnline);
 confirmQuoteButton.addEventListener('click', confirmCakeQuote);

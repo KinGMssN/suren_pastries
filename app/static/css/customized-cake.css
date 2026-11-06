@@ -15,21 +15,21 @@
 .cake-section-heading h2{margin:8px 0;font:500 clamp(28px,4vw,40px)/1.2 'Playfair Display',serif}
 .cake-section-heading>p:last-child{color:#756a64;font-size:14px;line-height:1.65}
 .cake-form{padding:28px;background:#fff;border:1px solid #e8dfd8;border-radius:18px;box-shadow:0 12px 36px rgba(58,33,22,.06)}
-.cake-designs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;border:0;padding:0;margin:0}
-.cake-design-card{position:relative;display:block;overflow:hidden;border:2px solid #eee5de;border-radius:14px;background:#fff;cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s}
-.cake-design-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(58,33,22,.1)}
-.cake-design-card:has(input:checked){border-color:#a84427;box-shadow:0 0 0 2px rgba(168,68,39,.14)}
-.cake-design-card input{position:absolute;top:14px;left:14px;z-index:1;width:20px;height:20px;accent-color:#a84427}
-.cake-design-card img{display:block;width:100%;height:210px;object-fit:cover;background:#f4e8df}
-.cake-design-copy{display:grid;gap:4px;padding:14px 16px}
-.cake-design-copy strong{font-size:15px}
-.cake-design-copy small,.cake-field-note{color:#756a64;font-size:12px}
+.cake-field-note{color:#756a64;font-size:12px}
 .cake-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;margin-top:30px}
 .cake-field{display:grid;align-content:start;gap:8px}
 .cake-field label,.cake-payment legend{font-size:13px;font-weight:600}
 .cake-field label span{font-weight:400;color:#756a64}
-.cake-field input,.cake-field select{width:100%;min-height:46px;padding:11px 13px;border:1px solid #ded5ce;border-radius:8px;background:#fff;color:#241b18;font:14px 'DM Sans',sans-serif}
-.cake-field input:focus,.cake-field select:focus{outline:2px solid rgba(168,68,39,.22);border-color:#a84427}
+.cake-field input:not([type=file]),.cake-field select,.cake-field textarea{width:100%;min-height:46px;padding:11px 13px;border:1px solid #ded5ce;border-radius:8px;background:#fff;color:#241b18;font:14px 'DM Sans',sans-serif}
+.cake-field input:focus,.cake-field select:focus,.cake-field textarea:focus{outline:2px solid rgba(168,68,39,.22);border-color:#a84427}
+.cake-field textarea{resize:vertical;line-height:1.55}
+.cake-reference-preview{display:grid;grid-template-columns:minmax(0,220px) 1fr;align-items:center;gap:16px;margin-top:8px;padding:12px;border:1px solid #e8dfd8;border-radius:12px;background:#fcfaf8}
+.cake-reference-preview[hidden]{display:none}
+.cake-reference-preview img{display:block;width:100%;max-height:180px;object-fit:contain;border-radius:8px;background:#f4e8df}
+.cake-reference-controls{display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+.cake-reference-controls label{display:flex;align-items:center;gap:8px}
+.cake-reference-controls input{width:auto;min-height:0;accent-color:#a84427}
+.cake-remove-photo{padding:8px 12px;border:1px solid #ded5ce;border-radius:7px;background:#fff;color:#6b3929;font:600 12px 'DM Sans',sans-serif;cursor:pointer}
 .cake-field-wide{grid-column:1/-1}
 .cake-payment{display:grid;grid-template-columns:repeat(2,max-content);gap:14px 24px;border:0;border-top:1px solid #eee5de;padding:24px 0 0;margin:30px 0 0}
 .cake-payment legend{padding-top:22px}
@@ -40,5 +40,6 @@
 .cake-submit-row p{max-width:500px;margin:0;color:#756a64;font-size:12px;line-height:1.6}
 .cake-form-status{min-height:20px;margin:12px 0 0;color:#6b3929;font-size:13px}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media(max-width:760px){.cake-hero{padding:70px 24px}.cake-section{padding:48px 16px 64px}.cake-form{padding:18px}.cake-designs{grid-template-columns:1fr}.cake-design-card{display:grid;grid-template-columns:130px 1fr;align-items:center}.cake-design-card img{height:112px}.cake-design-copy{padding:12px}.cake-options{gap:16px 12px}.cake-submit-row{align-items:stretch;flex-direction:column}.cake-submit-row .cake-button{width:100%}}
+@media(max-width:760px){.cake-hero{padding:70px 24px}.cake-section{padding:48px 16px 64px}.cake-form{padding:18px}.cake-options{gap:16px 12px}.cake-submit-row{align-items:stretch;flex-direction:column}.cake-submit-row .cake-button{width:100%}}
 @media(max-width:480px){.cake-options{grid-template-columns:1fr}.cake-field-wide{grid-column:auto}.cake-payment{grid-template-columns:1fr;gap:12px}.cake-payment small{grid-column:auto}}
+@media(max-width:480px){.cake-reference-preview{grid-template-columns:1fr}.cake-reference-preview img{max-height:240px}}

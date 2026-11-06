@@ -119,6 +119,7 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 .s-pending{background:#FFF3E0;color:#E65100}
 .s-accepted{background:#FFF8E1;color:#8D6E00}
 .cake-order-details{margin-top:7px;color:var(--muted);font-size:11px;line-height:1.55}
+.cake-reference-admin-image{display:block;width:min(100%,220px);max-height:220px;object-fit:contain;margin-top:8px;border-radius:8px;background:#f4e8df}
 .cake-quote-input{width:90px;padding:7px 8px;font-size:12px}
 .s-preparing{background:#E3F2FD;color:#1565C0}
 .s-ready{background:#E8F5E9;color:#2E7D32}

@@ -215,40 +215,57 @@ def _checkout_payment_action(payload, customer):
     return jsonify({"ok": True, "payment_status": "paid"})
 
 
-CUSTOM_CAKE_DESIGNS = {
-    "birthday": "Classic birthday",
-    "chocolate-drip": "Chocolate drip",
-    "berry": "Berry celebration",
-}
-CUSTOM_CAKE_FLAVOURS = {"Chocolate", "Vanilla", "Black Forest"}
-CUSTOM_CAKE_SIZES = {"0.5 KG", "1 KG", "2 KG"}
+def _validate_cake_reference_image(image):
+    if image is None:
+        return None
+    if not isinstance(image, str):
+        return None
+    match = re.fullmatch(
+        r"data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})",
+        image,
+    )
+    if not match or len(match.group(2)) > 2_800_000:
+        return None
+    try:
+        image_bytes = base64.b64decode(match.group(2), validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    if not image_bytes or len(image_bytes) > 2 * 1024 * 1024:
+        return None
+
+    image_type = match.group(1)
+    is_valid_image = (
+        image_type == "png" and image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    ) or (
+        image_type == "jpeg" and image_bytes.startswith(b"\xff\xd8\xff")
+    ) or (
+        image_type == "webp"
+        and image_bytes.startswith(b"RIFF")
+        and image_bytes[8:12] == b"WEBP"
+    )
+    return image if is_valid_image else None
 
 
 def _create_custom_cake_request(payload, customer):
-    design = payload.get("design")
-    flavour = payload.get("flavour")
-    size = payload.get("size")
+    description = payload.get("description")
     payment_method = payload.get("payment_method")
-    message = payload.get("cake_message", "")
     required_date = payload.get("required_date")
     address_id = payload.get("address_id")
     if (
-        not isinstance(design, str)
-        or design not in CUSTOM_CAKE_DESIGNS
-        or not isinstance(flavour, str)
-        or flavour not in CUSTOM_CAKE_FLAVOURS
-        or not isinstance(size, str)
-        or size not in CUSTOM_CAKE_SIZES
+        not isinstance(description, str)
+        or not description.strip()
+        or len(description.strip()) > 1000
         or not isinstance(payment_method, str)
         or payment_method not in {"cod", "online"}
-        or not isinstance(message, str)
-        or len(message.strip()) > 60
         or not isinstance(required_date, str)
         or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", required_date)
         or type(address_id) is not int
         or address_id < 1
     ):
-        return error("Check the cake design, flavour, size, message, date, and delivery address.")
+        return error("Check the cake details, date, and delivery address.")
+    reference_image = payload.get("reference_image")
+    if reference_image is not None and _validate_cake_reference_image(reference_image) is None:
+        return error("Upload one valid JPEG, PNG, or WebP cake photo up to 2 MB.")
     try:
         request_date = datetime.strptime(required_date, "%Y-%m-%d").date()
     except ValueError:
@@ -273,12 +290,11 @@ def _create_custom_cake_request(payload, customer):
         return jsonify({"ok": True, "order_number": existing_order.order_number})
 
     details = {
-        "design": CUSTOM_CAKE_DESIGNS[design],
-        "flavour": flavour,
-        "size": size,
-        "cake_message": message.strip(),
+        "description": description.strip(),
         "required_date": request_date.isoformat(),
     }
+    if reference_image:
+        details["reference_image"] = reference_image
     order = Order(
         order_number=Order.generate_order_number(),
         idempotency_key=idempotency_key,
@@ -302,7 +318,7 @@ def _create_custom_cake_request(payload, customer):
     db.session.flush()
     db.session.add(OrderItem(
         order_id=order.id,
-        name=f"Custom cake — {details['design']}",
+        name="Custom cake request",
         price=0,
         emoji="🎂",
         qty=1,
@@ -782,8 +798,9 @@ def apply_coupon():
 
 @api_bp.route("/checkout", methods=["POST"])
 @limiter.limit("10 per minute")
-
 def checkout():
+    if request.content_length and request.content_length > 3 * 1024 * 1024:
+        return error("Cake photos must be 2 MB or smaller.", 413)
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return error("Invalid checkout details.")
@@ -989,15 +1006,22 @@ def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number.strip().upper()).first()
     if not order:
         return error("Order not found. Check the order number and try again.", 404)
+    cake_details = (
+        json.loads(order.custom_cake_details)
+        if order.custom_cake_details else None
+    )
+    if cake_details:
+        reference_image = cake_details.pop("reference_image", None)
+        if reference_image:
+            cake_details["has_reference_image"] = True
+            if request.args.get("include_reference_image") == "1":
+                cake_details["reference_image"] = reference_image
     return jsonify({
         "order_number": order.order_number,
         "channel": order.channel,
         "status": order.status,
         "payment_status": order.payment_status,
-        "custom_cake_details": (
-            json.loads(order.custom_cake_details)
-            if order.custom_cake_details else None
-        ),
+        "custom_cake_details": cake_details,
         "quote_confirmed": order.quote_confirmed,
         "rejection_message": "Your order is rejected." if order.status == "rejected" else None,
         "subtotal": order.subtotal,
@@ -1112,9 +1136,17 @@ def admin_list_orders():
     if status and status in ORDER_STATUSES:
         q = q.filter_by(status=status)
     orders = q.order_by(Order.created_at.desc()).all()
+    try:
+        reference_image_order_id = int(request.args.get("reference_image_order_id", ""))
+    except ValueError:
+        reference_image_order_id = None
     result = []
     for o in orders:
         d = o.to_dict()
+        if o.id == reference_image_order_id and o.custom_cake_details:
+            cake_details = json.loads(o.custom_cake_details)
+            if cake_details.get("reference_image"):
+                d["custom_cake_details"]["reference_image"] = cake_details["reference_image"]
         d["customer_name"] = o.customer_name
         d["items"] = [
             {"name": it.name, "qty": it.qty, "price": it.price} for it in o.items

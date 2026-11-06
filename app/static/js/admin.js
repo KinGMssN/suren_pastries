@@ -83,6 +83,7 @@ document.addEventListener('click', (e) => {
     case 'purge-deleted-record': purgeDeletedRecord(id); break;
     case 'save-content': saveContent(); break;
     case 'order-decision': updateOrderStatus(id, el.dataset.status, el.dataset.customCake === 'true'); break;
+    case 'view-cake-reference': viewCakeReference(id); break;
   }
 });
 
@@ -143,9 +144,9 @@ async function loadOrders() {
         <td>${o.customer_name}</td>
         <td>${o.items.map(i => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}
           ${o.custom_cake_details ? `<div class="cake-order-details">
-            ${escapeHtml(o.custom_cake_details.size)} · ${escapeHtml(o.custom_cake_details.flavour)} · ${escapeHtml(o.custom_cake_details.design)}
+            ${escapeHtml(o.custom_cake_details.description)}
             <br>Needed: ${escapeHtml(o.custom_cake_details.required_date)}
-            ${o.custom_cake_details.cake_message ? `<br>Message: “${escapeHtml(o.custom_cake_details.cake_message)}”` : ''}
+            ${o.custom_cake_details.has_reference_image ? `<br><button class="btn-sm btn-outline" data-action="view-cake-reference" data-id="${o.id}">View reference photo</button><div id="cake-reference-${o.id}"></div>` : ''}
           </div>` : ''}
         </td>
         <td>₹${o.total}</td>
@@ -172,6 +173,28 @@ async function loadOrders() {
     `).join('');
   } catch (err) {
     body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Could not load orders</td></tr>`;
+  }
+}
+
+async function viewCakeReference(orderId) {
+  const preview = document.getElementById(`cake-reference-${orderId}`);
+  if (!preview) return;
+  if (preview.firstChild) {
+    preview.replaceChildren();
+    return;
+  }
+  try {
+    const orders = await api(`/orders?reference_image_order_id=${orderId}`);
+    const imageData = orders.find(order => order.id === orderId)
+      ?.custom_cake_details?.reference_image;
+    if (!imageData) throw new Error('Reference photo is unavailable.');
+    const image = document.createElement('img');
+    image.className = 'cake-reference-admin-image';
+    image.src = imageData;
+    image.alt = 'Customer cake reference photo';
+    preview.replaceChildren(image);
+  } catch (err) {
+    toast(err.message || 'Could not load the reference photo.');
   }
 }
 

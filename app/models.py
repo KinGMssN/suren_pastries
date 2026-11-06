@@ -274,6 +274,14 @@ class Order(db.Model):
         return sum(i.qty for i in self.items)
 
     def to_dict(self):
+        cake_details = (
+            json.loads(self.custom_cake_details)
+            if self.custom_cake_details else None
+        )
+        if cake_details:
+            has_reference_image = bool(cake_details.pop("reference_image", None))
+            if has_reference_image:
+                cake_details["has_reference_image"] = True
         return {
             "id": self.id,
             "order_number": self.order_number,
@@ -282,10 +290,7 @@ class Order(db.Model):
             "channel": self.channel,
             "status": self.status,
             "payment_status": self.payment_status,
-            "custom_cake_details": (
-                json.loads(self.custom_cake_details)
-                if self.custom_cake_details else None
-            ),
+            "custom_cake_details": cake_details,
             "quote_confirmed": self.quote_confirmed,
             "subtotal": self.subtotal,
             "delivery_fee": self.delivery_fee,
