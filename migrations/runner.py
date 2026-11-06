@@ -134,12 +134,36 @@ def _add_customer_password_column(connection):
         ))
 
 
+def _add_dashboard_export_tracking(connection):
+    inspector = inspect(connection)
+    if "orders" not in set(inspector.get_table_names()):
+        raise RuntimeError(
+            "Cannot migrate missing table 'orders'; base schema migration failed."
+        )
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("orders")
+    }
+    if "updated_at" not in existing_columns:
+        connection.execute(text(
+            'ALTER TABLE "orders" ADD COLUMN "updated_at" TIMESTAMP NULL'
+        ))
+        existing_columns.add("updated_at")
+    if "created_at" in existing_columns:
+        connection.execute(text(
+            "UPDATE orders SET updated_at = created_at WHERE updated_at IS NULL"
+        ))
+    from app.models import DashboardExportLog
+
+    DashboardExportLog.__table__.create(connection, checkfirst=True)
+
+
 _MIGRATIONS = (
     (1, "create_base_schema", _create_base_schema),
     (2, "add_auth_checkout_and_inventory_columns", _add_model_columns),
     (3, "add_order_payment_columns", _add_order_payment_columns),
     (4, "add_custom_cake_order_details", _add_custom_cake_columns),
     (5, "add_customer_password_column", _add_customer_password_column),
+    (6, "add_dashboard_export_tracking", _add_dashboard_export_tracking),
 )
 
 

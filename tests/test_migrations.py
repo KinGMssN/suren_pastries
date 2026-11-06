@@ -21,12 +21,13 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
             "add_order_payment_columns",
             "add_custom_cake_order_details",
             "add_customer_password_column",
+            "add_dashboard_export_tracking",
         ]
         assert upgrade() == []
         versions = db.session.execute(
             text("SELECT version FROM schema_migrations ORDER BY version")
         ).scalars().all()
-        assert versions == [1, 2, 3, 4, 5]
+        assert versions == [1, 2, 3, 4, 5, 6]
         assert "stock_quantity" in {
             column["name"] for column in inspect(db.engine).get_columns("menu_items")
         }
@@ -39,9 +40,11 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
             "razorpay_payment_id",
             "custom_cake_details",
             "quote_confirmed",
+            "updated_at",
         } <= {
             column["name"] for column in inspect(db.engine).get_columns("orders")
         }
+        assert "dashboard_export_logs" in inspect(db.engine).get_table_names()
 
 
 def test_column_migration_upgrades_legacy_tables(app):
@@ -65,6 +68,7 @@ def test_column_migration_upgrades_legacy_tables(app):
             "add_order_payment_columns",
             "add_custom_cake_order_details",
             "add_customer_password_column",
+            "add_dashboard_export_tracking",
         ]
         inspector = inspect(db.engine)
         expected = {
@@ -88,6 +92,7 @@ def test_column_migration_upgrades_legacy_tables(app):
             "razorpay_payment_id",
             "custom_cake_details",
             "quote_confirmed",
+            "updated_at",
         } <= {
             column["name"] for column in inspector.get_columns("orders")
         }

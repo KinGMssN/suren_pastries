@@ -269,6 +269,9 @@ class Order(db.Model):
     coupon_code = db.Column(db.String(30), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     items = db.relationship(
         "OrderItem", backref="order", lazy=True, cascade="all, delete-orphan"
@@ -308,6 +311,10 @@ class Order(db.Model):
             "total": self.total,
             "item_count": self.item_count(),
             "created_at": self.created_at.strftime("%d %b %Y, %I:%M %p"),
+            "updated_at": (
+                self.updated_at.strftime("%d %b %Y, %I:%M %p")
+                if self.updated_at else None
+            ),
             "delivery_address": self.delivery_address,
             "delivery_city": self.delivery_city,
             "delivery_pincode": self.delivery_pincode,
@@ -316,6 +323,14 @@ class Order(db.Model):
             "delivered_at": self.delivered_at.strftime("%d %b %Y, %I:%M %p") if self.delivered_at else None,
             "cod_collected": self.cod_collected,
         }
+
+
+class DashboardExportLog(db.Model):
+    __tablename__ = "dashboard_export_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    downloaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    admin_username = db.Column(db.String(80), nullable=False)
 
 
 class OrderItem(db.Model):

@@ -130,17 +130,22 @@ def test_admin_can_assign_and_cod_requires_confirmation(app, client):
         json={"status": "preparing"},
     )
     assert accepted.status_code == 200
-    response = client.post(
+    not_ready = client.post(
         f"/api/delivery/orders/{order_id}/assign",
         json={"delivery_person_id": person_id},
     )
-    assert response.status_code == 200
+    assert not_ready.status_code == 400
 
     mark_ready = client.post(
         f"/api/admin/orders/{order_id}/status",
         json={"status": "ready"},
     )
     assert mark_ready.status_code == 200
+    assigned = client.post(
+        f"/api/delivery/orders/{order_id}/assign",
+        json={"delivery_person_id": person_id},
+    )
+    assert assigned.status_code == 200
     missing_confirmation = client.post(
         f"/api/admin/orders/{order_id}/status",
         json={"status": "delivered", "cod_collected": False},
@@ -151,6 +156,75 @@ def test_admin_can_assign_and_cod_requires_confirmation(app, client):
         json={"status": "delivered", "cod_collected": True},
     )
     assert delivered.status_code == 200
+
+
+def test_admin_can_export_dashboard_and_reset_only_orders(app, client):
+    with app.app_context():
+        admin = AdminUser(username="dashboard-admin", role="super_admin")
+        admin.set_password("dashboard-admin-password")
+        customer = Customer(phone="1234567890", name="Dashboard Customer")
+        category = Category(name="Dashboard pastries")
+        db.session.add_all([admin, customer, category])
+        db.session.flush()
+        menu_item = MenuItem(
+            name="Dashboard pastry",
+            price=145,
+            category_id=category.id,
+            is_available=True,
+        )
+        db.session.add(menu_item)
+        order = create_order(status="ready")
+        order_id = order.id
+        customer_id = customer.id
+        menu_item_id = menu_item.id
+
+    client.post(
+        "/admin/login",
+        data={"username": "dashboard-admin", "password": "dashboard-admin-password"},
+    )
+    reset_without_export = client.post("/api/admin/dashboard/reset")
+    assert reset_without_export.status_code == 409
+
+    first_download = client.post("/api/admin/dashboard/export")
+    assert first_download.status_code == 200
+    assert "attachment;" in first_download.headers["Content-Disposition"]
+    first_report = first_download.get_json()
+    assert first_report["dashboard"] == {
+        "total_revenue": 145,
+        "total_orders": 1,
+        "pending_orders": 0,
+        "active_menu_items": 1,
+        "recent_orders": first_report["orders"],
+    }
+    assert first_report["timestamps"]["last_updated_at"]
+    assert first_report["timestamps"]["last_download_at"] is None
+    assert first_report["timestamps"]["this_download_at"]
+    assert first_report["orders"][0]["order_number"]
+    assert first_report["orders"][0]["items"] == [
+        {"name": "Test pastry", "quantity": 1, "price": 100}
+    ]
+
+    second_report = client.post("/api/admin/dashboard/export").get_json()
+    assert second_report["timestamps"]["last_download_at"] == (
+        first_report["timestamps"]["this_download_at"]
+    )
+
+    reset = client.post("/api/admin/dashboard/reset")
+    assert reset.status_code == 200
+    assert reset.get_json() == {
+        "ok": True,
+        "deleted_orders": 1,
+        "deleted_items": 1,
+    }
+    with app.app_context():
+        assert Order.query.count() == 0
+        assert OrderItem.query.count() == 0
+        assert db.session.get(Customer, customer_id) is not None
+        assert db.session.get(MenuItem, menu_item_id) is not None
+    stats = client.get("/api/admin/stats").get_json()
+    assert stats["total_orders"] == 0
+    assert stats["revenue"] == 0
+    assert stats["menu_count"] == 1
 
 
 def test_admin_rejection_is_terminal_and_visible_to_customer(app, client):

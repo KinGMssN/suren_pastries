@@ -26,6 +26,7 @@ from app.models import (
     Coupon,
     Customer,
     CustomerAddress,
+    DashboardExportLog,
     DeliveryPerson,
     DeletedRecord,
     MenuItem,
@@ -1043,6 +1044,11 @@ def admin_stats():
     daily = list(reversed(daily))
 
     recent = Order.query.order_by(Order.created_at.desc()).limit(6).all()
+    latest_update = db.session.query(db.func.max(Order.updated_at)).scalar()
+    last_export = DashboardExportLog.query.order_by(
+        DashboardExportLog.downloaded_at.desc(),
+        DashboardExportLog.id.desc(),
+    ).first()
 
     return jsonify(
         {
@@ -1058,8 +1064,110 @@ def admin_stats():
                 }
                 for o in recent
             ],
+            "timestamps": {
+                "last_updated_at": _dashboard_timestamp(latest_update),
+                "last_download_at": _dashboard_timestamp(
+                    last_export.downloaded_at if last_export else None
+                ),
+            },
         }
     )
+
+
+def _dashboard_timestamp(value):
+    return value.isoformat(timespec="seconds") + "Z" if value else None
+
+
+@api_bp.route("/admin/dashboard/export", methods=["POST"])
+@login_required
+@super_admin_required
+def admin_dashboard_export():
+    orders = Order.query.order_by(Order.created_at.desc(), Order.id.desc()).all()
+    last_export = DashboardExportLog.query.order_by(
+        DashboardExportLog.downloaded_at.desc(),
+        DashboardExportLog.id.desc(),
+    ).first()
+    downloaded_at = datetime.utcnow()
+    latest_update = max(
+        (order.updated_at or order.created_at for order in orders),
+        default=None,
+    )
+    order_details = [
+        {
+            "order_number": order.order_number,
+            "customer_name": order.customer_name,
+            "item_count": order.item_count(),
+            "items": [
+                {"name": item.name, "quantity": item.qty, "price": item.price}
+                for item in order.items
+            ],
+            "total": order.total,
+            "status": order.status,
+            "created_at": _dashboard_timestamp(order.created_at),
+            "updated_at": _dashboard_timestamp(order.updated_at or order.created_at),
+            "delivered_at": _dashboard_timestamp(order.delivered_at),
+        }
+        for order in orders
+    ]
+    report = {
+        "report": "Suren Pastries dashboard export",
+        "timestamps": {
+            "last_updated_at": _dashboard_timestamp(latest_update),
+            "last_download_at": _dashboard_timestamp(
+                last_export.downloaded_at if last_export else None
+            ),
+            "this_download_at": _dashboard_timestamp(downloaded_at),
+        },
+        "dashboard": {
+            "total_revenue": sum(order.total or 0 for order in orders),
+            "total_orders": len(orders),
+            "pending_orders": sum(order.status == "pending" for order in orders),
+            "active_menu_items": MenuItem.query.count(),
+            "recent_orders": order_details[:6],
+        },
+        "orders": order_details,
+    }
+    db.session.add(DashboardExportLog(
+        downloaded_at=downloaded_at,
+        admin_username=current_user.username,
+    ))
+    db.session.commit()
+
+    response = jsonify(report)
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="suren-pastries-dashboard-'
+        f'{downloaded_at.strftime("%Y%m%d-%H%M%S")}.json"'
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@api_bp.route("/admin/dashboard/reset", methods=["POST"])
+@login_required
+@super_admin_required
+def admin_dashboard_reset():
+    latest_update = db.session.query(
+        db.func.max(db.func.coalesce(Order.updated_at, Order.created_at))
+    ).scalar()
+    last_export = DashboardExportLog.query.order_by(
+        DashboardExportLog.downloaded_at.desc(),
+        DashboardExportLog.id.desc(),
+    ).first()
+    if latest_update and (
+        not last_export or last_export.downloaded_at < latest_update
+    ):
+        return error("Download a fresh dashboard export before resetting orders.", 409)
+
+    order_count = Order.query.count()
+    item_count = OrderItem.query.count()
+    OrderItem.query.delete(synchronize_session=False)
+    Order.query.delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "deleted_orders": order_count,
+        "deleted_items": item_count,
+    })
 
 
 @api_bp.route("/admin/deleted-records")
@@ -1654,8 +1762,8 @@ def delivery_assign_order(order_id):
     person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
     if not person:
         return error("Select an active delivery person.")
-    if order.status != "preparing":
-        return error("Only accepted orders can be assigned.")
+    if order.status != "ready":
+        return error("Only ready orders can be assigned.")
 
     order.delivery_person_id = person.id
     db.session.commit()

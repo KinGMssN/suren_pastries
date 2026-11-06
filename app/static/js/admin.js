@@ -23,7 +23,8 @@ function toast(msg) {
 }
 
 async function api(path, opts) {
-  const res = await fetch('/api/admin' + path, {
+  const endpoint = path.startsWith('/api/') ? path : '/api/admin' + path;
+  const res = await fetch(endpoint, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
@@ -84,6 +85,9 @@ document.addEventListener('click', (e) => {
     case 'save-content': saveContent(); break;
     case 'order-decision': updateOrderStatus(id, el.dataset.status, el.dataset.customCake === 'true'); break;
     case 'view-cake-reference': viewCakeReference(id); break;
+    case 'assign-delivery-person': assignDeliveryPerson(id); break;
+    case 'download-dashboard': downloadDashboardData(); break;
+    case 'reset-dashboard': resetDashboardOrders(); break;
   }
 });
 
@@ -108,6 +112,7 @@ async function loadDashboard() {
     document.getElementById('stat-orders-sub').textContent = s.pending_orders + ' pending';
     document.getElementById('stat-pending').textContent = s.pending_orders;
     document.getElementById('stat-menu').textContent = s.menu_count;
+    updateDashboardExportStatus(s.timestamps);
 
     const body = document.getElementById('recent-orders-body');
     if (!s.recent_orders.length) {
@@ -127,13 +132,64 @@ async function loadDashboard() {
   } catch (err) { toast(err.message); }
 }
 
+function formatDashboardTimestamp(value) {
+  return value ? new Date(value).toLocaleString() : 'Not available';
+}
+
+function updateDashboardExportStatus(timestamps, thisDownload) {
+  const status = document.getElementById('dashboard-export-status');
+  if (!status || !timestamps) return;
+  status.textContent = [
+    `Last updated: ${formatDashboardTimestamp(timestamps.last_updated_at)}`,
+    `Last download: ${formatDashboardTimestamp(timestamps.last_download_at)}`,
+    `This download: ${formatDashboardTimestamp(thisDownload)}`,
+  ].join(' · ');
+}
+
+async function downloadDashboardData() {
+  try {
+    const report = await api('/dashboard/export', { method: 'POST' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `suren-pastries-dashboard-${report.timestamps.this_download_at.slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    updateDashboardExportStatus(report.timestamps, report.timestamps.this_download_at);
+    toast('Dashboard data downloaded');
+  } catch (err) {
+    toast(err.message || 'Could not download dashboard data');
+  }
+}
+
+async function resetDashboardOrders() {
+  if (!confirm('Permanently delete all orders and order items? This keeps menu items, customers, and saved addresses. Download a fresh dashboard report first.')) {
+    return;
+  }
+  try {
+    const result = await api('/dashboard/reset', { method: 'POST' });
+    toast(`Removed ${result.deleted_orders} orders and ${result.deleted_items} order items`);
+    loadDashboard();
+    loadOrders();
+  } catch (err) {
+    toast(err.message || 'Could not reset dashboard orders');
+  }
+}
+
 // ───────────────────────── orders ─────────────────────────
 async function loadOrders() {
   const status = document.getElementById('order-status-filter').value;
   const body = document.getElementById('orders-body');
   body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>`;
   try {
-    const orders = await api('/orders' + (status ? `?status=${status}` : ''));
+    const [orders, deliveryPeople] = await Promise.all([
+      api('/orders' + (status ? `?status=${status}` : '')),
+      api('/delivery-people'),
+    ]);
+    const activeDeliveryPeople = deliveryPeople.filter(person => person.active);
     if (!orders.length) {
       body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No orders found</td></tr>`;
       return;
@@ -152,6 +208,17 @@ async function loadOrders() {
         <td>₹${o.total}</td>
         <td style="text-transform:capitalize">${o.channel}</td>
         <td>
+          ${o.status === 'ready' ? `
+            <div class="order-delivery-assignment">
+              <label class="sr-only" for="delivery-person-${o.id}">Assign ${escapeHtml(o.order_number)} to delivery staff</label>
+              <select class="form-input" id="delivery-person-${o.id}" style="width:auto;padding:6px 10px;font-size:12px">
+                <option value="">Select delivery person</option>
+                ${activeDeliveryPeople.map(person => `<option value="${person.id}" ${person.id === o.delivery_person_id ? 'selected' : ''}>${escapeHtml(person.name)}</option>`).join('')}
+              </select>
+              <button class="btn-sm btn-outline" data-action="assign-delivery-person" data-id="${o.id}" ${activeDeliveryPeople.length ? '' : 'disabled'}>Assign</button>
+            </div>
+            ${o.delivery_person ? `<div class="sc-change">Assigned to ${escapeHtml(o.delivery_person)}</div>` : ''}
+          ` : ''}
           ${o.status === 'pending' ? `
             ${o.custom_cake_details ? `
               <label class="sr-only" for="cake-quote-${o.id}">Quote for ${escapeHtml(o.order_number)}</label>
@@ -172,7 +239,26 @@ async function loadOrders() {
       </tr>
     `).join('');
   } catch (err) {
+    toast(err.message || 'Could not load orders');
     body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Could not load orders</td></tr>`;
+  }
+}
+
+async function assignDeliveryPerson(orderId) {
+  const selected = document.getElementById(`delivery-person-${orderId}`)?.value;
+  if (!selected) {
+    toast('Select an active delivery person');
+    return;
+  }
+  try {
+    await api(`/api/delivery/orders/${orderId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ delivery_person_id: Number(selected) }),
+    });
+    toast('Order assigned to delivery staff');
+    loadOrders();
+  } catch (err) {
+    toast(err.message || 'Could not assign this order');
   }
 }
 
