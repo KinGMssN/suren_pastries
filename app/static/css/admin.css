@@ -69,8 +69,9 @@ body{font-family:'DM Sans',sans-serif;background:#F0EDE8;color:var(--dark)}
 .page-title{font-family:'Playfair Display',serif;font-size:26px}
 .top-actions{display:flex;gap:10px}
 .dashboard-maintenance{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:-12px 0 22px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
-.dashboard-maintenance p{font-size:12px;color:var(--muted)}
-.dashboard-maintenance .dashboard-maintenance-note{flex-basis:100%}
+.dashboard-maintenance p{font-size:12px;color:var(--muted);line-height:1.6}
+.dashboard-maintenance #dashboard-export-status{flex:1}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .btn-sm{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;transition:all 0.2s}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:#a83e1e}

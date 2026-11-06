@@ -54,7 +54,9 @@ def test_customized_cake_page_has_customization_flow_without_whatsapp_redirect(a
     html = response.get_data(as_text=True)
     assert '<link rel="canonical" href="https://shop.example/customized-cake"/>' in html
     assert 'aria-current="page">Custom Cakes</a>' in html
-    assert "A cake made" in html
+    assert "Made" in html
+    assert "For example:" not in html
+    assert "Include the size, flavour" not in html
     assert 'name="description"' in html
     assert 'type="file" accept="image/jpeg,image/png,image/webp"' in html
     assert 'type="checkbox" checked' in html

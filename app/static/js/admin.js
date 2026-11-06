@@ -37,7 +37,7 @@ async function api(path, opts) {
   return data;
 }
 
-const STATUS_LABEL = { pending: 'Awaiting approval', accepted: 'Accepted — awaiting payment or confirmation', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered', rejected: 'Rejected' };
+const STATUS_LABEL = { pending: 'Pending', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered', rejected: 'Rejected' };
 const STATUS_CLASS = { pending: 's-pending', accepted: 's-accepted', preparing: 's-preparing', ready: 's-ready', delivered: 's-delivered', rejected: 's-rejected' };
 
 // ───────────────────────── data-action delegation ─────────────────────────
@@ -136,14 +136,22 @@ function formatDashboardTimestamp(value) {
   return value ? new Date(value).toLocaleString() : 'Not available';
 }
 
-function updateDashboardExportStatus(timestamps, thisDownload) {
+let currentDashboardDownload = null;
+
+function updateDashboardExportStatus(timestamps) {
   const status = document.getElementById('dashboard-export-status');
   if (!status || !timestamps) return;
-  status.textContent = [
-    `Last updated: ${formatDashboardTimestamp(timestamps.last_updated_at)}`,
-    `Last download: ${formatDashboardTimestamp(timestamps.last_download_at)}`,
-    `This download: ${formatDashboardTimestamp(thisDownload)}`,
-  ].join(' · ');
+  const entries = [];
+  if (timestamps.last_updated_at) {
+    entries.push(`Last updated: ${formatDashboardTimestamp(timestamps.last_updated_at)}`);
+  }
+  if (timestamps.last_download_at) {
+    entries.push(`Last download: ${formatDashboardTimestamp(timestamps.last_download_at)}`);
+  }
+  if (currentDashboardDownload) {
+    entries.push(`This download: ${formatDashboardTimestamp(currentDashboardDownload)}`);
+  }
+  status.textContent = entries.join(' · ');
 }
 
 async function downloadDashboardData() {
@@ -168,6 +176,11 @@ async function downloadDashboardData() {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    currentDashboardDownload = new Date().toISOString();
+    const status = document.getElementById('dashboard-export-status');
+    if (status) {
+      status.textContent = `This download: ${formatDashboardTimestamp(currentDashboardDownload)}`;
+    }
     loadDashboard();
     toast('Dashboard data downloaded');
   } catch (err) {
@@ -176,7 +189,7 @@ async function downloadDashboardData() {
 }
 
 async function resetDashboardOrders() {
-  if (!confirm('Permanently delete all orders and order items? This keeps menu items, customers, and saved addresses. Download a fresh dashboard report first.')) {
+  if (!confirm('Delete all orders and order items? Menu items, customers, and addresses will be kept. Download a fresh report first.')) {
     return;
   }
   try {
@@ -220,9 +233,9 @@ async function loadOrders() {
         <td>
           ${o.status === 'ready' ? `
             <div class="order-delivery-assignment">
-              <label class="sr-only" for="delivery-person-${o.id}">Assign ${escapeHtml(o.order_number)} to delivery staff</label>
+              <label class="sr-only" for="delivery-person-${o.id}">Delivery partner for order ${escapeHtml(o.order_number)}</label>
               <select class="form-input" id="delivery-person-${o.id}" style="width:auto;padding:6px 10px;font-size:12px">
-                <option value="">Select delivery person</option>
+                <option value="">Select partner</option>
                 ${activeDeliveryPeople.map(person => `<option value="${person.id}" ${person.id === o.delivery_person_id ? 'selected' : ''}>${escapeHtml(person.name)}</option>`).join('')}
               </select>
               <button class="btn-sm btn-outline" data-action="assign-delivery-person" data-id="${o.id}" ${activeDeliveryPeople.length ? '' : 'disabled'}>Assign</button>

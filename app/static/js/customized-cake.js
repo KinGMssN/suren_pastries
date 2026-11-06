@@ -61,44 +61,42 @@
     referenceImageSelected.checked = false;
   });
 
+  async function loadActiveOrder() {
+    if (typeof getCustomer !== 'function' || !getCustomer()) return false;
+    try {
+      const response = await customerFetch('/api/customer/active-order');
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Could not check your current orders.');
+      }
+      if (!data.active_order) return false;
+
+      activeOrderNotice.hidden = false;
+      activeOrderNotice.replaceChildren();
+      const message = document.createElement('p');
+      message.textContent = `Active order ${data.active_order.order_number}`;
+      const link = document.createElement('a');
+      link.className = 'cake-button';
+      link.href = '/track/' + encodeURIComponent(data.active_order.order_number);
+      link.textContent = 'Track order';
+      activeOrderNotice.append(message, link);
+      form.hidden = true;
+      return true;
+    } catch (error) {
+      activeOrderNotice.hidden = false;
+      activeOrderNotice.textContent =
+        error.message || 'Could not check your current orders. Please try again.';
+      form.hidden = true;
+      return true;
+    }
+  }
+
   async function loadAddresses() {
     if (typeof getCustomer !== 'function' || !getCustomer()) {
-      addressSelect.innerHTML = '<option value="">Log in to load saved addresses</option>';
+      addressSelect.innerHTML = '<option value="">Log in to continue</option>';
       addressSelect.disabled = true;
-      addressNote.innerHTML = 'You’ll need an account and a saved address. <a href="/login">Log in</a> or <a href="/signup">create an account</a>.';
+      addressNote.innerHTML = '<a href="/login">Log in</a> or <a href="/signup">create an account</a>.';
       return;
-    }
-
-    async function loadActiveOrder() {
-      if (typeof getCustomer !== 'function' || !getCustomer()) return false;
-      try {
-        const response = await customerFetch('/api/customer/active-order');
-        const data = await response.json();
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || 'Could not check your current orders.');
-        }
-        if (!data.active_order) return false;
-
-        activeOrderNotice.hidden = false;
-        activeOrderNotice.replaceChildren();
-        const message = document.createElement('p');
-        message.textContent =
-          `You already have an active order (${data.active_order.order_number}). ` +
-          'You can send another cake request after it is delivered or rejected.';
-        const link = document.createElement('a');
-        link.className = 'cake-button';
-        link.href = '/track/' + encodeURIComponent(data.active_order.order_number);
-        link.textContent = 'Track current order';
-        activeOrderNotice.append(message, link);
-        form.hidden = true;
-        return true;
-      } catch (error) {
-        activeOrderNotice.hidden = false;
-        activeOrderNotice.textContent =
-          error.message || 'Could not check your current orders. Please try again.';
-        form.hidden = true;
-        return true;
-      }
     }
 
     try {
@@ -108,7 +106,7 @@
       if (!addresses.length) {
         addressSelect.innerHTML = '<option value="">No saved addresses</option>';
         addressSelect.disabled = true;
-        addressNote.innerHTML = 'Add a delivery address in <a href="/account">your account</a> before requesting a cake.';
+        addressNote.innerHTML = '<a href="/account">Add an address</a>';
         return;
       }
 
@@ -120,7 +118,7 @@
           return option.outerHTML;
         }).join('');
       addressSelect.disabled = false;
-      addressNote.textContent = 'Your request will be sent to this saved address.';
+      addressNote.textContent = '';
     } catch (error) {
       addressSelect.innerHTML = '<option value="">Could not load addresses</option>';
       addressSelect.disabled = true;

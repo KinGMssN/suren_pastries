@@ -19,7 +19,7 @@
   <div class="acct-card" style="max-width:420px;margin:60px auto">
     <div class="acct-icon">👋</div>
     <h1 class="acct-title">Create your account</h1>
-    <p class="acct-sub">Create an account with your mobile number and a password to save addresses and track your orders.</p>
+    <p class="acct-sub">Create an account to get started.</p>
 
     <div id="signup-error" class="acct-error" style="display:none"></div>
 
@@ -30,7 +30,6 @@
       <input class="acct-input" type="tel" id="signup-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}" />
       <label class="acct-label" for="signup-password">Password</label>
       <input class="acct-input" type="password" id="signup-password" autocomplete="new-password" minlength="8" maxlength="128" required />
-      <p class="acct-note">Use at least 8 characters. If you already have an OTP-based account, use the same mobile number to set its password.</p>
       <label class="consent-label"><input type="checkbox" required /> I agree to the <a href="{{ url_for('main.privacy') }}">Privacy Policy</a> and <a href="{{ url_for('main.terms') }}">Terms</a>.</label>
       <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Create account</button>
     </form>

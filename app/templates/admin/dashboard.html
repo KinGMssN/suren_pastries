@@ -49,12 +49,11 @@
         </div>
       </div>
       <div class="dashboard-maintenance">
-        <p id="dashboard-export-status" role="status">Dashboard data timestamps will appear here.</p>
+        <p id="dashboard-export-status" role="status"></p>
         <div class="top-actions">
-          <button class="btn-sm btn-outline" data-action="download-dashboard">Download dashboard data</button>
+          <button class="btn-sm btn-outline" data-action="download-dashboard">Download Excel</button>
           <button class="btn-sm btn-outline" data-action="reset-dashboard">Reset orders</button>
         </div>
-        <p class="dashboard-maintenance-note">Reset removes orders and their item details only. Menu items, customers, and saved addresses are preserved. Download a fresh report before resetting.</p>
       </div>
 
       <div class="stats-grid">
@@ -99,7 +98,7 @@
           <select class="form-input" id="order-status-filter" style="width:auto" data-action="reload-orders">
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
-            <option value="accepted">Accepted — awaiting payment or confirmation</option>
+            <option value="accepted">Accepted</option>
             <option value="preparing">Preparing</option>
             <option value="ready">Ready</option>
             <option value="delivered">Delivered</option>
@@ -153,13 +152,9 @@
 
     {% if not current_user.is_menu_admin %}<div class="tab-content" id="tab-delivery">
       <div class="top-bar">
-        <div class="page-title">Delivery staff</div>
-        <button class="btn-sm btn-primary" data-action="show-delivery-modal">+ Add delivery person</button>
+        <div class="page-title">Delivery partners</div>
+        <button class="btn-sm btn-primary" data-action="show-delivery-modal">+ Add partner</button>
       </div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-        Manage who can pick and deliver orders. They use this list to identify
-        themselves on the <a href="{{ url_for('main.delivery') }}" target="_blank">Delivery Portal</a>. Set a password for each delivery person.
-      </p>
       <div class="menu-editor-grid" id="delivery-editor-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>
     </div>{% endif %}
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Suren Pastries — Custom Celebration Cakes{% endblock %}
-{% block meta_description %}Choose a popular custom cake design, flavour, and size. Send your request to Suren Pastries for a personal quote.{% endblock %}
+{% block meta_description %}Create a custom celebration cake with Suren Pastries.{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/customized-cake.css') }}">
 {% endblock %}
@@ -18,17 +18,13 @@
 
 <main class="cake-page">
   <header class="cake-hero">
-    <p class="cake-eyebrow">Baked for your celebration</p>
-    <h1>A cake made <em>for your moment.</em></h1>
-    <p>Pick a much-loved design, choose the cake basics, and tell us when you need it. Our bakery will review your request and share a quote before we begin.</p>
-    <a class="cake-button cake-button-light" href="#cake-request">Choose your cake <span aria-hidden="true">↓</span></a>
+    <p class="cake-eyebrow">Custom celebration cakes</p>
+    <h1>Made <em>for your moment.</em></h1>
   </header>
 
   <section class="cake-section" id="cake-request">
     <div class="cake-section-heading">
-      <p class="cake-eyebrow">Made to match your idea</p>
       <h2>Tell us about your cake</h2>
-      <p>Describe the size, flavour, colours, theme, and decoration you have in mind. You can also attach one reference photo.</p>
     </div>
 
     <div class="cake-active-order" id="cake-active-order" role="status" aria-live="polite" hidden></div>
@@ -36,13 +32,11 @@
       <div class="cake-options">
         <div class="cake-field cake-field-wide">
           <label for="cake-description">Cake details</label>
-          <textarea id="cake-description" name="description" rows="5" maxlength="1000" required placeholder="For example: 1 kg chocolate cake, pastel pink and white, with fresh flowers and “Happy Birthday, Maya” written on top."></textarea>
-          <small class="cake-field-note">Include the size, flavour, occasion, colours, decoration, and any message you want.</small>
+          <textarea id="cake-description" name="description" rows="5" maxlength="1000" required placeholder="Describe your cake"></textarea>
         </div>
         <div class="cake-field cake-field-wide">
-          <label for="cake-reference-image">Reference cake photo <span>(optional, one photo)</span></label>
+          <label for="cake-reference-image">Reference photo <span>(optional)</span></label>
           <input id="cake-reference-image" name="reference_image" type="file" accept="image/jpeg,image/png,image/webp">
-          <small class="cake-field-note">Choose one JPEG, PNG, or WebP image up to 2 MB. You can unselect it or replace it before sending.</small>
           <div class="cake-reference-preview" id="cake-reference-preview" hidden>
             <img id="cake-reference-preview-image" alt="Preview of your cake reference photo">
             <div class="cake-reference-controls">
@@ -58,21 +52,19 @@
         <div class="cake-field">
           <label for="cake-address">Delivery address</label>
           <select id="cake-address" name="address_id" required disabled>
-            <option value="">Log in to load saved addresses</option>
+            <option value="">Log in to continue</option>
           </select>
-          <small class="cake-field-note" id="cake-address-note">Use an address saved to your customer account.</small>
+          <small class="cake-field-note" id="cake-address-note"></small>
         </div>
       </div>
 
       <fieldset class="cake-payment">
-        <legend>How would you like to pay?</legend>
+        <legend>Payment method</legend>
         <label><input type="radio" name="payment_method" value="cod" checked> Cash on delivery</label>
         <label><input type="radio" name="payment_method" value="online"> Online payment</label>
-        <small>We’ll confirm the final price with you first. Online payment opens after you confirm our quote.</small>
       </fieldset>
 
       <div class="cake-submit-row">
-        <p>Sending a request does not confirm your cake. The bakery will review availability and send a quote.</p>
         <button class="cake-button" type="submit" id="cake-submit">Send cake request <span aria-hidden="true">→</span></button>
       </div>
       <p class="cake-form-status" id="cake-form-status" role="status" aria-live="polite"></p>
@@ -80,13 +72,10 @@
   </section>
 
   <section class="cake-contact-section" aria-labelledby="cake-contact-title">
-    <p class="cake-eyebrow">Need a hand?</p>
-    <h2 id="cake-contact-title">Need help planning your cake?</h2>
-    <p>Our WhatsApp contact option will be available here soon. In the meantime, you can send your cake details using the request form above.</p>
-    <button class="cake-button cake-whatsapp-button" type="button" disabled aria-describedby="cake-whatsapp-note">
-      Contact us on WhatsApp
+    <h2 id="cake-contact-title">Need help with your cake?</h2>
+    <button class="cake-button cake-whatsapp-button" type="button" disabled>
+      WhatsApp — coming soon
     </button>
-    <small id="cake-whatsapp-note">WhatsApp contact is not set up yet.</small>
   </section>
 </main>
 {% endblock %}

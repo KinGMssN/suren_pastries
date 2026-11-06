@@ -1,5 +1,5 @@
 const STAGES = ['pending', 'accepted', 'preparing', 'ready', 'delivered'];
-const STAGE_LABELS = { pending: 'Awaiting approval', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' };
+const STAGE_LABELS = { pending: 'Pending', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' };
 const ORDER_NUMBER = document.body.dataset.orderNumber;
 const payButton = document.getElementById('tr-pay-online');
 const confirmQuoteButton = document.getElementById('tr-confirm-quote');
@@ -87,7 +87,7 @@ function render(order) {
   if (order.status === 'rejected') {
     document.getElementById('tr-stepper').replaceChildren();
     document.getElementById('tr-message').textContent = 'Your order is rejected.';
-    document.getElementById('tr-submessage').textContent = 'Please contact Suren Pastries if you need more information.';
+    document.getElementById('tr-submessage').textContent = '';
     document.getElementById('tr-partner').style.display = 'none';
     return;
   }
@@ -103,7 +103,7 @@ function render(order) {
     pending: ['Order received!', 'Your order is waiting for bakery approval.'],
     accepted: ['Order accepted!', order.custom_cake_details ? 'Review the bakery’s quote below.' : 'Complete your online payment to begin preparation.'],
     preparing: ['Your food is being prepared 👨‍🍳', 'Our kitchen is working on it right now.'],
-    ready: [order.has_delivery_person ? 'Food is prepared! On the way 🚴' : 'Food is ready!', order.has_delivery_person ? 'A delivery partner has your order.' : 'Waiting for a delivery partner to pick it up.'],
+    ready: [order.has_delivery_person ? 'Order ready · on the way 🚴' : 'Order ready!', ''],
     delivered: ['Delivered! Enjoy your meal 🎉', order.delivered_at ? `Delivered at ${order.delivered_at}` : ''],
   };
   const [msg, sub] = messages[order.status] || ['Order status: ' + order.status, ''];
@@ -113,7 +113,7 @@ function render(order) {
   const partnerEl = document.getElementById('tr-partner');
   if (order.has_delivery_person && order.status !== 'delivered') {
     partnerEl.style.display = 'flex';
-    partnerEl.textContent = 'A delivery partner has been assigned to your order.';
+    partnerEl.textContent = 'Delivery partner assigned';
   } else {
     partnerEl.style.display = 'none';
   }

@@ -650,9 +650,10 @@ def test_customer_password_auth_rejects_invalid_input_and_old_otp_routes(client)
 def test_custom_cake_page_has_inactive_whatsapp_contact_button(client):
     response = client.get("/customized-cake")
     assert response.status_code == 200
-    assert b"Need help planning your cake?" in response.data
-    assert b"Contact us on WhatsApp" in response.data
+    assert b"Need help with your cake?" in response.data
+    assert b"WhatsApp \xe2\x80\x94 coming soon" in response.data
     assert b'type="button" disabled' in response.data
+    assert b"Our WhatsApp contact option will be available here soon" not in response.data
 
 
 def test_customer_session_only_accesses_its_own_records(app, client):
