@@ -69,12 +69,16 @@ class Config:
     ADMIN_SESSION_IDLE_TIMEOUT = timedelta(hours=2)
     ADMIN_MAX_LOGIN_FAILURES = 20
     CUSTOMER_OTP_TTL_SECONDS = 10 * 60
-    CUSTOMER_OTP_DEBUG = os.environ.get("CUSTOMER_OTP_DEBUG", "false").lower() == "true"
+    CUSTOMER_OTP_DEBUG = os.environ.get(
+        "CUSTOMER_OTP_DEBUG", "false" if IS_PRODUCTION else "true"
+    ).lower() == "true"
     if IS_PRODUCTION and CUSTOMER_OTP_DEBUG:
         raise RuntimeError("CUSTOMER_OTP_DEBUG must be disabled in production.")
     CUSTOMER_OTP_SENDER = None
     ADMIN_RESET_KEY = os.environ.get("ADMIN_RESET_KEY", "")
     ADMIN_TOTP_SECRET = os.environ.get("ADMIN_TOTP_SECRET", "")
+    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
     # Business rules (also editable at runtime via the Admin > Content tab,
     # these are just the fallback defaults used to first seed the database)

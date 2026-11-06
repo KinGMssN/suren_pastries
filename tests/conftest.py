@@ -20,6 +20,8 @@ class TestConfig:
     FREE_DELIVERY_THRESHOLD = 499
     DELIVERY_FEE = 40
     TAX_RATE = 0.05
+    RAZORPAY_KEY_ID = "rzp_test_key"
+    RAZORPAY_KEY_SECRET = "test-razorpay-secret"
 
 
 @pytest.fixture

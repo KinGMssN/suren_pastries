@@ -185,19 +185,35 @@ def create_app(config_class=Config):
         response.headers["Permissions-Policy"] = (
             "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
         )
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Opener-Policy"] = (
+            "same-origin-allow-popups"
+            if request.endpoint == "main.track"
+            else "same-origin"
+        )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Reporting-Endpoints"] = 'csp-endpoint="/api/csp-report"'
+        script_sources = f"'self' 'nonce-{g.csp_nonce}'"
+        style_sources = f"'self' 'nonce-{g.csp_nonce}'"
+        image_sources = "'self' data:"
+        connect_sources = "'self'"
+        frame_sources = "'none'"
+        if request.endpoint == "main.track":
+            script_sources += " https://checkout.razorpay.com"
+            style_sources = "'self' 'unsafe-inline'"
+            connect_sources += " https://api.razorpay.com https://checkout.razorpay.com"
+            frame_sources = "https://api.razorpay.com https://checkout.razorpay.com"
+        if request.endpoint == "main.customized_cake":
+            image_sources += " https://images.unsplash.com"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{g.csp_nonce}'; "
-            f"style-src 'self' 'nonce-{g.csp_nonce}'; "
+            f"script-src {script_sources}; "
+            f"style-src {style_sources}; "
             "style-src-attr 'unsafe-inline'; "
             "font-src 'self'; "
-            "img-src 'self' data:; "
-            "connect-src 'self'; "
+            f"img-src {image_sources}; "
+            f"connect-src {connect_sources}; "
             "object-src 'none'; "
-            "frame-src 'none'; "
+            f"frame-src {frame_sources}; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "form-action 'self';"

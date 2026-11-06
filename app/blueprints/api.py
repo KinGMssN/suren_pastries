@@ -1,10 +1,15 @@
 import base64
 import binascii
+import hashlib
+import hmac
+import json
 import re
 import secrets
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from flask import Blueprint, current_app, g, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
@@ -38,6 +43,295 @@ api_bp = Blueprint("api", __name__)
 
 def error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
+
+
+class RazorpayGatewayError(Exception):
+    pass
+
+
+def _razorpay_request(method, path, payload=None):
+    key_id = current_app.config.get("RAZORPAY_KEY_ID")
+    key_secret = current_app.config.get("RAZORPAY_KEY_SECRET")
+    if not key_id or not key_secret:
+        raise RazorpayGatewayError("Razorpay credentials are not configured.")
+
+    body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    gateway_request = Request(
+        f"https://api.razorpay.com/v1/{path.lstrip('/')}",
+        data=body,
+        method=method,
+        headers={"Content-Type": "application/json"},
+    )
+    gateway_request.add_header(
+        "Authorization",
+        "Basic " + base64.b64encode(f"{key_id}:{key_secret}".encode("utf-8")).decode("ascii"),
+    )
+    try:
+        with urlopen(gateway_request, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RazorpayGatewayError(
+            f"Razorpay request failed ({type(exc).__name__})."
+        ) from exc
+    if not isinstance(result, dict):
+        raise RazorpayGatewayError("Razorpay returned an invalid response.")
+    return result
+
+
+def _order_payment_response(order):
+    return {
+        "ok": True,
+        "key_id": current_app.config["RAZORPAY_KEY_ID"],
+        "razorpay_order_id": order.razorpay_order_id,
+        "amount": order.total * 100,
+        "currency": "INR",
+        "order_number": order.order_number,
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+    }
+
+
+def _checkout_payment_action(payload, customer):
+    action = payload.get("action")
+    order_number = payload.get("order_number")
+    if action not in {"create_payment", "verify_payment"}:
+        return None
+    if not isinstance(order_number, str):
+        return error("Invalid order.")
+    order = Order.query.filter_by(
+        order_number=order_number.strip().upper(),
+        customer_id=customer.id,
+    ).first()
+    if not order:
+        return error("Order not found.", 404)
+    if order.channel != "online":
+        return error("This order does not use online payment.", 400)
+    if order.payment_status == "paid":
+        if action == "verify_payment":
+            return jsonify({"ok": True, "payment_status": "paid"})
+        return error("This order has already been paid.", 409)
+    if order.status != "accepted":
+        return error("Online payment is available after the admin accepts your order.", 409)
+    if order.custom_cake_details and not order.quote_confirmed:
+        return error("Confirm the cake quote before paying.", 409)
+
+    if action == "create_payment":
+        if order.total < 1:
+            return error("This order cannot be paid online.", 400)
+        if not current_app.config.get("RAZORPAY_KEY_ID") or not current_app.config.get("RAZORPAY_KEY_SECRET"):
+            current_app.logger.error("Razorpay payment is unavailable because credentials are not configured.")
+            return error("Online payments are temporarily unavailable.", 503)
+        if not order.razorpay_order_id:
+            try:
+                gateway_order = _razorpay_request(
+                    "POST",
+                    "/orders",
+                    {
+                        "amount": order.total * 100,
+                        "currency": "INR",
+                        "receipt": order.order_number,
+                        "notes": {"order_number": order.order_number},
+                    },
+                )
+            except RazorpayGatewayError as exc:
+                current_app.logger.error("Razorpay order creation failed: %s", exc)
+                return error("Could not start online payment. Please try again.", 502)
+            gateway_order_id = gateway_order.get("id")
+            if (
+                not isinstance(gateway_order_id, str)
+                or not re.fullmatch(r"order_[A-Za-z0-9]+", gateway_order_id)
+                or gateway_order.get("amount") != order.total * 100
+                or gateway_order.get("currency") != "INR"
+            ):
+                current_app.logger.error("Razorpay returned an invalid order ID.")
+                return error("Could not start online payment. Please try again.", 502)
+            order.razorpay_order_id = gateway_order_id
+            db.session.commit()
+        return jsonify(_order_payment_response(order))
+
+    payment_id = payload.get("razorpay_payment_id")
+    signature = payload.get("razorpay_signature")
+    if (
+        not isinstance(payment_id, str)
+        or not re.fullmatch(r"pay_[A-Za-z0-9]+", payment_id)
+        or not isinstance(signature, str)
+        or not re.fullmatch(r"[0-9a-fA-F]{64}", signature)
+        or not order.razorpay_order_id
+        or payload.get("razorpay_order_id") != order.razorpay_order_id
+    ):
+        return error("Invalid payment verification details.")
+    if not current_app.config.get("RAZORPAY_KEY_SECRET"):
+        current_app.logger.error("Razorpay payment verification is unavailable because credentials are not configured.")
+        return error("Online payments are temporarily unavailable.", 503)
+
+    expected_signature = hmac.new(
+        current_app.config.get("RAZORPAY_KEY_SECRET", "").encode("utf-8"),
+        f"{order.razorpay_order_id}|{payment_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected_signature, signature.lower()):
+        return error("Payment verification failed.", 400)
+
+    if order.razorpay_payment_id and order.razorpay_payment_id != payment_id:
+        return error("A different payment is already associated with this order.", 409)
+
+    try:
+        payment = _razorpay_request("GET", f"/payments/{payment_id}")
+        if (
+            payment.get("order_id") != order.razorpay_order_id
+            or payment.get("amount") != order.total * 100
+            or payment.get("currency") != "INR"
+        ):
+            return error("The payment details do not match this order.", 400)
+        if payment.get("status") == "authorized":
+            try:
+                _razorpay_request(
+                    "POST",
+                    f"/payments/{payment_id}/capture",
+                    {"amount": order.total * 100, "currency": "INR"},
+                )
+            except RazorpayGatewayError as exc:
+                current_app.logger.warning(
+                    "Razorpay capture response was inconclusive (%s); checking payment state.",
+                    type(exc).__name__,
+                )
+            payment = _razorpay_request("GET", f"/payments/{payment_id}")
+    except RazorpayGatewayError as exc:
+        current_app.logger.error("Razorpay payment verification failed: %s", exc)
+        return error("Could not verify the payment right now. Please try again.", 502)
+
+    if (
+        payment.get("status") != "captured"
+        or payment.get("order_id") != order.razorpay_order_id
+        or payment.get("amount") != order.total * 100
+        or payment.get("currency") != "INR"
+    ):
+        return error("Payment has not been captured yet. Please try again shortly.", 409)
+
+    order.razorpay_payment_id = payment_id
+    order.payment_status = "paid"
+    order.status = "preparing"
+    db.session.commit()
+    return jsonify({"ok": True, "payment_status": "paid"})
+
+
+CUSTOM_CAKE_DESIGNS = {
+    "birthday": "Classic birthday",
+    "chocolate-drip": "Chocolate drip",
+    "berry": "Berry celebration",
+}
+CUSTOM_CAKE_FLAVOURS = {"Chocolate", "Vanilla", "Black Forest"}
+CUSTOM_CAKE_SIZES = {"0.5 KG", "1 KG", "2 KG"}
+
+
+def _create_custom_cake_request(payload, customer):
+    design = payload.get("design")
+    flavour = payload.get("flavour")
+    size = payload.get("size")
+    payment_method = payload.get("payment_method")
+    message = payload.get("cake_message", "")
+    required_date = payload.get("required_date")
+    address_id = payload.get("address_id")
+    if (
+        not isinstance(design, str)
+        or design not in CUSTOM_CAKE_DESIGNS
+        or not isinstance(flavour, str)
+        or flavour not in CUSTOM_CAKE_FLAVOURS
+        or not isinstance(size, str)
+        or size not in CUSTOM_CAKE_SIZES
+        or not isinstance(payment_method, str)
+        or payment_method not in {"cod", "online"}
+        or not isinstance(message, str)
+        or len(message.strip()) > 60
+        or not isinstance(required_date, str)
+        or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", required_date)
+        or type(address_id) is not int
+        or address_id < 1
+    ):
+        return error("Check the cake design, flavour, size, message, date, and delivery address.")
+    try:
+        request_date = datetime.strptime(required_date, "%Y-%m-%d").date()
+    except ValueError:
+        return error("Choose a valid required date.")
+    if request_date < datetime.utcnow().date():
+        return error("The required date cannot be in the past.")
+
+    address = CustomerAddress.query.filter_by(
+        id=address_id,
+        customer_id=customer.id,
+    ).first()
+    if not address:
+        return error("Please select one of your saved delivery addresses.")
+
+    idempotency_key = request.headers.get("Idempotency-Key", "")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{16,64}", idempotency_key):
+        return error("A valid request key is required.")
+    existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+    if existing_order:
+        if existing_order.customer_id != customer.id:
+            return error("This request key has already been used.", 409)
+        return jsonify({"ok": True, "order_number": existing_order.order_number})
+
+    details = {
+        "design": CUSTOM_CAKE_DESIGNS[design],
+        "flavour": flavour,
+        "size": size,
+        "cake_message": message.strip(),
+        "required_date": request_date.isoformat(),
+    }
+    order = Order(
+        order_number=Order.generate_order_number(),
+        idempotency_key=idempotency_key,
+        customer_name=customer.name or "Guest",
+        customer_phone=customer.phone,
+        customer_id=customer.id,
+        channel=payment_method,
+        status="pending",
+        payment_status="pending" if payment_method == "online" else "not_required",
+        custom_cake_details=json.dumps(details),
+        delivery_address=address.address_line,
+        delivery_city=address.city,
+        delivery_pincode=address.pincode,
+        subtotal=0,
+        delivery_fee=0,
+        tax=0,
+        discount=0,
+        total=0,
+    )
+    db.session.add(order)
+    db.session.flush()
+    db.session.add(OrderItem(
+        order_id=order.id,
+        name=f"Custom cake — {details['design']}",
+        price=0,
+        emoji="🎂",
+        qty=1,
+    ))
+    db.session.commit()
+    return jsonify({"ok": True, "order_number": order.order_number})
+
+
+def _confirm_custom_cake_quote(payload, customer):
+    order_number = payload.get("order_number")
+    if not isinstance(order_number, str):
+        return error("Invalid cake order.")
+    order = Order.query.filter_by(
+        order_number=order_number.strip().upper(),
+        customer_id=customer.id,
+    ).first()
+    if not order or not order.custom_cake_details:
+        return error("Cake request not found.", 404)
+    if order.status != "accepted" or order.total < 1:
+        return error("The bakery has not set a quote for this cake yet.", 409)
+    if order.quote_confirmed:
+        return jsonify({"ok": True, "status": order.status})
+    order.quote_confirmed = True
+    if order.channel == "online":
+        order.payment_status = "pending"
+    else:
+        order.status = "preparing"
+    db.session.commit()
+    return jsonify({"ok": True, "status": order.status})
 
 
 def _normalize_phone(phone):
@@ -490,9 +784,25 @@ def apply_coupon():
 @limiter.limit("10 per minute")
 
 def checkout():
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return error("Invalid checkout details.")
+    action = payload.get("action")
+    if isinstance(action, str) and action in {
+        "create_payment",
+        "verify_payment",
+        "custom_cake_request",
+        "confirm_cake_quote",
+    }:
+        customer = _get_current_customer()
+        if not customer:
+            return error("Please log in to continue.", 401)
+        if action == "custom_cake_request":
+            return _create_custom_cake_request(payload, customer)
+        if action == "confirm_cake_quote":
+            return _confirm_custom_cake_quote(payload, customer)
+        return _checkout_payment_action(payload, customer)
+
     cart_items = payload.get("items")
     channel = payload.get("channel", "whatsapp")
     coupon_code = payload.get("coupon_code") or ""
@@ -501,10 +811,8 @@ def checkout():
         return error("Invalid checkout details.")
     if not isinstance(channel, str) or channel not in ORDER_CHANNELS:
         return error("Invalid checkout method.")
-    if channel == "online":
-        return error("Online payments are not configured. Choose another checkout method.", 503)
     if channel == "whatsapp":
-        return error("WhatsApp ordering is unavailable. Place a cash-on-delivery order instead.", 503)
+        return error("WhatsApp ordering is unavailable. Choose cash on delivery or online payment.", 503)
     coupon_code = coupon_code.strip().upper() or None
     phone = _normalize_phone(phone_value)
     address_id = payload.get("address_id")
@@ -618,6 +926,7 @@ def checkout():
             customer_id=customer.id,
             channel=channel,
             status="pending",
+            payment_status="pending" if channel == "online" else "not_required",
             delivery_address=address.address_line,
             delivery_city=address.city,
             delivery_pincode=address.pincode,
@@ -684,6 +993,13 @@ def track_order(order_number):
         "order_number": order.order_number,
         "channel": order.channel,
         "status": order.status,
+        "payment_status": order.payment_status,
+        "custom_cake_details": (
+            json.loads(order.custom_cake_details)
+            if order.custom_cake_details else None
+        ),
+        "quote_confirmed": order.quote_confirmed,
+        "rejection_message": "Your order is rejected." if order.status == "rejected" else None,
         "subtotal": order.subtotal,
         "delivery_fee": order.delivery_fee,
         "tax": order.tax,
@@ -816,16 +1132,60 @@ def admin_update_order_status(order_id):
     status = payload.get("status")
     if status not in ORDER_STATUSES:
         return error("Invalid status.")
+    if status == "rejected":
+        if order.status != "pending":
+            return error("Only awaiting orders can be rejected.")
+        if order.payment_status == "paid":
+            return error("Paid orders cannot be rejected without a refund.")
+        for order_item in order.items:
+            item = db.session.get(MenuItem, order_item.menu_item_id) if order_item.menu_item_id else None
+            if item and item.stock_quantity is not None:
+                item.stock_quantity += order_item.qty
+                item.in_stock = item.stock_quantity > 0
+        order.status = "rejected"
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    if order.status == "pending":
+        if order.custom_cake_details and status == "accepted":
+            quote_total = payload.get("quote_total")
+            if type(quote_total) is not int or not 1 <= quote_total <= 1000000:
+                return error("Enter a cake quote between ₹1 and ₹1,000,000.")
+            order.subtotal = quote_total
+            order.delivery_fee = 0
+            order.tax = 0
+            order.discount = 0
+            order.total = quote_total
+            order.items[0].price = quote_total
+            order.payment_status = "pending" if order.channel == "online" else "not_required"
+            order.status = "accepted"
+            db.session.commit()
+            return jsonify({"ok": True})
+        if order.channel == "online" and status == "accepted":
+            order.status = "accepted"
+            db.session.commit()
+            return jsonify({"ok": True})
+        if order.channel == "cod" and status == "preparing":
+            order.status = "preparing"
+            db.session.commit()
+            return jsonify({"ok": True})
+        if order.channel == "whatsapp":
+            return error("Payment verification is not configured for this order.", 409)
+        if order.channel == "online":
+            return error("Accept the order before requesting payment.", 409)
+        return error("Invalid order status transition.")
+
     valid_next_status = {
-        "pending": "preparing",
         "preparing": "ready",
         "ready": "delivered",
         "delivered": "delivered",
     }
     if status != valid_next_status.get(order.status):
         return error("Invalid order status transition.")
-    if order.channel in {"online", "whatsapp"}:
+    if order.channel == "whatsapp":
         return error("Payment verification is not configured for this order.", 409)
+    if order.channel == "online" and order.payment_status != "paid":
+        return error("Payment must be verified before processing this order.", 409)
     if status == "delivered" and order.channel == "cod" and payload.get("cod_collected") is not True:
         return error("Confirm that the COD payment was collected.")
     order.status = status
@@ -1271,6 +1631,7 @@ def delivery_people_list():
 @delivery_access_required
 def delivery_orders_list():
     q = Order.query.filter(Order.status != "delivered")
+    q = q.filter(Order.status != "rejected")
     if not g.delivery_admin:
         q = q.filter(Order.delivery_person_id == g.delivery_person.id)
     orders = q.order_by(Order.created_at.asc()).all()
@@ -1284,18 +1645,18 @@ def delivery_assign_order(order_id):
         return error("Full admin access required.", 403)
     order = Order.query.get_or_404(order_id)
     payload = request.get_json(silent=True) or {}
-    if order.channel in {"online", "whatsapp"}:
+    if order.channel == "whatsapp":
         return error("Payment verification is not configured for this order.", 409)
+    if order.channel == "online" and order.payment_status != "paid":
+        return error("Payment must be verified before assigning this order.", 409)
     person_id = payload.get("delivery_person_id")
     person = DeliveryPerson.query.filter_by(id=person_id, active=True).first() if person_id else None
     if not person:
         return error("Select an active delivery person.")
-    if order.status not in {"pending", "preparing"}:
-        return error("Only pending or preparing orders can be assigned.")
+    if order.status != "preparing":
+        return error("Only accepted orders can be assigned.")
 
     order.delivery_person_id = person.id
-    if order.status == "pending":
-        order.status = "preparing"
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -1310,8 +1671,10 @@ def delivery_mark_delivered(order_id):
         return error("Order is not assigned to this delivery person.", 403)
     if order.status != "ready":
         return error("Only ready orders can be marked delivered.")
-    if order.channel in {"online", "whatsapp"}:
+    if order.channel == "whatsapp":
         return error("Payment verification is not configured for this order.", 409)
+    if order.channel == "online" and order.payment_status != "paid":
+        return error("Payment must be verified before fulfilling this order.", 409)
     if order.channel == "cod" and payload.get("cod_collected") is not True:
         return error("Confirm that the COD payment was collected.")
 

@@ -18,16 +18,27 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
         assert upgrade() == [
             "create_base_schema",
             "add_auth_checkout_and_inventory_columns",
+            "add_order_payment_columns",
+            "add_custom_cake_order_details",
         ]
         assert upgrade() == []
         versions = db.session.execute(
             text("SELECT version FROM schema_migrations ORDER BY version")
         ).scalars().all()
-        assert versions == [1, 2]
+        assert versions == [1, 2, 3, 4]
         assert "stock_quantity" in {
             column["name"] for column in inspect(db.engine).get_columns("menu_items")
         }
         assert "idempotency_key" in {
+            column["name"] for column in inspect(db.engine).get_columns("orders")
+        }
+        assert {
+            "payment_status",
+            "razorpay_order_id",
+            "razorpay_payment_id",
+            "custom_cake_details",
+            "quote_confirmed",
+        } <= {
             column["name"] for column in inspect(db.engine).get_columns("orders")
         }
 
@@ -50,6 +61,8 @@ def test_column_migration_upgrades_legacy_tables(app):
         assert upgrade() == [
             "create_base_schema",
             "add_auth_checkout_and_inventory_columns",
+            "add_order_payment_columns",
+            "add_custom_cake_order_details",
         ]
         inspector = inspect(db.engine)
         expected = {
@@ -67,6 +80,15 @@ def test_column_migration_upgrades_legacy_tables(app):
         for table, columns in expected.items():
             actual = {column["name"] for column in inspector.get_columns(table)}
             assert columns <= actual
+        assert {
+            "payment_status",
+            "razorpay_order_id",
+            "razorpay_payment_id",
+            "custom_cake_details",
+            "quote_confirmed",
+        } <= {
+            column["name"] for column in inspector.get_columns("orders")
+        }
         assert any(
             index.get("unique")
             and index.get("column_names") == ["idempotency_key"]

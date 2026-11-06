@@ -28,6 +28,7 @@
 
   <div class="tr-card">
     <div class="tr-card-title">Items</div>
+    <div class="tr-cake-details" id="tr-cake-details" hidden></div>
     <div id="tr-items"></div>
     <div class="tr-divider"></div>
     <div class="tr-item-row"><span>Subtotal</span><span id="tr-subtotal">₹0</span></div>
@@ -40,11 +41,15 @@
   <div class="tr-card">
     <div class="tr-card-title">Payment</div>
     <div class="tr-address" id="tr-payment"></div>
+    <button class="tr-pay-button" id="tr-confirm-quote" type="button" hidden>Confirm quoted price</button>
+    <button class="tr-pay-button" id="tr-pay-online" type="button" hidden>Pay online</button>
+    <div class="tr-payment-message" id="tr-payment-message" role="status" aria-live="polite"></div>
   </div>
 </div>
 {% endblock %}
 {% block page_js %}
-<script src="{{ url_for('static', filename='js/track.js') }}"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/track.js') }}"></script>
 <script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
 {% endblock %}

@@ -53,12 +53,15 @@ def test_customized_cake_page_has_customization_flow_without_whatsapp_redirect(a
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert '<link rel="canonical" href="https://shop.example/customized-cake"/>' in html
-    assert 'aria-current="page">Customized Cake</a>' in html
-    assert "Design Your" in html and "Dream Cake" in html
-    assert "Have a Design in Mind?" in html
-    assert "Your Cake Summary" in html
-    assert "Final Price" in html
-    assert "To Be Confirmed by the Bakery" in html
+    assert 'aria-current="page">Custom Cakes</a>' in html
+    assert "A cake made" in html
+    assert "Classic birthday" in html
+    assert "Berry celebration" in html
+    assert "Black Forest" in html
+    assert "Send cake request" in html
+    assert "images.unsplash.com" in html
+    assert "customized-cake.js" in html
+    csp = response.headers["Content-Security-Policy"]
+    assert "img-src 'self' data: https://images.unsplash.com" in csp
     assert "https://wa.me/" not in html
-    assert "Call the bakery about your idea" in html
     assert client.post("/customized-cake", data={}).status_code == 405

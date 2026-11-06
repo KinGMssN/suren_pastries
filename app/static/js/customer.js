@@ -18,6 +18,13 @@ function isLoggedIn() {
   return !!getCustomer();
 }
 
+function showTestOtp(code, inputId, noteId) {
+  if (!/^\d{6}$/.test(code || '')) return;
+  document.getElementById(inputId).value = code;
+  const note = document.getElementById(noteId);
+  if (note) note.style.display = 'block';
+}
+
 async function readCustomerResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) return response.json();
@@ -64,7 +71,7 @@ async function customerLogin(event) {
       if (errBox) { errBox.textContent = data.error || 'Something went wrong.'; errBox.style.display = 'block'; }
       return;
     }
-    if (data.debug_code) document.getElementById('login-code').value = data.debug_code;
+    showTestOtp(data.debug_code, 'login-code', 'login-test-otp-note');
     document.getElementById('login-form').style.display = 'none';
     document.getElementById('verify-form').style.display = 'block';
   } catch (err) {
@@ -86,7 +93,7 @@ async function customerSignup(event) {
     });
     const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create your account.');
-    if (data.debug_code) document.getElementById('signup-code').value = data.debug_code;
+    showTestOtp(data.debug_code, 'signup-code', 'signup-test-otp-note');
     document.getElementById('signup-form').style.display = 'none';
     document.getElementById('signup-verify-form').style.display = 'block';
   } catch (err) {
@@ -264,8 +271,16 @@ async function loadOrderHistory() {
       <div class="order-card">
         <div class="order-card-top">
           <strong>${o.order_number}</strong>
-          <span class="order-status-pill">${o.status}</span>
+          <span class="order-status-pill">${{
+            pending: 'Awaiting approval',
+            accepted: o.custom_cake_details ? 'Accepted — awaiting your confirmation' : 'Accepted — awaiting payment',
+            preparing: 'Preparing',
+            ready: 'Ready',
+            delivered: 'Delivered',
+            rejected: 'Rejected',
+          }[o.status] || o.status}</span>
         </div>
+        ${o.status === 'rejected' ? '<p>Your order is rejected.</p>' : ''}
         <div class="order-items-line">${o.items.map(i => `${i.qty}× ${i.name}`).join(', ')}</div>
         <div class="order-card-bottom"><span>${o.created_at}</span><strong>₹${o.total}</strong></div>
       </div>

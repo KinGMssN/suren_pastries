@@ -36,8 +36,8 @@ async function api(path, opts) {
   return data;
 }
 
-const STATUS_LABEL = { pending: 'Pending', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered' };
-const STATUS_CLASS = { pending: 's-pending', preparing: 's-preparing', ready: 's-ready', delivered: 's-delivered' };
+const STATUS_LABEL = { pending: 'Awaiting approval', accepted: 'Accepted — awaiting payment or confirmation', preparing: 'Preparing', ready: 'Ready', delivered: 'Delivered', rejected: 'Rejected' };
+const STATUS_CLASS = { pending: 's-pending', accepted: 's-accepted', preparing: 's-preparing', ready: 's-ready', delivered: 's-delivered', rejected: 's-rejected' };
 
 // ───────────────────────── data-action delegation ─────────────────────────
 function encodeObj(obj) {
@@ -82,6 +82,7 @@ document.addEventListener('click', (e) => {
     case 'delete-delivery-person': deleteDeliveryPerson(id); break;
     case 'purge-deleted-record': purgeDeletedRecord(id); break;
     case 'save-content': saveContent(); break;
+    case 'order-decision': updateOrderStatus(id, el.dataset.status, el.dataset.customCake === 'true'); break;
   }
 });
 
@@ -140,13 +141,32 @@ async function loadOrders() {
       <tr>
         <td>${o.order_number}</td>
         <td>${o.customer_name}</td>
-        <td>${o.items.map(i => `${i.qty}× ${i.name}`).join(', ')}</td>
+        <td>${o.items.map(i => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}
+          ${o.custom_cake_details ? `<div class="cake-order-details">
+            ${escapeHtml(o.custom_cake_details.size)} · ${escapeHtml(o.custom_cake_details.flavour)} · ${escapeHtml(o.custom_cake_details.design)}
+            <br>Needed: ${escapeHtml(o.custom_cake_details.required_date)}
+            ${o.custom_cake_details.cake_message ? `<br>Message: “${escapeHtml(o.custom_cake_details.cake_message)}”` : ''}
+          </div>` : ''}
+        </td>
         <td>₹${o.total}</td>
         <td style="text-transform:capitalize">${o.channel}</td>
         <td>
+          ${o.status === 'pending' ? `
+            ${o.custom_cake_details ? `
+              <label class="sr-only" for="cake-quote-${o.id}">Quote for ${escapeHtml(o.order_number)}</label>
+              <input class="form-input cake-quote-input" id="cake-quote-${o.id}" type="number" min="1" max="1000000" step="1" placeholder="Quote ₹" aria-label="Cake quote in rupees">
+              <button class="btn-sm btn-primary" data-action="order-decision" data-id="${o.id}" data-status="accepted" data-custom-cake="true">Set quote &amp; accept</button>
+            ` : `<button class="btn-sm btn-primary" data-action="order-decision" data-id="${o.id}" data-status="${o.channel === 'online' ? 'accepted' : 'preparing'}">Accept</button>`}
+            <button class="btn-sm btn-outline" data-action="order-decision" data-id="${o.id}" data-status="rejected">Reject</button>
+          ` : o.status === 'accepted' ? `
+            <span class="tstatus s-accepted">${o.custom_cake_details ? `Quoted ₹${o.total} · awaiting customer` : `Accepted · ${o.payment_status}`}</span>
+          ` : o.status === 'rejected' ? `
+            <span class="tstatus s-rejected">Rejected</span>
+          ` : `
           <select class="form-input" style="width:auto;padding:6px 10px;font-size:12px" data-action="update-order-status" data-id="${o.id}">
-            ${Object.keys(STATUS_LABEL).map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+            ${(o.status === 'preparing' ? ['preparing', 'ready'] : o.status === 'ready' ? ['ready', 'delivered'] : ['delivered']).map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
           </select>
+          `}
         </td>
       </tr>
     `).join('');
@@ -155,8 +175,18 @@ async function loadOrders() {
   }
 }
 
-async function updateOrderStatus(id, status) {
+function escapeHtml(value) {
+  const element = document.createElement('span');
+  element.textContent = String(value ?? '');
+  return element.innerHTML;
+}
+
+async function updateOrderStatus(id, status, customCake = false) {
   try {
+    if (status === 'rejected' && !confirm('Reject this order? The customer will be notified on the tracking page.')) {
+      loadOrders();
+      return;
+    }
     const codCollected = status === 'delivered'
       ? confirm('Confirm that any COD payment for this order has been collected.')
       : false;
@@ -164,7 +194,17 @@ async function updateOrderStatus(id, status) {
       loadOrders();
       return;
     }
-    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status, cod_collected: codCollected }) });
+    const body = { status, cod_collected: codCollected };
+    if (customCake) {
+      const quote = document.getElementById(`cake-quote-${id}`);
+      const amount = Number(quote?.value);
+      if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000) {
+        toast('Enter a quote between ₹1 and ₹1,000,000');
+        return;
+      }
+      body.quote_total = amount;
+    }
+    await api(`/orders/${id}/status`, { method: 'POST', body: JSON.stringify(body) });
     toast('Order status updated');
     loadOrders();
   } catch (err) { toast(err.message); }

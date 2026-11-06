@@ -1,3 +1,4 @@
+import json
 import secrets
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
@@ -222,7 +223,7 @@ class DeliveryPerson(db.Model):
         return {"id": self.id, "name": self.name, "phone": self.phone, "active": self.active}
 
 
-ORDER_STATUSES = ["pending", "preparing", "ready", "delivered"]
+ORDER_STATUSES = ["pending", "accepted", "preparing", "ready", "delivered", "rejected"]
 ORDER_CHANNELS = ["whatsapp", "online", "cod"]
 
 
@@ -237,6 +238,11 @@ class Order(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)
     channel = db.Column(db.String(20), default="whatsapp")
     status = db.Column(db.String(20), default="pending")
+    payment_status = db.Column(db.String(20), default="not_required")
+    razorpay_order_id = db.Column(db.String(80), nullable=True)
+    razorpay_payment_id = db.Column(db.String(80), nullable=True)
+    custom_cake_details = db.Column(db.Text, nullable=True)
+    quote_confirmed = db.Column(db.Boolean, nullable=False, default=False)
 
     delivery_address = db.Column(db.String(300), default="")
     delivery_city = db.Column(db.String(80), default="")
@@ -275,6 +281,12 @@ class Order(db.Model):
             "customer_phone": self.customer_phone,
             "channel": self.channel,
             "status": self.status,
+            "payment_status": self.payment_status,
+            "custom_cake_details": (
+                json.loads(self.custom_cake_details)
+                if self.custom_cake_details else None
+            ),
+            "quote_confirmed": self.quote_confirmed,
             "subtotal": self.subtotal,
             "delivery_fee": self.delivery_fee,
             "tax": self.tax,

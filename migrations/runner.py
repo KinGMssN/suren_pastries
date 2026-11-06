@@ -76,9 +76,54 @@ def _add_model_columns(connection):
         ))
 
 
+def _add_order_payment_columns(connection):
+    inspector = inspect(connection)
+    if "orders" not in set(inspector.get_table_names()):
+        raise RuntimeError(
+            "Cannot migrate missing table 'orders'; base schema migration failed."
+        )
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("orders")
+    }
+    columns = {
+        "payment_status": "VARCHAR(20) NOT NULL DEFAULT 'not_required'",
+        "razorpay_order_id": "VARCHAR(80) NULL",
+        "razorpay_payment_id": "VARCHAR(80) NULL",
+    }
+    for column_name, definition in columns.items():
+        if column_name in existing_columns:
+            continue
+        connection.execute(text(
+            f'ALTER TABLE "orders" ADD COLUMN "{column_name}" {definition}'
+        ))
+
+
+def _add_custom_cake_columns(connection):
+    inspector = inspect(connection)
+    if "orders" not in set(inspector.get_table_names()):
+        raise RuntimeError(
+            "Cannot migrate missing table 'orders'; base schema migration failed."
+        )
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("orders")
+    }
+    columns = {
+        "custom_cake_details": "TEXT NULL",
+        "quote_confirmed": "BOOLEAN NOT NULL DEFAULT FALSE",
+    }
+    for column_name, definition in columns.items():
+        if column_name in existing_columns:
+            continue
+        connection.execute(text(
+            f'ALTER TABLE "orders" ADD COLUMN "{column_name}" {definition}'
+        ))
+
+
 _MIGRATIONS = (
     (1, "create_base_schema", _create_base_schema),
     (2, "add_auth_checkout_and_inventory_columns", _add_model_columns),
+    (3, "add_order_payment_columns", _add_order_payment_columns),
+    (4, "add_custom_cake_order_details", _add_custom_cake_columns),
 )
 
 

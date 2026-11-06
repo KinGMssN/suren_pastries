@@ -1,209 +1,117 @@
 (() => {
-  const form = document.getElementById("cake-request-form");
+  const form = document.getElementById('cake-request-form');
   if (!form) return;
 
-  const steps = [...form.querySelectorAll(".cake-step")];
-  const progressButtons = [...document.querySelectorAll("[data-step-link]")];
-  const status = document.getElementById("request-status");
-  const imageInput = document.getElementById("reference-image");
-  const imagePreview = document.getElementById("reference-preview");
-  const previewWrap = document.getElementById("upload-preview");
-  const uploadError = document.getElementById("upload-error");
-  const addressField = document.getElementById("address-field");
-  const addressInput = document.getElementById("delivery-address");
-  let currentStep = 1;
-  let previewUrl = "";
+  const addressSelect = document.getElementById('cake-address');
+  const addressNote = document.getElementById('cake-address-note');
+  const status = document.getElementById('cake-form-status');
+  const submitButton = document.getElementById('cake-submit');
+  const dateInput = document.getElementById('cake-date');
+  const today = new Date();
+  dateInput.min = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
 
-  function showStep(stepNumber) {
-    currentStep = stepNumber;
-    steps.forEach((step) => {
-      const active = Number(step.dataset.step) === stepNumber;
-      step.hidden = !active;
-      step.classList.toggle("is-active", active);
-    });
-    progressButtons.forEach((button) => {
-      const number = Number(button.dataset.stepLink);
-      button.classList.toggle("is-active", number === stepNumber);
-      button.classList.toggle("is-complete", number < stepNumber);
-      if (number === stepNumber) button.setAttribute("aria-current", "step");
-      else button.removeAttribute("aria-current");
-    });
-    if (status) status.hidden = true;
-    const activeStep = form.querySelector(`[data-step="${stepNumber}"]`);
-    activeStep?.querySelector(".step-heading h3")?.focus({ preventScroll: true });
-    activeStep?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function selectedValue(name) {
-    return form.querySelector(`input[name="${name}"]:checked`)?.value || "";
-  }
-
-  function inputValue(name) {
-    return form.elements.namedItem(name)?.value.trim() || "";
-  }
-
-  function updateConditionalFields() {
-    form.querySelectorAll("[data-show-for]").forEach((field) => {
-      const [name, value] = field.dataset.showFor.split(":");
-      const visible = selectedValue(name) === value;
-      field.hidden = !visible;
-      const input = field.querySelector("input, textarea");
-      if (input) input.required = visible && ["flavour", "size", "shape", "design"].includes(name);
-    });
-
-    const deliverySelected = selectedValue("fulfilment") === "Delivery";
-    addressField.hidden = !deliverySelected;
-    addressInput.required = deliverySelected;
-  }
-
-  function customChoice(name, customName) {
-    const value = selectedValue(name);
-    if (!value) return "";
-    if (value.startsWith("Custom")) {
-      const custom = inputValue(customName);
-      return custom ? `${value.replace("Custom ", "Custom ")}: ${custom}` : value;
+  async function loadAddresses() {
+    if (typeof getCustomer !== 'function' || !getCustomer()) {
+      addressSelect.innerHTML = '<option value="">Log in to load saved addresses</option>';
+      addressSelect.disabled = true;
+      addressNote.innerHTML = 'You’ll need an account and a saved address. <a href="/login">Log in</a> or <a href="/signup">create an account</a>.';
+      return;
     }
-    if (value === "Other / Custom") {
-      const custom = inputValue(customName);
-      return custom ? `${value}: ${custom}` : value;
+
+    try {
+      const response = await customerFetch('/api/customer/addresses');
+      const addresses = await response.json();
+      if (!response.ok) throw new Error(addresses.error || 'Could not load saved addresses.');
+      if (!addresses.length) {
+        addressSelect.innerHTML = '<option value="">No saved addresses</option>';
+        addressSelect.disabled = true;
+        addressNote.innerHTML = 'Add a delivery address in <a href="/account">your account</a> before requesting a cake.';
+        return;
+      }
+
+      addressSelect.innerHTML = '<option value="">Choose a delivery address</option>' +
+        addresses.map(address => {
+          const option = document.createElement('option');
+          option.value = address.id;
+          option.textContent = `${address.label} — ${address.address_line}${address.city ? `, ${address.city}` : ''}`;
+          return option.outerHTML;
+        }).join('');
+      addressSelect.disabled = false;
+      addressNote.textContent = 'Your request will be sent to this saved address.';
+    } catch (error) {
+      addressSelect.innerHTML = '<option value="">Could not load addresses</option>';
+      addressSelect.disabled = true;
+      status.textContent = error.message || 'Could not load saved addresses.';
     }
-    return value;
   }
 
-  function updateSummary() {
-    const colours = [...form.querySelectorAll('input[name="colours"]:checked')].map((input) => input.value);
-    const decorations = [...form.querySelectorAll('input[name="decorations"]:checked')].map((input) => input.value);
-    const customColours = inputValue("custom_colours");
-    const customDecorations = inputValue("custom_decorations");
-    const values = {
-      flavour: customChoice("flavour", "custom_flavour"),
-      size: customChoice("size", "custom_size"),
-      shape: customChoice("shape", "custom_shape"),
-      design: customChoice("design", "custom_design"),
-      frosting: customChoice("frosting", "custom_frosting"),
-      colours: [...colours, customColours].filter(Boolean).join(", "),
-      decorations: [...decorations, customDecorations].filter(Boolean).join(", "),
-      cake_message: inputValue("cake_message"),
-      occasion: inputValue("occasion"),
-      fulfilment: selectedValue("fulfilment"),
-      required_date: inputValue("required_date"),
-      preferred_time: inputValue("preferred_time"),
-      delivery_address: selectedValue("fulfilment") === "Delivery" ? inputValue("delivery_address") : "Not applicable",
+  function idempotencyKey(payload) {
+    const fingerprint = JSON.stringify(payload);
+    let saved;
+    try {
+      saved = JSON.parse(sessionStorage.getItem('surenCakeRequest') || 'null');
+    } catch (error) {
+      sessionStorage.removeItem('surenCakeRequest');
+    }
+    if (saved?.fingerprint === fingerprint) return saved.key;
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const key = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    sessionStorage.setItem('surenCakeRequest', JSON.stringify({ fingerprint, key }));
+    return key;
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    status.textContent = '';
+    if (typeof getCustomer !== 'function' || !getCustomer()) {
+      status.textContent = 'Please log in to send a cake request.';
+      return;
+    }
+    if (!form.reportValidity()) return;
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Sending request…';
+    const payload = {
+      action: 'custom_cake_request',
+      design: form.elements.design.value,
+      flavour: form.elements.flavour.value,
+      size: form.elements.size.value,
+      cake_message: form.elements.cake_message.value,
+      required_date: form.elements.required_date.value,
+      address_id: Number(form.elements.address_id.value),
+      payment_method: form.elements.payment_method.value,
     };
 
-    Object.entries(values).forEach(([key, value]) => {
-      document.querySelectorAll(`[data-summary="${key}"]`).forEach((target) => {
-        target.textContent = value || (key === "cake_message" ? "Not added" : "Not selected");
+    try {
+      const response = await customerFetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey(payload),
+        },
+        body: JSON.stringify(payload),
       });
-    });
-  }
-
-  function setUploadError(message) {
-    uploadError.textContent = message;
-    imageInput.setCustomValidity(message);
-    if (message) imageInput.setAttribute("aria-invalid", "true");
-    else imageInput.removeAttribute("aria-invalid");
-  }
-
-  function clearPreview(resetInput = true) {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = "";
-    if (resetInput) imageInput.value = "";
-    imagePreview.removeAttribute("src");
-    previewWrap.hidden = true;
-    setUploadError("");
-  }
-
-  function localDateString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  document.getElementById("required-date").min = localDateString();
-
-  progressButtons.forEach((button) => {
-    button.addEventListener("click", () => showStep(Number(button.dataset.stepLink)));
-  });
-  document.querySelectorAll("[data-show-step]").forEach((link) => {
-    link.addEventListener("click", () => showStep(Number(link.dataset.showStep)));
-  });
-  form.querySelectorAll("[data-next-step]").forEach((button) => {
-    button.addEventListener("click", () => showStep(Math.min(currentStep + 1, steps.length)));
-  });
-  form.querySelectorAll("[data-prev-step]").forEach((button) => {
-    button.addEventListener("click", () => showStep(Math.max(currentStep - 1, 1)));
-  });
-  document.querySelectorAll("[data-edit-step]").forEach((button) => {
-    button.addEventListener("click", () => {
-      showStep(Number(button.dataset.editStep));
-      document.getElementById("cake-builder").scrollIntoView({ behavior: "smooth" });
-    });
-  });
-
-  form.addEventListener("input", () => {
-    updateConditionalFields();
-    updateSummary();
-  });
-  form.addEventListener("change", () => {
-    updateConditionalFields();
-    updateSummary();
-  });
-
-  imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
-    clearPreview(false);
-    if (!file) return;
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-    if (!allowedExtensions.includes(extension) || (file.type && !allowedTypes.includes(file.type))) {
-      setUploadError("Choose a JPG, PNG, or WEBP image.");
-      imageInput.value = "";
-      return;
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        if (response.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(data.error || 'Could not send your cake request.');
+      }
+      sessionStorage.removeItem('surenCakeRequest');
+      window.location.href = `/track/${encodeURIComponent(data.order_number)}`;
+    } catch (error) {
+      status.textContent = error.message || 'Could not reach the bakery. Please try again.';
+      submitButton.disabled = false;
+      submitButton.innerHTML = 'Send cake request <span aria-hidden="true">→</span>';
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError("That image is larger than 5 MB. Please choose a smaller file.");
-      imageInput.value = "";
-      return;
-    }
-
-    setUploadError("");
-    previewUrl = URL.createObjectURL(file);
-    imagePreview.src = previewUrl;
-    previewWrap.hidden = false;
-  });
-  document.getElementById("remove-upload").addEventListener("click", clearPreview);
-  function focusFirstInvalid() {
-    const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
-    if (!invalid) return false;
-    const step = invalid.closest(".cake-step");
-    if (step) showStep(Number(step.dataset.step));
-    invalid.focus();
-    invalid.reportValidity();
-    return true;
-  }
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (focusFirstInvalid()) return;
-
-    updateSummary();
-    const requestData = new FormData(form);
-    document.dispatchEvent(new CustomEvent("cake-request:ready", {
-      detail: { formData: requestData },
-    }));
-
-    const phone = document.querySelector(".cake-side-note a")?.textContent.trim();
-    status.textContent = `Your details${requestData.get("reference_image")?.name ? " and reference image" : ""} are ready, but this website does not currently have an online cake-request service. Nothing has been sent and your order is not confirmed. Please call ${phone || "the bakery"} or use the WhatsApp enquiry option below to share your request.`;
-    status.hidden = false;
-    status.focus();
-    status.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
-  updateConditionalFields();
-  updateSummary();
+  loadAddresses();
 })();
