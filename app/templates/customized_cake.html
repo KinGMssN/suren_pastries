@@ -31,6 +31,7 @@
       <p>Describe the size, flavour, colours, theme, and decoration you have in mind. You can also attach one reference photo.</p>
     </div>
 
+    <div class="cake-active-order" id="cake-active-order" role="status" aria-live="polite" hidden></div>
     <form id="cake-request-form" class="cake-form">
       <div class="cake-options">
         <div class="cake-field cake-field-wide">
@@ -76,6 +77,16 @@
       </div>
       <p class="cake-form-status" id="cake-form-status" role="status" aria-live="polite"></p>
     </form>
+  </section>
+
+  <section class="cake-contact-section" aria-labelledby="cake-contact-title">
+    <p class="cake-eyebrow">Need a hand?</p>
+    <h2 id="cake-contact-title">Need help planning your cake?</h2>
+    <p>Our WhatsApp contact option will be available here soon. In the meantime, you can send your cake details using the request form above.</p>
+    <button class="cake-button cake-whatsapp-button" type="button" disabled aria-describedby="cake-whatsapp-note">
+      Contact us on WhatsApp
+    </button>
+    <small id="cake-whatsapp-note">WhatsApp contact is not set up yet.</small>
   </section>
 </main>
 {% endblock %}

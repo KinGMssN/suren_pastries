@@ -6,6 +6,7 @@
   const addressNote = document.getElementById('cake-address-note');
   const status = document.getElementById('cake-form-status');
   const submitButton = document.getElementById('cake-submit');
+  const activeOrderNotice = document.getElementById('cake-active-order');
   const dateInput = document.getElementById('cake-date');
   const referenceImageInput = document.getElementById('cake-reference-image');
   const referenceImagePreview = document.getElementById('cake-reference-preview');
@@ -66,6 +67,38 @@
       addressSelect.disabled = true;
       addressNote.innerHTML = 'You’ll need an account and a saved address. <a href="/login">Log in</a> or <a href="/signup">create an account</a>.';
       return;
+    }
+
+    async function loadActiveOrder() {
+      if (typeof getCustomer !== 'function' || !getCustomer()) return false;
+      try {
+        const response = await customerFetch('/api/customer/active-order');
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Could not check your current orders.');
+        }
+        if (!data.active_order) return false;
+
+        activeOrderNotice.hidden = false;
+        activeOrderNotice.replaceChildren();
+        const message = document.createElement('p');
+        message.textContent =
+          `You already have an active order (${data.active_order.order_number}). ` +
+          'You can send another cake request after it is delivered or rejected.';
+        const link = document.createElement('a');
+        link.className = 'cake-button';
+        link.href = '/track/' + encodeURIComponent(data.active_order.order_number);
+        link.textContent = 'Track current order';
+        activeOrderNotice.append(message, link);
+        form.hidden = true;
+        return true;
+      } catch (error) {
+        activeOrderNotice.hidden = false;
+        activeOrderNotice.textContent =
+          error.message || 'Could not check your current orders. Please try again.';
+        form.hidden = true;
+        return true;
+      }
     }
 
     try {
@@ -179,5 +212,7 @@
     }
   });
 
-  loadAddresses();
+  loadActiveOrder().then(hasActiveOrder => {
+    if (!hasActiveOrder) loadAddresses();
+  });
 })();

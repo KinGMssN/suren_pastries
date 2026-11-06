@@ -8,10 +8,14 @@ import secrets
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
+from io import BytesIO
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from flask import Blueprint, current_app, g, jsonify, request, session
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from flask import Blueprint, current_app, g, jsonify, request, send_file, session
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
@@ -291,6 +295,15 @@ def _create_custom_cake_request(payload, customer):
             return error("This request key has already been used.", 409)
         return jsonify({"ok": True, "order_number": existing_order.order_number})
 
+    active_order = _lock_customer_and_get_active_order(customer)
+    existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+    if existing_order:
+        if existing_order.customer_id != customer.id:
+            return error("This request key has already been used.", 409)
+        return jsonify({"ok": True, "order_number": existing_order.order_number})
+    if active_order:
+        return _active_order_conflict(active_order)
+
     details = {
         "description": description.strip(),
         "required_date": request_date.isoformat(),
@@ -354,6 +367,36 @@ def _confirm_custom_cake_quote(payload, customer):
 
 def _normalize_phone(phone):
     return re.sub(r"\D", "", phone or "")
+
+
+def _lock_customer_and_get_active_order(customer):
+    db.session.execute(
+        db.select(Customer.id)
+        .where(Customer.id == customer.id)
+        .with_for_update()
+    ).scalar_one()
+    return (
+        Order.query.filter(
+            Order.customer_id == customer.id,
+            Order.status.notin_(("delivered", "rejected")),
+        )
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .first()
+    )
+
+
+def _active_order_conflict(order):
+    return jsonify({
+        "ok": False,
+        "active_order": {
+            "order_number": order.order_number,
+            "status": order.status,
+        },
+        "error": (
+            f"You already have an active order ({order.order_number}). "
+            "You can place another order after it is delivered or rejected."
+        ),
+    }), 409
 
 
 def delivery_access_required(view):
@@ -722,6 +765,28 @@ def customer_orders():
     return jsonify(result)
 
 
+@api_bp.route("/customer/active-order")
+def customer_active_order():
+    customer = _get_current_customer()
+    if not customer:
+        return error("Please log in first.", 401)
+    order = (
+        Order.query.filter(
+            Order.customer_id == customer.id,
+            Order.status.notin_(("delivered", "rejected")),
+        )
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .first()
+    )
+    return jsonify({
+        "ok": True,
+        "active_order": (
+            {"order_number": order.order_number, "status": order.status}
+            if order else None
+        ),
+    })
+
+
 # ───────────────────────── public: menu ─────────────────────────
 
 @api_bp.route("/menu")
@@ -835,6 +900,23 @@ def checkout():
             "discount": existing_order.discount,
             "total": existing_order.total,
         })
+
+    active_order = _lock_customer_and_get_active_order(customer)
+    existing_order = Order.query.filter_by(idempotency_key=idempotency_key).first()
+    if existing_order:
+        if existing_order.customer_id != customer.id:
+            return error("This checkout request key has already been used.", 409)
+        return jsonify({
+            "ok": True,
+            "order_number": existing_order.order_number,
+            "subtotal": existing_order.subtotal,
+            "delivery_fee": existing_order.delivery_fee,
+            "tax": existing_order.tax,
+            "discount": existing_order.discount,
+            "total": existing_order.total,
+        })
+    if active_order:
+        return _active_order_conflict(active_order)
 
     address = CustomerAddress.query.filter_by(id=address_id, customer_id=customer.id).first()
     if not address:
@@ -1078,6 +1160,145 @@ def _dashboard_timestamp(value):
     return value.isoformat(timespec="seconds") + "Z" if value else None
 
 
+def _safe_excel_text(value):
+    value = str(value or "")
+    if value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
+
+
+def _style_excel_sheet(sheet, widths):
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="8C3B22")
+        cell.alignment = Alignment(vertical="center")
+    sheet.row_dimensions[1].height = 24
+    for column, width in widths.items():
+        sheet.column_dimensions[column].width = width
+
+
+def _dashboard_workbook(orders, menu_count, downloaded_at, last_download):
+    workbook = Workbook()
+    workbook.properties.creator = "Suren Pastries"
+    workbook.properties.title = "Suren Pastries Dashboard Export"
+
+    summary = workbook.active
+    summary.title = "Dashboard"
+    summary.merge_cells("A1:B1")
+    summary["A1"] = "Suren Pastries — Dashboard Export"
+    summary["A1"].font = Font(bold=True, size=16, color="FFFFFF")
+    summary["A1"].fill = PatternFill("solid", fgColor="8C3B22")
+    summary["A1"].alignment = Alignment(vertical="center")
+    summary.row_dimensions[1].height = 32
+    summary.append(["Timestamp", "Value"])
+    summary.append(["Last updated", max(
+        (order.updated_at or order.created_at for order in orders),
+        default=None,
+    )])
+    summary.append(["Last downloaded", last_download])
+    summary.append(["This download", downloaded_at])
+    summary.append([])
+    summary.append(["Dashboard metric", "Value"])
+    summary.append(["Total revenue (INR)", sum(order.total or 0 for order in orders)])
+    summary.append(["Total orders", len(orders)])
+    summary.append([
+        "Pending orders",
+        sum(order.status == "pending" for order in orders),
+    ])
+    summary.append(["Active menu items", menu_count])
+    for cell in summary[2]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="8C3B22")
+    for row in (7,):
+        for cell in summary[row]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="8C3B22")
+    for row in (3, 4, 5):
+        summary.cell(row, 2).number_format = "dd mmm yyyy hh:mm"
+    summary["B8"].number_format = '"₹"#,##0.00'
+    summary.column_dimensions["A"].width = 28
+    summary.column_dimensions["B"].width = 28
+    summary.freeze_panes = "A2"
+
+    order_sheet = workbook.create_sheet("Orders")
+    order_sheet.append([
+        "Order number",
+        "Customer",
+        "Item count",
+        "Total (INR)",
+        "Status",
+        "Created at",
+        "Last updated",
+        "Delivered at",
+    ])
+    item_sheet = workbook.create_sheet("Items")
+    item_sheet.append([
+        "Order number",
+        "Customer",
+        "Item",
+        "Quantity",
+        "Unit price (INR)",
+        "Line total (INR)",
+    ])
+    for order in orders:
+        order_sheet.append([
+            _safe_excel_text(order.order_number),
+            _safe_excel_text(order.customer_name),
+            order.item_count(),
+            order.total,
+            _safe_excel_text(order.status.title()),
+            order.created_at,
+            order.updated_at or order.created_at,
+            order.delivered_at,
+        ])
+        for item in order.items:
+            item_sheet.append([
+                _safe_excel_text(order.order_number),
+                _safe_excel_text(order.customer_name),
+                _safe_excel_text(item.name),
+                item.qty,
+                item.price,
+                item.qty * item.price,
+            ])
+
+    _style_excel_sheet(order_sheet, {
+        "A": 25, "B": 24, "C": 13, "D": 16,
+        "E": 18, "F": 22, "G": 22, "H": 22,
+    })
+    _style_excel_sheet(item_sheet, {
+        "A": 25, "B": 24, "C": 36, "D": 12, "E": 18, "F": 18,
+    })
+    for row in order_sheet.iter_rows(min_row=2):
+        row[3].number_format = '"₹"#,##0.00'
+        for cell in row[5:8]:
+            cell.number_format = "dd mmm yyyy hh:mm"
+    for row in item_sheet.iter_rows(min_row=2):
+        row[4].number_format = '"₹"#,##0.00'
+        row[5].number_format = '"₹"#,##0.00'
+
+    for sheet in (order_sheet, item_sheet):
+        if sheet.max_row > 1:
+            table = Table(
+                displayName=f"{sheet.title}Table",
+                ref=sheet.dimensions,
+            )
+            table.tableStyleInfo = TableStyleInfo(
+                name="TableStyleMedium2",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False,
+            )
+            sheet.add_table(table)
+
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
 @api_bp.route("/admin/dashboard/export", methods=["POST"])
 @login_required
 @super_admin_required
@@ -1092,54 +1313,30 @@ def admin_dashboard_export():
         (order.updated_at or order.created_at for order in orders),
         default=None,
     )
-    order_details = [
-        {
-            "order_number": order.order_number,
-            "customer_name": order.customer_name,
-            "item_count": order.item_count(),
-            "items": [
-                {"name": item.name, "quantity": item.qty, "price": item.price}
-                for item in order.items
-            ],
-            "total": order.total,
-            "status": order.status,
-            "created_at": _dashboard_timestamp(order.created_at),
-            "updated_at": _dashboard_timestamp(order.updated_at or order.created_at),
-            "delivered_at": _dashboard_timestamp(order.delivered_at),
-        }
-        for order in orders
-    ]
-    report = {
-        "report": "Suren Pastries dashboard export",
-        "timestamps": {
-            "last_updated_at": _dashboard_timestamp(latest_update),
-            "last_download_at": _dashboard_timestamp(
-                last_export.downloaded_at if last_export else None
-            ),
-            "this_download_at": _dashboard_timestamp(downloaded_at),
-        },
-        "dashboard": {
-            "total_revenue": sum(order.total or 0 for order in orders),
-            "total_orders": len(orders),
-            "pending_orders": sum(order.status == "pending" for order in orders),
-            "active_menu_items": MenuItem.query.count(),
-            "recent_orders": order_details[:6],
-        },
-        "orders": order_details,
-    }
+    workbook = _dashboard_workbook(
+        orders,
+        MenuItem.query.count(),
+        downloaded_at,
+        last_export.downloaded_at if last_export else None,
+    )
     db.session.add(DashboardExportLog(
         downloaded_at=downloaded_at,
         admin_username=current_user.username,
     ))
     db.session.commit()
 
-    response = jsonify(report)
-    response.headers["Content-Disposition"] = (
-        f'attachment; filename="suren-pastries-dashboard-'
-        f'{downloaded_at.strftime("%Y%m%d-%H%M%S")}.json"'
+    return send_file(
+        workbook,
+        mimetype=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        as_attachment=True,
+        download_name=(
+            f"suren-pastries-dashboard-{downloaded_at.strftime('%Y%m%d-%H%M%S')}.xlsx"
+        ),
+        max_age=0,
     )
-    response.headers["Cache-Control"] = "private, no-store"
-    return response
 
 
 @api_bp.route("/admin/dashboard/reset", methods=["POST"])

@@ -79,6 +79,36 @@ async function renderCheckoutArea() {
   }
 
   try {
+    const activeResponse = await customerFetch('/api/customer/active-order');
+    const activeData = await activeResponse.json();
+    if (!activeResponse.ok || !activeData.ok) {
+      throw new Error(activeData.error || 'Could not check your current orders.');
+    }
+    if (activeData.active_order) {
+      const notice = document.createElement('div');
+      notice.className = 'login-prompt';
+      const message = document.createElement('p');
+      message.textContent =
+        `You already have an active order (${activeData.active_order.order_number}). ` +
+        'You can place another order after it is delivered or rejected.';
+      const link = document.createElement('a');
+      link.className = 'acct-btn-primary';
+      link.style.cssText = 'display:block;text-align:center;text-decoration:none';
+      link.href = '/track/' + encodeURIComponent(activeData.active_order.order_number);
+      link.textContent = 'Track current order';
+      notice.append(message, link);
+      area.replaceChildren(notice);
+      return;
+    }
+  } catch (err) {
+    const notice = document.createElement('div');
+    notice.className = 'login-prompt';
+    notice.textContent = err.message || 'Could not check your current orders. Please try again.';
+    area.replaceChildren(notice);
+    return;
+  }
+
+  try {
     const res = await customerFetch('/api/customer/addresses');
     addresses = await res.json();
   } catch (err) {

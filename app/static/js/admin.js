@@ -148,17 +148,27 @@ function updateDashboardExportStatus(timestamps, thisDownload) {
 
 async function downloadDashboardData() {
   try {
-    const report = await api('/dashboard/export', { method: 'POST' });
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const response = await fetch('/api/admin/dashboard/export', { method: 'POST' });
+    if (response.status === 401) {
+      window.location.href = '/admin/login';
+      throw new Error('Session expired');
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Could not download dashboard data');
+    }
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `suren-pastries-dashboard-${report.timestamps.this_download_at.slice(0, 10)}.json`;
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const filename = disposition.match(/filename="([^"]+)"/);
+    link.download = filename ? filename[1] : 'suren-pastries-dashboard.xlsx';
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    updateDashboardExportStatus(report.timestamps, report.timestamps.this_download_at);
+    loadDashboard();
     toast('Dashboard data downloaded');
   } catch (err) {
     toast(err.message || 'Could not download dashboard data');

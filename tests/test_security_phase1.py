@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
+from io import BytesIO
 import hashlib
 import hmac
 import secrets
 
 import pytest
+from openpyxl import load_workbook
 
 from app.extensions import db
 from app.blueprints import api as api_module
@@ -188,25 +190,40 @@ def test_admin_can_export_dashboard_and_reset_only_orders(app, client):
     first_download = client.post("/api/admin/dashboard/export")
     assert first_download.status_code == 200
     assert "attachment;" in first_download.headers["Content-Disposition"]
-    first_report = first_download.get_json()
-    assert first_report["dashboard"] == {
-        "total_revenue": 145,
-        "total_orders": 1,
-        "pending_orders": 0,
-        "active_menu_items": 1,
-        "recent_orders": first_report["orders"],
-    }
-    assert first_report["timestamps"]["last_updated_at"]
-    assert first_report["timestamps"]["last_download_at"] is None
-    assert first_report["timestamps"]["this_download_at"]
-    assert first_report["orders"][0]["order_number"]
-    assert first_report["orders"][0]["items"] == [
-        {"name": "Test pastry", "quantity": 1, "price": 100}
-    ]
+    assert first_download.mimetype == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert first_download.headers["Cache-Control"] == "no-cache, max-age=0"
+    workbook = load_workbook(BytesIO(first_download.data), data_only=True)
+    assert workbook.sheetnames == ["Dashboard", "Orders", "Items"]
+    summary = workbook["Dashboard"]
+    assert summary["A1"].value == "Suren Pastries — Dashboard Export"
+    assert summary["B3"].value
+    assert summary["B4"].value is None
+    assert summary["B5"].value
+    assert summary["B8"].value == 145
+    assert summary["B9"].value == 1
+    assert summary["B10"].value == 0
+    assert summary["B11"].value == 1
+    order_sheet = workbook["Orders"]
+    assert order_sheet["A2"].value.startswith("SPTEST")
+    assert order_sheet["B2"].value == "Test Customer"
+    assert order_sheet["D2"].value == 145
+    assert order_sheet["F2"].value
+    assert order_sheet["G2"].value
+    item_sheet = workbook["Items"]
+    assert item_sheet["A2"].value == order_sheet["A2"].value
+    assert item_sheet["C2"].value == "Test pastry"
+    assert item_sheet["D2"].value == 1
+    assert item_sheet["F2"].value == 100
 
-    second_report = client.post("/api/admin/dashboard/export").get_json()
-    assert second_report["timestamps"]["last_download_at"] == (
-        first_report["timestamps"]["this_download_at"]
+    second_workbook = load_workbook(
+        BytesIO(client.post("/api/admin/dashboard/export").data),
+        data_only=True,
+    )
+    assert (
+        second_workbook["Dashboard"]["B4"].value
+        == summary["B5"].value
     )
 
     reset = client.post("/api/admin/dashboard/reset")
@@ -340,11 +357,51 @@ def test_checkout_rejects_client_prices_and_invalid_quantities(app, client):
     retry = submit([{"item_id": item_id, "qty": 1}])
     assert retry.status_code == 200
     assert retry.get_json()["order_number"] == response.get_json()["order_number"]
+    active = client.get("/api/customer/active-order")
+    assert active.get_json()["active_order"] == {
+        "order_number": response.get_json()["order_number"],
+        "status": "pending",
+    }
+    blocked = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 1}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "second-checkout-request-key-001"},
+    )
+    assert blocked.status_code == 409
+    assert blocked.get_json()["active_order"]["order_number"] == (
+        response.get_json()["order_number"]
+    )
+
     with app.app_context():
-        created = Order.query.one()
+        existing = Order.query.one()
+        existing.status = "delivered"
+        existing.delivered_at = datetime.utcnow()
+        db.session.commit()
+    assert client.get("/api/customer/active-order").get_json()["active_order"] is None
+    after_completion = client.post(
+        "/api/checkout",
+        json={
+            "items": [{"item_id": item_id, "qty": 1}],
+            "channel": "cod",
+            "phone": "1234567890",
+            "address_id": address_id,
+        },
+        headers={"Idempotency-Key": "after-delivered-order-key-001"},
+    )
+    assert after_completion.status_code == 200
+    with app.app_context():
+        created = Order.query.filter_by(
+            idempotency_key="test-checkout-request-key-001"
+        ).one()
         assert created.subtotal == 120
         assert created.items[0].name == "Server-priced pastry"
         assert created.items[0].price == 120
+        assert Order.query.count() == 2
 
 
 def test_checkout_rolls_back_order_when_commit_fails(app, client, monkeypatch):
@@ -588,6 +645,14 @@ def test_customer_password_auth_rejects_invalid_input_and_old_otp_routes(client)
         "/api/customer/verify-otp",
         json={"phone": "1234567890", "code": "123456"},
     ).status_code == 404
+
+
+def test_custom_cake_page_has_inactive_whatsapp_contact_button(client):
+    response = client.get("/customized-cake")
+    assert response.status_code == 200
+    assert b"Need help planning your cake?" in response.data
+    assert b"Contact us on WhatsApp" in response.data
+    assert b'type="button" disabled' in response.data
 
 
 def test_customer_session_only_accesses_its_own_records(app, client):
@@ -845,6 +910,19 @@ def test_custom_cake_request_quote_and_customer_confirmation(
         headers={"Idempotency-Key": f"cake-request-{payment_method}-key-001"},
     )
     assert duplicate.get_json()["order_number"] == order_number
+    another_request = client.post(
+        "/api/checkout",
+        json={
+            "action": "custom_cake_request",
+            "description": "A second custom cake request.",
+            "required_date": (datetime.utcnow() + timedelta(days=5)).date().isoformat(),
+            "address_id": address_id,
+            "payment_method": payment_method,
+        },
+        headers={"Idempotency-Key": f"second-cake-{payment_method}-key-001"},
+    )
+    assert another_request.status_code == 409
+    assert another_request.get_json()["active_order"]["order_number"] == order_number
 
     with app.app_context():
         order = Order.query.filter_by(order_number=order_number).one()
@@ -1179,6 +1257,10 @@ def test_checkout_atomically_decrements_finite_stock(app, client):
         assert item.stock_quantity == 0
         assert item.in_stock is False
         assert MenuItem.query.get(item_id).to_dict()["in_stock"] is False
+        order = Order.query.one()
+        order.status = "delivered"
+        order.delivered_at = datetime.utcnow()
+        db.session.commit()
 
     response = client.post(
         "/api/checkout",
