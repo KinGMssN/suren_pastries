@@ -141,6 +141,7 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), unique=True, nullable=False)
     name = db.Column(db.String(120), default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    password_hash = db.Column(db.String(255), nullable=True)
     otp_hash = db.Column(db.String(255), nullable=True)
     otp_expires_at = db.Column(db.DateTime, nullable=True)
     otp_attempts = db.Column(db.Integer, nullable=False, default=0)
@@ -149,6 +150,14 @@ class Customer(db.Model):
         "CustomerAddress", backref="customer", lazy=True, cascade="all, delete-orphan"
     )
     orders = db.relationship("Order", backref="customer", lazy=True)
+
+    def set_password(self, raw_password: str) -> None:
+        self.password_hash = generate_password_hash(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        return bool(self.password_hash) and check_password_hash(
+            self.password_hash, raw_password
+        )
 
     def to_dict(self, include_addresses=True):
         d = {"id": self.id, "phone": self.phone, "name": self.name}

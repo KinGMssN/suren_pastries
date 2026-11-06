@@ -18,13 +18,6 @@ function isLoggedIn() {
   return !!getCustomer();
 }
 
-function showTestOtp(code, inputId, noteId) {
-  if (!/^\d{6}$/.test(code || '')) return;
-  document.getElementById(inputId).value = code;
-  const note = document.getElementById(noteId);
-  if (note) note.style.display = 'block';
-}
-
 async function readCustomerResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) return response.json();
@@ -53,27 +46,23 @@ function updateAccountNav() {
 async function customerLogin(event) {
   if (event) event.preventDefault();
   const phone = document.getElementById('login-phone').value.trim();
+  const password = document.getElementById('login-password').value;
   const errBox = document.getElementById('login-error');
   if (errBox) errBox.style.display = 'none';
 
   try {
-    const res = await customerFetch('/api/customer/request-otp', {
+    const res = await customerFetch('/api/customer/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, mode: 'login' }),
+      body: JSON.stringify({ phone, password }),
     });
     const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) {
-      if (data.needs_name) {
-        window.location.href = '/signup?phone=' + encodeURIComponent(phone);
-        return;
-      }
       if (errBox) { errBox.textContent = data.error || 'Something went wrong.'; errBox.style.display = 'block'; }
       return;
     }
-    showTestOtp(data.debug_code, 'login-code', 'login-test-otp-note');
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('verify-form').style.display = 'block';
+    setCustomer(data.customer);
+    window.location.href = '/account';
   } catch (err) {
     if (errBox) { errBox.textContent = 'Could not reach the server. Please try again.'; errBox.style.display = 'block'; }
   }
@@ -83,59 +72,17 @@ async function customerSignup(event) {
   event.preventDefault();
   const phone = document.getElementById('signup-phone').value.trim();
   const name = document.getElementById('signup-name').value.trim();
+  const password = document.getElementById('signup-password').value;
   const errBox = document.getElementById('signup-error');
   if (errBox) errBox.style.display = 'none';
   try {
-    const res = await customerFetch('/api/customer/request-otp', {
+    const res = await customerFetch('/api/customer/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name, mode: 'signup' }),
+      body: JSON.stringify({ phone, name, password }),
     });
     const data = await readCustomerResponse(res);
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create your account.');
-    showTestOtp(data.debug_code, 'signup-code', 'signup-test-otp-note');
-    document.getElementById('signup-form').style.display = 'none';
-    document.getElementById('signup-verify-form').style.display = 'block';
-  } catch (err) {
-    if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
-  }
-}
-
-async function verifySignupOtp(event) {
-  event.preventDefault();
-  const errBox = document.getElementById('signup-error');
-  try {
-    const res = await customerFetch('/api/customer/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: document.getElementById('signup-phone').value.trim(),
-        code: document.getElementById('signup-code').value.trim(),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid verification code.');
-    setCustomer(data.customer);
-    window.location.href = '/account';
-  } catch (err) {
-    if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
-  }
-}
-
-async function verifyCustomerOtp(event) {
-  event.preventDefault();
-  const errBox = document.getElementById('login-error');
-  try {
-    const res = await customerFetch('/api/customer/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: document.getElementById('login-phone').value.trim(),
-        code: document.getElementById('login-code').value.trim(),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || 'Invalid verification code.');
     setCustomer(data.customer);
     window.location.href = '/account';
   } catch (err) {
@@ -306,8 +253,6 @@ document.addEventListener('click', (e) => {
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'login-form') customerLogin(e);
   if (e.target.id === 'signup-form') customerSignup(e);
-  if (e.target.id === 'verify-form') verifyCustomerOtp(e);
-  if (e.target.id === 'signup-verify-form') verifySignupOtp(e);
   if (e.target.id === 'add-address-form') addAddress(e);
 });
 

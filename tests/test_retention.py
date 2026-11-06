@@ -7,6 +7,7 @@ def test_customer_deletion_retains_only_name_and_phone_and_anonymizes_orders(app
         customer = Customer(
             phone="1234567890",
             name="Retention Test",
+            password_hash="customer-password-hash",
             otp_hash="one-time-secret-hash",
         )
         db.session.add(customer)

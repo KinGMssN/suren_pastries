@@ -19,24 +19,19 @@
   <div class="acct-card" style="max-width:420px;margin:60px auto">
     <div class="acct-icon">👋</div>
     <h1 class="acct-title">Welcome</h1>
-    <p class="acct-sub">Log in with your phone number to save addresses and track your orders.</p>
+    <p class="acct-sub">Log in with your mobile number and password to save addresses and track your orders.</p>
 
     <div id="login-error" class="acct-error" style="display:none"></div>
 
     <form id="login-form">
       <label class="acct-label" for="login-phone">Phone number</label>
       <input class="acct-input" type="tel" id="login-phone" placeholder="10-digit mobile number" required maxlength="10" pattern="[0-9]{10}"/>
+      <label class="acct-label" for="login-password">Password</label>
+      <input class="acct-input" type="password" id="login-password" autocomplete="current-password" maxlength="128" required/>
       <label class="consent-label"><input type="checkbox" id="login-consent" required/> I agree to the <a href="{{ url_for('main.privacy') }}">Privacy Policy</a> and <a href="{{ url_for('main.terms') }}">Terms</a>.</label>
-      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Continue</button>
+      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Log in</button>
     </form>
     <p class="acct-note">New here? <a href="{{ url_for('main.signup') }}">Create an account</a>.</p>
-    <form id="verify-form" style="display:none">
-      <label class="acct-label" for="login-code">Verification code</label>
-      <input class="acct-input" type="text" id="login-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required />
-      <p class="acct-note" id="login-test-otp-note" role="status" style="display:none">Testing mode: the generated code has been filled in above.</p>
-      <button class="acct-btn-primary" type="submit" style="width:100%;margin-top:16px">Verify and continue</button>
-    </form>
-    <p class="acct-note">We'll send a six-digit verification code to your phone.</p>
   </div>
 </div>
 {% endblock %}

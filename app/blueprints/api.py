@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 from flask import Blueprint, current_app, g, jsonify, request, session
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import inspect as sqlalchemy_inspect
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db,limiter
@@ -552,96 +553,64 @@ def customer_delete_account():
     return jsonify({"ok": True})
 
 
-@api_bp.route("/customer/request-otp", methods=["POST"])
+@api_bp.route("/customer/signup", methods=["POST"])
 @limiter.limit("3 per minute")
-def customer_request_otp():
+def customer_signup():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
-        return error("Invalid verification request.")
+        return error("Invalid signup request.")
 
     phone_value = payload.get("phone")
-    mode = payload.get("mode")
-    if not isinstance(phone_value, str) or not isinstance(mode, str) or mode not in {"login", "signup"}:
-        return error("Invalid verification request.")
+    name = payload.get("name")
+    password = payload.get("password")
+    if not isinstance(phone_value, str) or not isinstance(name, str) or not isinstance(password, str):
+        return error("Invalid signup request.")
     phone = _normalize_phone(phone_value)
     if len(phone) != 10:
         return error("Enter a valid 10-digit phone number.")
 
-    name = payload.get("name", "")
-    if mode == "signup":
-        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 120:
-            return error("Enter a name of 1 to 120 characters.")
-        name = name.strip()
-
-    customer = Customer.query.filter_by(phone=phone).first()
-    if mode == "login" and not customer:
-        return jsonify({"ok": False, "needs_name": True, "error": "No account found."}), 404
-    if mode == "signup" and customer and not customer.otp_hash:
+    name = name.strip()
+    if not name or len(name) > 120:
+        return error("Enter a name of 1 to 120 characters.")
+    if not 8 <= len(password) <= 128:
+        return error("Passwords must be between 8 and 128 characters.")
+    customer = Customer.query.filter_by(phone=phone).with_for_update().first()
+    if customer and customer.password_hash:
         return error("An account already exists for this phone number.", 409)
 
-    debug_otp = current_app.config.get("CUSTOMER_OTP_DEBUG", False)
-    sender = current_app.config.get("CUSTOMER_OTP_SENDER")
-    if not debug_otp and not callable(sender):
-        current_app.logger.error("Customer OTP delivery is not configured.")
-        return error("Phone verification is temporarily unavailable.", 503)
-
-    code = f"{secrets.randbelow(1_000_000):06d}"
     if customer is None:
         customer = Customer(phone=phone, name=name)
         db.session.add(customer)
-    elif mode == "signup":
+    elif not customer.name:
         customer.name = name
-    customer.otp_hash = generate_password_hash(code)
-    customer.otp_expires_at = datetime.utcnow() + timedelta(
-        seconds=current_app.config.get("CUSTOMER_OTP_TTL_SECONDS", 600)
-    )
-    customer.otp_attempts = 0
-
+    customer.set_password(password)
     try:
-        if not debug_otp:
-            sender(phone, code)
         db.session.commit()
-    except Exception as exc:
+    except IntegrityError:
         db.session.rollback()
-        current_app.logger.error("Customer OTP delivery failed (%s).", type(exc).__name__)
-        return error("Could not send a verification code. Please try again.", 502)
-
-    response = {"ok": True}
-    if debug_otp:
-        response["debug_code"] = code
-    return jsonify(response)
+        return error("An account already exists for this phone number.", 409)
+    session.pop("customer_id", None)
+    session.permanent = True
+    session["customer_id"] = customer.id
+    return jsonify({"ok": True, "customer": customer.to_dict(include_addresses=False)})
 
 
-@api_bp.route("/customer/verify-otp", methods=["POST"])
-@limiter.limit("10 per minute")
-def customer_verify_otp():
+@api_bp.route("/customer/login", methods=["POST"])
+@limiter.limit("5 per minute")
+def customer_login():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
-        return error("Invalid verification request.")
+        return error("Invalid login request.")
     phone_value = payload.get("phone")
-    code = payload.get("code")
-    if not isinstance(phone_value, str) or not isinstance(code, str):
-        return error("Invalid verification request.")
+    password = payload.get("password")
+    if not isinstance(phone_value, str) or not isinstance(password, str):
+        return error("Invalid login request.")
     phone = _normalize_phone(phone_value)
-    if len(phone) != 10 or not re.fullmatch(r"\d{6}", code):
-        return error("Enter a valid phone number and six-digit code.")
-
-    customer = Customer.query.filter_by(phone=phone).with_for_update().first()
-    if not customer or not customer.otp_hash or not customer.otp_expires_at:
-        return error("The verification code is invalid or expired.", 400)
-    if customer.otp_expires_at <= datetime.utcnow():
-        return error("The verification code has expired. Request a new one.", 400)
-    if customer.otp_attempts >= 5:
-        return error("Too many incorrect codes. Request a new one.", 429)
-    if not check_password_hash(customer.otp_hash, code):
-        customer.otp_attempts += 1
-        db.session.commit()
-        return error("The verification code is invalid or expired.", 400)
-
-    customer.otp_hash = None
-    customer.otp_expires_at = None
-    customer.otp_attempts = 0
-    db.session.commit()
+    if len(phone) != 10 or not 1 <= len(password) <= 128:
+        return error("Enter a valid 10-digit phone number and password.")
+    customer = Customer.query.filter_by(phone=phone).first()
+    if not customer or not customer.check_password(password):
+        return error("Invalid mobile number or password.", 401)
     session.pop("customer_id", None)
     session.permanent = True
     session["customer_id"] = customer.id

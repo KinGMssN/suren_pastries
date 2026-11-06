@@ -119,11 +119,27 @@ def _add_custom_cake_columns(connection):
         ))
 
 
+def _add_customer_password_column(connection):
+    inspector = inspect(connection)
+    if "customers" not in set(inspector.get_table_names()):
+        raise RuntimeError(
+            "Cannot migrate missing table 'customers'; base schema migration failed."
+        )
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("customers")
+    }
+    if "password_hash" not in existing_columns:
+        connection.execute(text(
+            'ALTER TABLE "customers" ADD COLUMN "password_hash" VARCHAR(255) NULL'
+        ))
+
+
 _MIGRATIONS = (
     (1, "create_base_schema", _create_base_schema),
     (2, "add_auth_checkout_and_inventory_columns", _add_model_columns),
     (3, "add_order_payment_columns", _add_order_payment_columns),
     (4, "add_custom_cake_order_details", _add_custom_cake_columns),
+    (5, "add_customer_password_column", _add_customer_password_column),
 )
 
 

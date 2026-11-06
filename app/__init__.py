@@ -100,7 +100,7 @@ def create_app(config_class=Config):
     def handle_rate_limit(_error):
         return {
             "ok": False,
-            "error": "Too many OTP requests. Please wait and try again later.",
+            "error": "Too many requests. Please wait and try again later.",
         }, 429
 
     @app.post("/api/csp-report")

@@ -20,12 +20,13 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
             "add_auth_checkout_and_inventory_columns",
             "add_order_payment_columns",
             "add_custom_cake_order_details",
+            "add_customer_password_column",
         ]
         assert upgrade() == []
         versions = db.session.execute(
             text("SELECT version FROM schema_migrations ORDER BY version")
         ).scalars().all()
-        assert versions == [1, 2, 3, 4]
+        assert versions == [1, 2, 3, 4, 5]
         assert "stock_quantity" in {
             column["name"] for column in inspect(db.engine).get_columns("menu_items")
         }
@@ -63,6 +64,7 @@ def test_column_migration_upgrades_legacy_tables(app):
             "add_auth_checkout_and_inventory_columns",
             "add_order_payment_columns",
             "add_custom_cake_order_details",
+            "add_customer_password_column",
         ]
         inspector = inspect(db.engine)
         expected = {
@@ -72,7 +74,7 @@ def test_column_migration_upgrades_legacy_tables(app):
                 "locked_until",
                 "session_version",
             },
-            "customers": {"otp_hash", "otp_expires_at", "otp_attempts"},
+            "customers": {"otp_hash", "otp_expires_at", "otp_attempts", "password_hash"},
             "delivery_people": {"password_hash"},
             "orders": {"idempotency_key"},
             "menu_items": {"stock_quantity"},
