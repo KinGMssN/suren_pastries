@@ -1,4 +1,6 @@
 const CUSTOMER_API_BASE = window.API_BASE || '';
+let orderHistoryPage = 1;
+let orderHistoryHasMore = false;
 
 function customerFetch(path, options = {}) {
   return fetch(CUSTOMER_API_BASE + path, { ...options, credentials: 'include' });
@@ -202,19 +204,30 @@ async function setDefaultAddress(id) {
   } catch (err) { alert('Could not update address.'); }
 }
 
-async function loadOrderHistory() {
+async function loadOrderHistory(loadNextPage = false) {
   const customer = getCustomer();
   const list = document.getElementById('order-history-list');
   if (!list || !customer) return;
-  list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
+  const loadMore = document.getElementById('orders-load-more');
+  if (loadNextPage && !orderHistoryHasMore) return;
+  if (loadNextPage) {
+    orderHistoryPage += 1;
+    loadMore.disabled = true;
+  } else {
+    orderHistoryPage = 1;
+    loadMore.hidden = true;
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
+  }
   try {
-    const res = await customerFetch('/api/customer/orders');
+    const res = await customerFetch(`/api/customer/orders?page=${orderHistoryPage}`);
+    if (!res.ok) throw new Error('Could not load past orders.');
     const orders = await res.json();
     if (!orders.length) {
-      list.innerHTML = '<p style="color:var(--muted);font-size:13px">No past orders yet.</p>';
+      if (!loadNextPage) list.innerHTML = '<p style="color:var(--muted);font-size:13px">No past orders yet.</p>';
+      loadMore.hidden = true;
       return;
     }
-    list.innerHTML = orders.map(o => `
+    const cards = orders.map(o => `
       <div class="order-card">
         <div class="order-card-top">
           <strong>${o.order_number}</strong>
@@ -232,8 +245,16 @@ async function loadOrderHistory() {
         <div class="order-card-bottom"><span>${o.created_at}</span><strong>₹${o.total}</strong></div>
       </div>
     `).join('');
+    if (loadNextPage) list.insertAdjacentHTML('beforeend', cards);
+    else list.innerHTML = cards;
+    orderHistoryHasMore = res.headers.get('X-Has-More') === 'true';
+    loadMore.hidden = !orderHistoryHasMore;
   } catch (err) {
-    list.innerHTML = '<p style="color:var(--muted);font-size:13px">Could not load past orders.</p>';
+    if (loadNextPage) orderHistoryPage = Math.max(1, orderHistoryPage - 1);
+    else list.innerHTML = '<p style="color:var(--muted);font-size:13px">Could not load past orders.</p>';
+    if (loadNextPage) alert('Could not load more past orders.');
+  } finally {
+    loadMore.disabled = false;
   }
 }
 
@@ -247,6 +268,7 @@ document.addEventListener('click', (e) => {
     case 'delete-account': deleteCustomerAccount(); break;
     case 'set-default-address': setDefaultAddress(id); break;
     case 'delete-address': deleteAddress(id); break;
+    case 'load-more-customer-orders': loadOrderHistory(true); break;
   }
 });
 

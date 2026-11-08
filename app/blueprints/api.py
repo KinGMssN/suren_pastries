@@ -12,13 +12,11 @@ from io import BytesIO
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.worksheet.table import Table, TableStyleInfo
 from flask import Blueprint, current_app, g, jsonify, request, send_file, session
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import inspect as sqlalchemy_inspect
+from sqlalchemy import case, func, inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, load_only, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db,limiter
@@ -752,17 +750,56 @@ def customer_orders():
     if not customer:
         return error("Please log in first.", 401)
 
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        return error("Page must be a positive whole number.")
+    page_size = 25
     orders = (
-        Order.query.filter_by(customer_id=customer.id)
-        .order_by(Order.created_at.desc())
+        Order.query.options(
+            load_only(
+                Order.id,
+                Order.order_number,
+                Order.customer_name,
+                Order.customer_phone,
+                Order.channel,
+                Order.status,
+                Order.payment_status,
+                Order.custom_cake_details,
+                Order.quote_confirmed,
+                Order.subtotal,
+                Order.delivery_fee,
+                Order.tax,
+                Order.discount,
+                Order.total,
+                Order.created_at,
+                Order.updated_at,
+                Order.delivery_address,
+                Order.delivery_city,
+                Order.delivery_pincode,
+                Order.delivery_person_id,
+                Order.delivered_at,
+                Order.cod_collected,
+            ),
+            selectinload(Order.items),
+            joinedload(Order.delivery_person),
+        )
+        .filter_by(customer_id=customer.id)
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size + 1)
         .all()
     )
+    has_more = len(orders) > page_size
+    orders = orders[:page_size]
     result = []
     for o in orders:
         d = o.to_dict()
         d["items"] = [{"name": it.name, "qty": it.qty, "price": it.price} for it in o.items]
         result.append(d)
-    return jsonify(result)
+    response = jsonify(result)
+    response.headers["X-Has-More"] = "true" if has_more else "false"
+    return response
 
 
 @api_bp.route("/customer/active-order")
@@ -793,15 +830,39 @@ def customer_active_order():
 def get_menu():
     """Grouped-by-category menu, in the same shape the original static
     JS `menu` object used, so the front-end rendering logic barely changes."""
-    categories = Category.query.order_by(Category.sort_order, Category.name).all()
-    data = {}
-    for cat in categories:
-        items = (
-            MenuItem.query.filter_by(category_id=cat.id, is_available=True)
-            .order_by(MenuItem.id)
-            .all()
+    categories = (
+        Category.query.options(
+            load_only(Category.id, Category.name, Category.sort_order),
+            selectinload(
+                Category.items.and_(MenuItem.is_available.is_(True))
+            )
+            .load_only(
+                MenuItem.id,
+                MenuItem.name,
+                MenuItem.description,
+                MenuItem.price,
+                MenuItem.emoji,
+                MenuItem.tag,
+                MenuItem.stock_quantity,
+                MenuItem.is_available,
+                MenuItem.in_stock,
+                MenuItem.is_special,
+                MenuItem.image_data,
+                MenuItem.category_id,
+            )
+            .joinedload(MenuItem.category)
+            .load_only(Category.id, Category.name)
         )
-        data[cat.name] = [i.to_dict() for i in items]
+        .order_by(Category.sort_order, Category.name)
+        .all()
+    )
+    data = {
+        category.name: [
+            item.to_dict()
+            for item in sorted(category.items, key=lambda menu_item: menu_item.id)
+        ]
+        for category in categories
+    }
     return jsonify(data)
 
 
@@ -1109,12 +1170,15 @@ def delivery_order_detail(order_id):
 @login_required
 @super_admin_required
 def admin_stats():
-    total_orders = Order.query.count()
-    pending = Order.query.filter_by(status="pending").count()
-    revenue = db.session.query(db.func.coalesce(db.func.sum(Order.total), 0)).scalar()
+    total_orders, pending, revenue = db.session.query(
+        func.count(Order.id),
+        func.coalesce(
+            func.sum(case((Order.status == "pending", 1), else_=0)),
+            0,
+        ),
+        func.coalesce(func.sum(Order.total), 0),
+    ).one()
     menu_count = MenuItem.query.count()
-
-    from sqlalchemy import func
 
     daily = (
         db.session.query(func.date(Order.created_at), func.count(Order.id))
@@ -1125,7 +1189,39 @@ def admin_stats():
     )
     daily = list(reversed(daily))
 
-    recent = Order.query.order_by(Order.created_at.desc()).limit(6).all()
+    recent = (
+        Order.query.options(
+            load_only(
+                Order.id,
+                Order.order_number,
+                Order.customer_name,
+                Order.customer_phone,
+                Order.channel,
+                Order.status,
+                Order.payment_status,
+                Order.custom_cake_details,
+                Order.quote_confirmed,
+                Order.subtotal,
+                Order.delivery_fee,
+                Order.tax,
+                Order.discount,
+                Order.total,
+                Order.created_at,
+                Order.updated_at,
+                Order.delivery_address,
+                Order.delivery_city,
+                Order.delivery_pincode,
+                Order.delivery_person_id,
+                Order.delivered_at,
+                Order.cod_collected,
+            ),
+            selectinload(Order.items),
+            joinedload(Order.delivery_person),
+        )
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .limit(6)
+        .all()
+    )
     latest_update = db.session.query(db.func.max(Order.updated_at)).scalar()
     last_export = DashboardExportLog.query.order_by(
         DashboardExportLog.downloaded_at.desc(),
@@ -1168,6 +1264,8 @@ def _safe_excel_text(value):
 
 
 def _style_excel_sheet(sheet, widths):
+    from openpyxl.styles import Alignment, Font, PatternFill
+
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     for cell in sheet[1]:
@@ -1180,6 +1278,10 @@ def _style_excel_sheet(sheet, widths):
 
 
 def _dashboard_workbook(orders, menu_count, downloaded_at, last_download):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.worksheet.table import Table, TableStyleInfo
+
     workbook = Workbook()
     workbook.properties.creator = "Suren Pastries"
     workbook.properties.title = "Suren Pastries Dashboard Export"
@@ -1303,7 +1405,22 @@ def _dashboard_workbook(orders, menu_count, downloaded_at, last_download):
 @login_required
 @super_admin_required
 def admin_dashboard_export():
-    orders = Order.query.order_by(Order.created_at.desc(), Order.id.desc()).all()
+    orders = (
+        Order.query.options(
+            load_only(
+                Order.order_number,
+                Order.customer_name,
+                Order.status,
+                Order.total,
+                Order.created_at,
+                Order.updated_at,
+                Order.delivered_at,
+            ),
+            selectinload(Order.items),
+        )
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .all()
+    )
     last_export = DashboardExportLog.query.order_by(
         DashboardExportLog.downloaded_at.desc(),
         DashboardExportLog.id.desc(),
@@ -1409,11 +1526,60 @@ def admin_list_orders():
     q = Order.query
     if status and status in ORDER_STATUSES:
         q = q.filter_by(status=status)
-    orders = q.order_by(Order.created_at.desc()).all()
     try:
-        reference_image_order_id = int(request.args.get("reference_image_order_id", ""))
+        reference_image_order_id = int(
+            request.args.get("reference_image_order_id", "")
+        )
     except ValueError:
         reference_image_order_id = None
+    is_reference_image_request = reference_image_order_id is not None
+    if is_reference_image_request:
+        q = q.filter_by(id=reference_image_order_id)
+
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        return error("Page must be a positive whole number.")
+    page_size = 50
+    if is_reference_image_request:
+        page = 1
+
+    orders = (
+        q.options(
+            load_only(
+                Order.id,
+                Order.order_number,
+                Order.customer_name,
+                Order.customer_phone,
+                Order.channel,
+                Order.status,
+                Order.payment_status,
+                Order.custom_cake_details,
+                Order.quote_confirmed,
+                Order.subtotal,
+                Order.delivery_fee,
+                Order.tax,
+                Order.discount,
+                Order.total,
+                Order.created_at,
+                Order.updated_at,
+                Order.delivery_address,
+                Order.delivery_city,
+                Order.delivery_pincode,
+                Order.delivery_person_id,
+                Order.delivered_at,
+                Order.cod_collected,
+            ),
+            selectinload(Order.items),
+            joinedload(Order.delivery_person),
+        )
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size + 1)
+        .all()
+    )
+    has_more = len(orders) > page_size and not is_reference_image_request
+    orders = orders[:page_size]
     result = []
     for o in orders:
         d = o.to_dict()
@@ -1426,7 +1592,9 @@ def admin_list_orders():
             {"name": it.name, "qty": it.qty, "price": it.price} for it in o.items
         ]
         result.append(d)
-    return jsonify(result)
+    response = jsonify(result)
+    response.headers["X-Has-More"] = "true" if has_more else "false"
+    return response
 
 
 @api_bp.route("/admin/orders/<int:order_id>/status", methods=["POST"])
@@ -1509,11 +1677,42 @@ def admin_update_order_status(order_id):
 @menu_access_required
 def admin_menu_collection():
     if request.method == "GET":
-        items = MenuItem.query.order_by(MenuItem.category_id, MenuItem.id).all()
-        return jsonify([
+        try:
+            page = max(1, int(request.args.get("page", "1")))
+        except ValueError:
+            return error("Page must be a positive whole number.")
+        page_size = 50
+        items = (
+            MenuItem.query.options(
+                load_only(
+                    MenuItem.id,
+                    MenuItem.name,
+                    MenuItem.description,
+                    MenuItem.price,
+                    MenuItem.emoji,
+                    MenuItem.tag,
+                    MenuItem.stock_quantity,
+                    MenuItem.is_available,
+                    MenuItem.in_stock,
+                    MenuItem.is_special,
+                    MenuItem.image_data,
+                    MenuItem.category_id,
+                ),
+                joinedload(MenuItem.category).load_only(Category.id, Category.name),
+            )
+            .order_by(MenuItem.category_id, MenuItem.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size + 1)
+            .all()
+        )
+        has_more = len(items) > page_size
+        items = items[:page_size]
+        response = jsonify([
             {**i.to_dict(), "category_id": i.category_id, "stock_quantity": i.stock_quantity}
             for i in items
         ])
+        response.headers["X-Has-More"] = "true" if has_more else "false"
+        return response
 
     payload = request.get_json(silent=True) or {}
     name = (payload.get("name") or "").strip()
@@ -1747,6 +1946,9 @@ def admin_content():
     for key, value in payload.items():
         SiteContent.set(key, value)
     db.session.commit()
+    from app import invalidate_site_content_cache
+
+    invalidate_site_content_cache()
     return jsonify({"ok": True})
 
 
@@ -1940,7 +2142,38 @@ def delivery_orders_list():
     q = q.filter(Order.status != "rejected")
     if not g.delivery_admin:
         q = q.filter(Order.delivery_person_id == g.delivery_person.id)
-    orders = q.order_by(Order.created_at.asc()).all()
+    orders = (
+        q.options(
+            load_only(
+                Order.id,
+                Order.order_number,
+                Order.customer_name,
+                Order.customer_phone,
+                Order.channel,
+                Order.status,
+                Order.payment_status,
+                Order.custom_cake_details,
+                Order.quote_confirmed,
+                Order.subtotal,
+                Order.delivery_fee,
+                Order.tax,
+                Order.discount,
+                Order.total,
+                Order.created_at,
+                Order.updated_at,
+                Order.delivery_address,
+                Order.delivery_city,
+                Order.delivery_pincode,
+                Order.delivery_person_id,
+                Order.delivered_at,
+                Order.cod_collected,
+            ),
+            selectinload(Order.items),
+            joinedload(Order.delivery_person),
+        )
+        .order_by(Order.created_at.asc(), Order.id.asc())
+        .all()
+    )
     return jsonify([_delivery_order_dict(order) for order in orders])
 
 

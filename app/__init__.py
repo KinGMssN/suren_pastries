@@ -1,26 +1,138 @@
 import base64
+import hashlib
 import json
 import logging
+import os
 import secrets
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
+from threading import RLock
+from time import monotonic, perf_counter
 from urllib.parse import urlsplit
 
-from flask import Flask, g, request, session
+from flask import Flask, g, request, send_from_directory, session
 from flask_cors import CORS
+from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.utils import safe_join
 
 from config import Config
 from app.extensions import csrf, db, login_manager, limiter
 from app.models import AdminUser
 
 
+STATIC_FOLDER = Path(__file__).resolve().parent.parent / "public" / "static"
+SITE_CONTENT_CACHE_TTL = 60
+_site_content_cache_lock = RLock()
+_site_content_cache = {"app": None, "expires_at": 0.0, "values": {}}
+
+
+@lru_cache(maxsize=256)
+def _fingerprint_static_file(path, modified_ns, size):
+    with open(path, "rb") as asset:
+        return hashlib.sha256(asset.read()).hexdigest()[:16]
+
+
+def _static_asset_fingerprint(filename):
+    path = safe_join(str(STATIC_FOLDER), filename)
+    if path is None or not Path(path).is_file():
+        raise FileNotFoundError(f"Static asset does not exist: {filename}")
+    stat = Path(path).stat()
+    return _fingerprint_static_file(path, stat.st_mtime_ns, stat.st_size)
+
+
+def invalidate_site_content_cache():
+    with _site_content_cache_lock:
+        _site_content_cache["app"] = None
+        _site_content_cache["expires_at"] = 0.0
+        _site_content_cache["values"] = {}
+
+
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     app.config.from_object(config_class)
+    app.config.setdefault(
+        "RATELIMIT_STORAGE_URI",
+        app.config.get("REDIS_URL") or os.environ.get("REDIS_URL") or "memory://",
+    )
+    app.config.setdefault("RATELIMIT_SWALLOW_ERRORS", False)
+    app.config.setdefault(
+        "RATELIMIT_IN_MEMORY_FALLBACK_ENABLED",
+        bool(app.config.get("REDIS_URL") or os.environ.get("REDIS_URL")),
+    )
+
+    def serve_static_file(filename):
+        response = send_from_directory(STATIC_FOLDER, filename)
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+        )
+        return response
+
+    app.add_url_rule(
+        "/static/<path:filename>",
+        endpoint="static",
+        view_func=serve_static_file,
+    )
+
+    @app.url_defaults
+    def fingerprint_static_urls(endpoint, values):
+        if endpoint == "static" and values.get("filename"):
+            values.setdefault("v", _static_asset_fingerprint(values["filename"]))
 
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
     csrf.init_app(app)
+
+    if app.config.get("PERF_LOG"):
+        slow_query_threshold_ms = app.config.get("PERF_SLOW_QUERY_MS", 100)
+        with app.app_context():
+            engine = db.engine
+
+        @event.listens_for(engine, "before_cursor_execute")
+        def start_query_timer(
+            connection, _cursor, _statement, _parameters, _context, _executemany
+        ):
+            connection.info.setdefault("perf_query_starts", []).append(perf_counter())
+
+        @event.listens_for(engine, "after_cursor_execute")
+        def log_slow_query(
+            connection, _cursor, statement, _parameters, _context, _executemany
+        ):
+            started_at = connection.info["perf_query_starts"].pop()
+            duration_ms = (perf_counter() - started_at) * 1000
+            if duration_ms >= slow_query_threshold_ms:
+                app.logger.warning(
+                    "slow_query duration_ms=%.1f statement=%s",
+                    duration_ms,
+                    statement,
+                )
+
+        @event.listens_for(engine, "handle_error")
+        def clear_failed_query_timer(exception_context):
+            connection = exception_context.connection
+            if connection is not None:
+                starts = connection.info.get("perf_query_starts")
+                if starts:
+                    starts.pop()
+
+        @app.before_request
+        def start_request_timer():
+            g.perf_request_started_at = perf_counter()
+
+        @app.after_request
+        def log_request_duration(response):
+            started_at = getattr(g, "perf_request_started_at", None)
+            if started_at is not None:
+                app.logger.info(
+                    "request_timing method=%s endpoint=%s status=%s duration_ms=%.1f",
+                    request.method,
+                    request.endpoint or "unknown",
+                    response.status_code,
+                    (perf_counter() - started_at) * 1000,
+                )
+            return response
 
     CORS(
         app,
@@ -78,6 +190,10 @@ def create_app(config_class=Config):
             return
         session["admin_last_activity"] = now
 
+    @app.before_request
+    def reset_site_content_request_cache():
+        g.site_content_values = None
+
     @app.after_request
     def audit_admin_action(response):
         from flask_login import current_user
@@ -126,7 +242,24 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_site_content():
         def content(key, default=""):
-            return SiteContent.get(key, default)
+            content_values = getattr(g, "site_content_values", None)
+            if content_values is None:
+                now = monotonic()
+                with _site_content_cache_lock:
+                    if (
+                        _site_content_cache["app"] is not app
+                        or now >= _site_content_cache["expires_at"]
+                    ):
+                        _site_content_cache["values"] = dict(
+                            db.session.query(SiteContent.key, SiteContent.value).all()
+                        )
+                        _site_content_cache["app"] = app
+                        _site_content_cache["expires_at"] = (
+                            now + SITE_CONTENT_CACHE_TTL
+                        )
+                    content_values = _site_content_cache["values"]
+                g.site_content_values = content_values
+            return content_values.get(key, default)
         public_canonical_endpoints = {
             "main.index",
             "main.home",
@@ -202,8 +335,6 @@ def create_app(config_class=Config):
             style_sources = "'self' 'unsafe-inline'"
             connect_sources += " https://api.razorpay.com https://checkout.razorpay.com"
             frame_sources = "https://api.razorpay.com https://checkout.razorpay.com"
-        if request.endpoint == "main.customized_cake":
-            image_sources += " https://images.unsplash.com"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src {script_sources}; "

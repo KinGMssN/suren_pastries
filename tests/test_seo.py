@@ -64,7 +64,10 @@ def test_customized_cake_page_has_customization_flow_without_whatsapp_redirect(a
     assert 'name="size"' not in html
     assert "Send cake request" in html
     assert "customized-cake.js" in html
+    assert "custom-cake-hero.webp" in html
+    assert "images.unsplash.com" not in html
     csp = response.headers["Content-Security-Policy"]
-    assert "img-src 'self' data: https://images.unsplash.com" in csp
+    assert "img-src 'self' data:" in csp
+    assert "images.unsplash.com" not in csp
     assert "https://wa.me/" not in html
     assert client.post("/customized-cake", data={}).status_code == 405

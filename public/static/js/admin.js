@@ -6,7 +6,7 @@ function setTab(name, el) {
   if (el) el.classList.add('active');
 
   if (name === 'dashboard') loadDashboard();
-  if (name === 'orders') loadOrders();
+  if (name === 'orders')   loadOrders();
   if (name === 'menu') loadMenuEditor();
   if (name === 'offers') loadOffers();
   if (name === 'team') loadTeam();
@@ -85,6 +85,8 @@ document.addEventListener('click', (e) => {
     case 'save-content': saveContent(); break;
     case 'order-decision': updateOrderStatus(id, el.dataset.status, el.dataset.customCake === 'true'); break;
     case 'view-cake-reference': viewCakeReference(id); break;
+    case 'load-more-orders': loadOrders(true); break;
+    case 'load-more-menu': loadMenuEditor(true); break;
     case 'assign-delivery-person': assignDeliveryPerson(id); break;
     case 'download-dashboard': downloadDashboardData(); break;
     case 'reset-dashboard': resetDashboardOrders(); break;
@@ -203,21 +205,45 @@ async function resetDashboardOrders() {
 }
 
 // ───────────────────────── orders ─────────────────────────
-async function loadOrders() {
+let orderPage = 1;
+let orderHasMore = false;
+
+async function loadOrders(loadNextPage = false) {
   const status = document.getElementById('order-status-filter').value;
   const body = document.getElementById('orders-body');
-  body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>`;
+  const loadMore = document.getElementById('orders-load-more');
+  if (loadNextPage && !orderHasMore) return;
+  if (loadNextPage) {
+    orderPage += 1;
+    loadMore.disabled = true;
+  } else {
+    orderPage = 1;
+    loadMore.hidden = true;
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>`;
+  }
   try {
-    const [orders, deliveryPeople] = await Promise.all([
-      api('/orders' + (status ? `?status=${status}` : '')),
+    const params = new URLSearchParams({ page: String(orderPage) });
+    if (status) params.set('status', status);
+    const [orderResponse, deliveryPeople] = await Promise.all([
+      fetch(`/api/admin/orders?${params}`),
       api('/delivery-people'),
     ]);
+    if (orderResponse.status === 401) {
+      window.location.href = '/admin/login';
+      throw new Error('Session expired');
+    }
+    const orders = await orderResponse.json().catch(() => ({}));
+    if (!orderResponse.ok) throw new Error(orders.error || 'Could not load orders');
+    orderHasMore = orderResponse.headers.get('X-Has-More') === 'true';
     const activeDeliveryPeople = deliveryPeople.filter(person => person.active);
     if (!orders.length) {
-      body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No orders found</td></tr>`;
+      if (!loadNextPage) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No orders found</td></tr>`;
+      }
+      loadMore.hidden = true;
       return;
     }
-    body.innerHTML = orders.map(o => `
+    const rows = orders.map(o => `
       <tr>
         <td>${o.order_number}</td>
         <td>${o.customer_name}</td>
@@ -261,9 +287,17 @@ async function loadOrders() {
         </td>
       </tr>
     `).join('');
+    if (loadNextPage) body.insertAdjacentHTML('beforeend', rows);
+    else body.innerHTML = rows;
+    loadMore.hidden = !orderHasMore;
   } catch (err) {
+    if (loadNextPage) orderPage = Math.max(1, orderPage - 1);
     toast(err.message || 'Could not load orders');
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Could not load orders</td></tr>`;
+    if (!loadNextPage) {
+      body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Could not load orders</td></tr>`;
+    }
+  } finally {
+    loadMore.disabled = false;
   }
 }
 
@@ -301,6 +335,9 @@ async function viewCakeReference(orderId) {
     image.className = 'cake-reference-admin-image';
     image.src = imageData;
     image.alt = 'Customer cake reference photo';
+    image.width = 800;
+    image.height = 600;
+    image.loading = 'lazy';
     preview.replaceChildren(image);
   } catch (err) {
     toast(err.message || 'Could not load the reference photo.');
@@ -346,6 +383,8 @@ async function updateOrderStatus(id, status, customCake = false) {
 let editingItemId = null;
 let knownCategories = new Set();
 let pendingImageData = null;
+let menuEditorPage = 1;
+let menuEditorHasMore = false;
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -365,23 +404,45 @@ document.getElementById('mi-image-file').addEventListener('change', async (e) =>
   preview.style.display = 'block';
 });
 
-async function loadMenuEditor() {
+async function loadMenuEditor(loadNextPage = false) {
   const grid = document.getElementById('menu-editor-grid');
-  grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
+  const loadMore = document.getElementById('menu-load-more');
+  if (loadNextPage && !menuEditorHasMore) return;
+  if (loadNextPage) {
+    menuEditorPage += 1;
+    loadMore.disabled = true;
+  } else {
+    menuEditorPage = 1;
+    knownCategories = new Set();
+    loadMore.hidden = true;
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
+  }
   try {
-    const items = await api('/menu');
-    knownCategories = new Set(items.map(i => i.category).filter(Boolean));
+    const response = await fetch(`/api/admin/menu?page=${menuEditorPage}`);
+    if (response.status === 401) {
+      window.location.href = '/admin/login';
+      throw new Error('Session expired');
+    }
+    const items = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(items.error || 'Could not load the menu');
+    menuEditorHasMore = response.headers.get('X-Has-More') === 'true';
+    items.forEach(item => {
+      if (item.category) knownCategories.add(item.category);
+    });
     document.getElementById('category-list').innerHTML =
       [...knownCategories].map(c => `<option value="${c}">`).join('');
 
     if (!items.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);border:1px dashed var(--border);border-radius:12px">No menu items added yet. Click "+ Add item" to get started.</div>`;
+      if (!loadNextPage) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);border:1px dashed var(--border);border-radius:12px">No menu items added yet. Click "+ Add item" to get started.</div>`;
+      }
+      loadMore.hidden = true;
       return;
     }
-    grid.innerHTML = items.map(i => `
+    const cards = items.map(i => `
       <div class="me-card">
         <div class="me-card-top">
-          ${i.image ? `<img src="${i.image}" alt="${i.name}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${i.emoji}</div>`}
+          ${i.image ? `<img src="${i.image}" width="44" height="44" loading="lazy" alt="${i.name}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${i.emoji}</div>`}
           <div class="me-info">
             <div class="me-name">
               ${i.name}
@@ -403,8 +464,15 @@ async function loadMenuEditor() {
         </div>
       </div>
     `).join('');
+    if (loadNextPage) grid.insertAdjacentHTML('beforeend', cards);
+    else grid.innerHTML = cards;
+    loadMore.hidden = !menuEditorHasMore;
   } catch (err) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Could not load the menu</div>`;
+    if (loadNextPage) menuEditorPage = Math.max(1, menuEditorPage - 1);
+    else grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Could not load the menu</div>`;
+    toast(err.message || 'Could not load the menu');
+  } finally {
+    loadMore.disabled = false;
   }
 }
 
@@ -587,7 +655,7 @@ async function loadTeam() {
     grid.innerHTML = team.map(m => `
       <div class="me-card">
         <div class="me-card-top">
-          ${m.photo ? `<img src="${m.photo}" alt="${m.name}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${m.avatar}</div>`}
+          ${m.photo ? `<img src="${m.photo}" width="44" height="44" loading="lazy" alt="${m.name}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0"/>` : `<div class="me-emoji">${m.avatar}</div>`}
           <div class="me-info">
             <div class="me-name">${m.name}</div>
             <div class="me-cat">${m.role || ''}</div>

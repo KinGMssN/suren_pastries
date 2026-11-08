@@ -50,8 +50,8 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
-<script src="{{ url_for('static', filename='js/track.js') }}"></script>
-<script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
+<script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script defer src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/track.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
 {% endblock %}

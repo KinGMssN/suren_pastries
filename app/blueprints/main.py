@@ -1,8 +1,9 @@
 from xml.sax.saxutils import escape
 
 from flask import Blueprint, Response, current_app, render_template
+from sqlalchemy.orm import load_only
 
-from app.models import Category, MenuItem
+from app.models import MenuItem
 
 main_bp = Blueprint("main", __name__)
 
@@ -28,6 +29,17 @@ def index():
 def home():
     specials = (
         MenuItem.query.filter(MenuItem.is_special.is_(True), MenuItem.is_available.is_(True))
+        .options(
+            load_only(
+                MenuItem.id,
+                MenuItem.name,
+                MenuItem.description,
+                MenuItem.price,
+                MenuItem.emoji,
+                MenuItem.tag,
+                MenuItem.image_data,
+            )
+        )
         .order_by(MenuItem.id)
         .limit(8)
         .all()
@@ -37,8 +49,7 @@ def home():
 
 @main_bp.route("/menu")
 def menu():
-    categories = Category.query.order_by(Category.sort_order, Category.name).all()
-    return render_template("menu.html", categories=categories)
+    return render_template("menu.html")
 
 
 @main_bp.route("/customized-cake")

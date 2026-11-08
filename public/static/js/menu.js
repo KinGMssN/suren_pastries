@@ -73,7 +73,7 @@ function itemHTML(i) {
     ? i.image
     : '';
   const media = image
-    ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${escapeHTML(image)}" alt="${escapeHTML(i.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`
+    ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${escapeHTML(image)}" width="300" height="300" loading="lazy" alt="${escapeHTML(i.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`
     : `<div class="item-emoji">${escapeHTML(i.emoji)}</div>`;
   const outOfStock = i.in_stock === false;
   return `<div class="item" style="${outOfStock ? 'opacity:.55' : ''}">

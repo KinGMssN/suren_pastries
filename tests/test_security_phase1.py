@@ -1206,10 +1206,13 @@ def test_admin_coupon_rejects_malformed_expiry_dates(app, client):
 def test_site_content_database_errors_are_not_silently_replaced_with_defaults(
     app, client, monkeypatch
 ):
-    def fail_content_lookup(_key, _default=""):
+    from app import invalidate_site_content_cache
+
+    def fail_content_query(*_args, **_kwargs):
         raise RuntimeError("site content storage unavailable")
 
-    monkeypatch.setattr(SiteContent, "get", staticmethod(fail_content_lookup))
+    invalidate_site_content_cache()
+    monkeypatch.setattr(db.session, "query", fail_content_query)
     with pytest.raises(RuntimeError, match="site content storage unavailable"):
         client.get("/about")
 

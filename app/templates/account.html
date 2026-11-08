@@ -55,12 +55,13 @@
     <div class="acct-card">
       <h2 class="acct-section-title">Past orders</h2>
       <div id="order-history-list"></div>
+      <button class="addr-link-btn" id="orders-load-more" data-action="load-more-customer-orders" hidden>Load more orders</button>
     </div>
   </div>
   <button class="addr-link-btn" data-action="delete-account" style="margin-top:24px;color:#a33">Delete my account</button>
 </div>
 {% endblock %}
 {% block page_js %}
-<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
-<script src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
 {% endblock %}

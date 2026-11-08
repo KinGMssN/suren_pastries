@@ -157,6 +157,42 @@ def _add_dashboard_export_tracking(connection):
     DashboardExportLog.__table__.create(connection, checkfirst=True)
 
 
+def _add_performance_indexes(connection):
+    indexes = (
+        ("ix_menu_items_category_id", "menu_items", "category_id"),
+        ("ix_menu_items_available_special", "menu_items", "is_available, is_special"),
+        ("ix_categories_sort_order", "categories", "sort_order"),
+        ("ix_orders_customer_id", "orders", "customer_id"),
+        ("ix_orders_delivery_person_id", "orders", "delivery_person_id"),
+        ("ix_orders_customer_phone", "orders", "customer_phone"),
+        ("ix_orders_status_created_at", "orders", "status, created_at"),
+        ("ix_orders_created_at", "orders", "created_at"),
+        ("ix_order_items_order_id", "order_items", "order_id"),
+        ("ix_order_items_menu_item_id", "order_items", "menu_item_id"),
+        ("ix_customer_addresses_customer_id", "customer_addresses", "customer_id"),
+        ("ix_audit_logs_admin_user_id", "audit_logs", "admin_user_id"),
+        ("ix_audit_logs_created_at", "audit_logs", "created_at"),
+        ("ix_deleted_records_deleted_by_user_id", "deleted_records", "deleted_by_user_id"),
+    )
+    existing_tables = set(inspect(connection).get_table_names())
+    for name, table_name, columns in indexes:
+        if table_name not in existing_tables:
+            raise RuntimeError(
+                f"Cannot index missing table {table_name!r}; base schema migration failed."
+            )
+        existing_columns = {
+            column["name"] for column in inspect(connection).get_columns(table_name)
+        }
+        if not set(columns.replace(" ", "").split(",")).issubset(existing_columns):
+            continue
+        if name not in {
+            index["name"] for index in inspect(connection).get_indexes(table_name)
+        }:
+            connection.execute(text(
+                f"CREATE INDEX {name} ON {table_name} ({columns})"
+            ))
+
+
 _MIGRATIONS = (
     (1, "create_base_schema", _create_base_schema),
     (2, "add_auth_checkout_and_inventory_columns", _add_model_columns),
@@ -164,6 +200,7 @@ _MIGRATIONS = (
     (4, "add_custom_cake_order_details", _add_custom_cake_columns),
     (5, "add_customer_password_column", _add_customer_password_column),
     (6, "add_dashboard_export_tracking", _add_dashboard_export_tracking),
+    (7, "add_performance_indexes", _add_performance_indexes),
 )
 
 

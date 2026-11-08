@@ -18,6 +18,15 @@
 
 <main class="cake-page">
   <header class="cake-hero">
+    <img
+      class="cake-hero-image"
+      src="{{ url_for('static', filename='images/custom-cake-hero.webp') }}"
+      width="1600"
+      height="800"
+      fetchpriority="high"
+      alt=""
+      aria-hidden="true"
+    >
     <p class="cake-eyebrow">Custom celebration cakes</p>
     <h1>Made <em>for your moment.</em></h1>
   </header>
@@ -38,7 +47,7 @@
           <label for="cake-reference-image">Reference photo <span>(optional)</span></label>
           <input id="cake-reference-image" name="reference_image" type="file" accept="image/jpeg,image/png,image/webp">
           <div class="cake-reference-preview" id="cake-reference-preview" hidden>
-            <img id="cake-reference-preview-image" alt="Preview of your cake reference photo">
+            <img id="cake-reference-preview-image" width="480" height="360" loading="lazy" alt="Preview of your cake reference photo">
             <div class="cake-reference-controls">
               <label><input id="cake-reference-selected" type="checkbox" checked> Include this photo</label>
               <button class="cake-remove-photo" id="cake-remove-photo" type="button">Remove photo</button>
@@ -83,6 +92,6 @@
 </main>
 {% endblock %}
 {% block page_js %}
-<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
-<script src="{{ url_for('static', filename='js/customized-cake.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/customized-cake.js') }}"></script>
 {% endblock %}

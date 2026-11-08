@@ -24,7 +24,7 @@ async function loadTeam() {
         : '';
       return `
         <div class="team-card">
-          <div class="team-avatar" ${photo ? 'style="padding:0;overflow:hidden;background:none"' : ''}>${photo ? `<img src="${escapeHTML(photo)}" alt="${escapeHTML(m.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>` : escapeHTML(m.avatar || '👤')}</div>
+          <div class="team-avatar" ${photo ? 'style="padding:0;overflow:hidden;background:none"' : ''}>${photo ? `<img src="${escapeHTML(photo)}" width="96" height="96" loading="lazy" alt="${escapeHTML(m.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>` : escapeHTML(m.avatar || '👤')}</div>
           <div class="team-name">${escapeHTML(m.name)}</div>
           <div class="team-role">${escapeHTML(m.role)}</div>
         </div>

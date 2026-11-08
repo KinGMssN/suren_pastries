@@ -242,6 +242,9 @@ referenceImageButton.addEventListener('click', async () => {
     const image = document.createElement('img');
     image.src = imageData;
     image.alt = 'Your cake reference photo';
+    image.width = 800;
+    image.height = 600;
+    image.loading = 'lazy';
     referenceImagePreview.replaceChildren(image);
     referenceImagePreview.hidden = false;
     referenceImageButton.textContent = 'Hide reference photo';

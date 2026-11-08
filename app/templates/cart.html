@@ -62,6 +62,6 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script src="{{ url_for('static', filename='js/customer.js') }}"></script>
-<script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/customer.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/cart.js') }}"></script>
 {% endblock %}

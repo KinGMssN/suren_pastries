@@ -22,12 +22,13 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
             "add_custom_cake_order_details",
             "add_customer_password_column",
             "add_dashboard_export_tracking",
+            "add_performance_indexes",
         ]
         assert upgrade() == []
         versions = db.session.execute(
             text("SELECT version FROM schema_migrations ORDER BY version")
         ).scalars().all()
-        assert versions == [1, 2, 3, 4, 5, 6]
+        assert versions == [1, 2, 3, 4, 5, 6, 7]
         assert "stock_quantity" in {
             column["name"] for column in inspect(db.engine).get_columns("menu_items")
         }
@@ -45,6 +46,21 @@ def test_versioned_migrations_create_schema_and_are_idempotent(app):
             column["name"] for column in inspect(db.engine).get_columns("orders")
         }
         assert "dashboard_export_logs" in inspect(db.engine).get_table_names()
+        expected_indexes = {
+            "menu_items": {"ix_menu_items_category_id", "ix_menu_items_available_special"},
+            "orders": {
+                "ix_orders_customer_id",
+                "ix_orders_status_created_at",
+                "ix_orders_created_at",
+                "ix_orders_customer_phone",
+            },
+            "audit_logs": {"ix_audit_logs_created_at"},
+        }
+        for table_name, expected_names in expected_indexes.items():
+            actual_names = {
+                index["name"] for index in inspect(db.engine).get_indexes(table_name)
+            }
+            assert expected_names <= actual_names
 
 
 def test_column_migration_upgrades_legacy_tables(app):
@@ -69,6 +85,7 @@ def test_column_migration_upgrades_legacy_tables(app):
             "add_custom_cake_order_details",
             "add_customer_password_column",
             "add_dashboard_export_tracking",
+            "add_performance_indexes",
         ]
         inspector = inspect(db.engine)
         expected = {

@@ -87,6 +87,9 @@
             <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>
           </tbody>
         </table>
+        <div class="tc-head">
+          <button class="btn-sm btn-outline" id="orders-load-more" data-action="load-more-orders" hidden>Load more orders</button>
+        </div>
       </div>
     </div>{% endif %}
 
@@ -128,6 +131,7 @@
       <div class="menu-editor-grid" id="menu-editor-grid">
         <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading…</div>
       </div>
+      <button class="btn-sm btn-outline" id="menu-load-more" data-action="load-more-menu" hidden>Load more items</button>
     </div>
 
     <!-- OFFERS TAB -->
@@ -234,7 +238,7 @@
     <div class="form-group">
       <label class="form-label">Photo (PNG/JPG, optional — overrides the emoji)</label>
       <input class="form-input" type="file" id="mi-image-file" accept="image/png,image/jpeg"/>
-      <img id="mi-image-preview" alt="Menu item image preview" style="display:none;max-width:120px;border-radius:8px;margin-top:8px"/>
+      <img id="mi-image-preview" width="120" height="120" loading="lazy" alt="Menu item image preview" style="display:none;max-width:120px;border-radius:8px;margin-top:8px"/>
     </div>
     <div class="form-row">
       <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;display:flex">
@@ -287,7 +291,7 @@
     <div class="form-group">
       <label class="form-label">Photo (PNG/JPG, optional — overrides the avatar)</label>
       <input class="form-input" type="file" id="tm-photo-file" accept="image/png,image/jpeg"/>
-      <img id="tm-photo-preview" alt="Team member photo preview" style="display:none;max-width:100px;border-radius:50%;margin-top:8px"/>
+      <img id="tm-photo-preview" width="100" height="100" loading="lazy" alt="Team member photo preview" style="display:none;max-width:100px;border-radius:50%;margin-top:8px"/>
     </div>
     <div class="modal-footer">
       <button class="btn-sm btn-outline" data-action="hide-team-modal">Cancel</button>
@@ -313,5 +317,5 @@
 <div class="toast" id="toast-el"></div>
 {% endblock %}
 {% block page_js %}
-<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}
