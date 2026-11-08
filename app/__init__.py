@@ -37,10 +37,9 @@ def _fingerprint_static_file(path, modified_ns, size):
 def _static_asset_fingerprint(filename):
     path = safe_join(str(STATIC_FOLDER), filename)
     if path is None or not Path(path).is_file():
-        raise FileNotFoundError(f"Static asset does not exist: {filename}")
+        return (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "dev")[:16]
     stat = Path(path).stat()
     return _fingerprint_static_file(path, stat.st_mtime_ns, stat.st_size)
-
 
 def invalidate_site_content_cache():
     with _site_content_cache_lock:
