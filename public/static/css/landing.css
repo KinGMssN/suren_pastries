@@ -842,13 +842,23 @@
       }
       .nav-links {
         width: 100%;
+        flex-wrap: wrap;
         justify-content: center;
         gap: 12px;
       }
+      .nav-link, .nav-cta {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
       .nav-logo {
-        font-size: 20px;
-        text-align: center;
+        font-size: 17px;
+        text-align: left;
         line-height: 1.2;
+        flex-shrink: 0;
+      }
+      .nav-link, .nav-cta {
+        font-size: 12px;
+        padding: 6px 8px;
       }
       
       /* Hero */

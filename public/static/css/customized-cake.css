@@ -22,7 +22,7 @@
 .cake-whatsapp-icon{width:18px;height:18px;flex:none;fill:#25D366}
 .cake-section-heading{max-width:620px;margin-bottom:28px}
 .cake-section-heading h2{margin:8px 0;font:500 clamp(28px,4vw,40px)/1.2 Georgia,serif;letter-spacing:-.025em}
-.cake-form{padding:28px;background:#fff;border:1px solid #e8dfd8;border-radius:18px;box-shadow:0 12px 36px rgba(58,33,22,.06)}
+.cake-form{padding:28px;background:#fff;border:1px solid #e8dfd8;border-radius:18px;box-shadow:0 12px 36px rgba(58,33,22,.06);min-width:0;width:100%;box-sizing:border-box}
 .cake-field-note{color:#756a64;font-size:12px}
 .cake-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;margin-top:30px}
 .cake-field{display:grid;align-content:start;gap:8px}
@@ -65,14 +65,6 @@
 
 /* ── DESIGN YOUR OWN ── */
 .cake-diy-form .cake-field legend{font-size:14px;font-weight:650}
-.cake-diy-preview{display:flex;align-items:center;gap:16px;background:#FAF7F2;border:1px solid #e8dfd8;border-radius:12px;padding:16px;margin-bottom:24px}
-.cake-preview-cake{width:84px;height:84px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:36px;background:#F7A8B8;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.12)}
-.cake-shape-round{border-radius:50%}
-.cake-shape-square{border-radius:12px}
-.cake-shape-heart{border-radius:50% 50% 12px 12px}
-.cake-shape-rectangle{border-radius:12px;width:120px}
-.cake-preview-name{font:500 20px Georgia,serif}
-.cake-preview-line{color:#756a64;font-size:13px;line-height:1.55;margin-top:4px}
 .cake-diy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
 .cake-diy-grid fieldset{border:0;padding:0;margin:0}
 .cake-colours{display:flex;flex-wrap:wrap;gap:10px}
@@ -99,44 +91,55 @@
 .cake-menu-foot .price{font-weight:700;font-size:16px;color:#C8502A}
 .cake-menu-foot .add-btn{background:#1A1A1A;color:#fff;border:none;font-size:12px;font-weight:500;padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif}
 .cake-menu-foot .add-btn:hover{background:#C8502A}
-@media(max-width:760px){.cake-tabs{margin-left:-4px;margin-right:-4px}.cake-tab{min-width:0;flex:1;padding:12px 8px;font-size:13px}.cake-diy-grid{grid-template-columns:1fr}.cake-diy-preview{flex-direction:row}.cakes-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.cake-tabs{margin-left:-4px;margin-right:-4px}.cake-tab{min-width:0;flex:1;padding:12px 8px;font-size:13px}.cake-diy-grid{grid-template-columns:1fr}.cakes-grid{grid-template-columns:1fr}}
 
 /* ── ROUND 2: overflow fix + numbered tabs + stepped Design Your Cake ── */
 /* Root cause of the white space: hidden radio/checkbox inputs inside the
    chips were getting width:100% from `.cake-field input:not([type=file])`,
    so each invisible input was 360px wide and pushed the page to 628px
    on the Design tab only. Fix them to 1px and keep them inside the label. */
-.cake-page, .cake-section, .cake-form{overflow-x:clip}
+/* clip removed for measurement */
 .cake-page input[type=radio], .cake-page input[type=checkbox]{width:auto !important;min-height:0 !important;padding:0}
 .cake-chip, .cake-colour{position:relative}
 .cake-chip input[type=radio], .cake-chip input[type=checkbox], .cake-colour input[type=radio]{position:absolute !important;width:1px !important;height:1px !important;left:0;top:0;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;pointer-events:none}
 .cake-colour-custom input[type=color]{position:static !important;width:28px !important;height:28px !important;opacity:1;clip:auto;overflow:visible;pointer-events:auto}
 .cake-tabs{max-width:100%}
 .cake-tab{min-width:0;display:flex;align-items:center;justify-content:center;gap:8px}
-.cake-tab-num{font-size:11px;font-weight:700;letter-spacing:1px;color:#D4A853}
-.cake-tab.active .cake-tab-num{color:#fff}
+.cake-tab-icon{width:20px;height:20px;flex-shrink:0;fill:currentColor}
+.cake-tab-icon[fill="none"]{fill:none}
+.cake-tab:not(.active) .cake-tab-icon{color:#C8502A}
+.cake-tab.active .cake-tab-icon{color:#fff}
 
 /* Stepped form */
-.cake-step{border:0;border-top:1px solid #eee5de;padding:22px 0 4px;margin:0}
+.cake-step{border:0;border-top:1px solid #eee5de;padding:22px 0 4px;margin:0;min-width:0;width:100%}
 .cake-step:first-of-type{border-top:0;padding-top:4px}
-.cake-step legend{font-size:16px;font-weight:650;padding:0;margin-bottom:14px;float:left;width:100%}
-.cake-step-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#C8502A;color:#fff;font-size:13px;font-weight:700;margin-right:8px}
+.cake-step legend{font-size:16px;font-weight:650;padding:0;margin-bottom:14px;display:flex;align-items:center;float:none;width:100%}
+.cake-step-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex-shrink:0;border-radius:50%;background:#C8502A;color:#fff;font-size:13px;font-weight:700;margin-right:8px}
 .cake-step .cake-field{margin-top:14px}
 .cake-field-narrow{max-width:420px}
 .cake-chip-sub{font-weight:400;color:#756a64;font-size:12px}
 .cake-chip:has(input:checked) .cake-chip-sub{color:rgba(255,255,255,.8)}
 .cake-chips-shapes{margin-top:14px}
-.cake-preview-plate{display:block;width:56px;height:10px;border-radius:5px;background:rgba(255,255,255,.85)}
 .cake-diy-form .cake-field input:not([type=file]), .cake-diy-form .cake-field select, .cake-diy-form .cake-field textarea{width:100%}
 @media(max-width:760px){
   .cake-tabs{flex-direction:column;flex-wrap:nowrap;gap:8px}
   .cake-tab{flex:none;width:100%;justify-content:flex-start;padding:13px 16px;font-size:14px}
-  .cake-tab-num{display:inline;font-size:11px}
   .cake-step legend{font-size:15px}
-  .cake-diy-preview{flex-direction:row}
-}
+  }
 /* Cakes menu cards: same bottom-aligned foot as the Menu page */
 .cake-menu-item{align-items:stretch}
 .cake-menu-body{flex:1;min-width:0;display:flex;flex-direction:column}
 .cake-menu-desc{flex:1}
 .cake-menu-foot{margin-top:auto;padding-top:12px;width:100%}
+
+/* Stable top nav: single row, scrolls sideways on a phone instead of wrapping and shifting */
+nav.site-nav{flex-wrap:wrap;justify-content:center;gap:8px}
+nav.site-nav .logo{flex-shrink:0;white-space:nowrap}
+nav.site-nav .nav-links{flex-wrap:wrap;justify-content:center;width:100%}
+nav.site-nav .nl{white-space:nowrap;flex-shrink:0}
+
+@media(max-width:760px){
+  nav.site-nav{padding:12px 16px;gap:8px}
+  nav.site-nav .logo{font-size:17px;letter-spacing:1px}
+  nav.site-nav .nl{padding:6px 8px;font-size:12px}
+}

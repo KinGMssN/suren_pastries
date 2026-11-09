@@ -172,9 +172,12 @@
 
     submitButton.disabled = true;
     submitButton.textContent = 'Sending request…';
+    const occasionEl = document.getElementById('cake-occasion');
+    const occasionValue = occasionEl ? occasionEl.value : '';
+    const descriptionValue = occasionValue ? 'Occasion: ' + occasionValue + '\n' + form.elements.description.value : form.elements.description.value;
     const payload = {
       action: 'custom_cake_request',
-      description: form.elements.description.value,
+      description: descriptionValue,
       required_date: form.elements.required_date.value,
       address_id: Number(form.elements.address_id.value),
       payment_method: form.elements.payment_method.value,
@@ -248,18 +251,11 @@
   /* Design Your Cake: live preview + summary, then fill WhatsApp form */
   const diyForm = document.getElementById('cake-diy-form');
   if (diyForm) {
-    const previewCake = document.getElementById('cake-preview-cake');
-    const previewName = document.getElementById('cake-preview-name');
-    const previewLine = document.getElementById('cake-preview-line');
     const summary = document.getElementById('cake-diy-summary');
     const customColour = document.getElementById('cake-diy-custom-colour');
     const pick = name => {
       const el = diyForm.querySelector(`input[name="${name}"]:checked`);
       return el ? el.value : '';
-    };
-    const pickHex = () => {
-      const el = diyForm.querySelector('input[name="diy_colour"]:checked');
-      return el ? (el.dataset.hex || '#F7A8B8') : '#F7A8B8';
     };
     const occasion = () => {
       const o = pick('diy_occasion');
@@ -276,21 +272,12 @@
       const occ = occasion();
       const name = (document.getElementById('cake-diy-name').value || '').trim();
       const toppings = Array.from(diyForm.querySelectorAll('input[name="diy_topping"]:checked')).map(i => i.value);
-      if (previewCake) {
-        previewCake.style.background = customColour && document.activeElement === customColour ? customColour.value : pickHex();
-        previewCake.className = 'cake-preview-cake cake-shape-' + shape.toLowerCase();
-      }
-      if (previewName) previewName.textContent = name ? name : 'Your cake';
-      if (previewLine) previewLine.textContent = [occ, colour, shape, size].filter(Boolean).join(' · ') || 'Start with the occasion below.';
       if (summary) {
         summary.textContent = 'Your design: ' + [occ + ' cake', colour, shape, size, toppings.length ? 'Toppings: ' + toppings.join(', ') : 'No toppings yet', name ? 'Name on cake: "' + name + '"' : ''].filter(Boolean).join(' — ') + '.';
       }
     }
     diyForm.addEventListener('input', update);
     diyForm.addEventListener('change', update);
-    if (customColour) customColour.addEventListener('input', () => {
-      if (previewCake) previewCake.style.background = customColour.value;
-    });
     update();
     diyForm.addEventListener('submit', e => {
       e.preventDefault();
