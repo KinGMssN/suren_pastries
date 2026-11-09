@@ -11,7 +11,6 @@
   <div class="nav-links">
     <a class="nav-link" href="{{ url_for('main.home') }}">Home</a>
     <a class="nav-link" href="{{ url_for('main.menu') }}">Menu</a>
-    <a class="nav-link" href="{{ url_for('main.customized_cake') }}">Customized Cake</a>
     <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
     <a class="nav-cta" href="{{ url_for('main.menu') }}">Order Now</a>
     <a id="nav-account" href="{{ url_for('main.login') }}"></a>
@@ -31,6 +30,7 @@
     <div class="hero-actions">
       <a class="btn-hero btn-hero-primary" href="{{ url_for('main.menu') }}">Explore the Menu</a>
       <a class="btn-hero btn-hero-ghost" href="{{ url_for('main.about') }}">Our Story</a>
+      <a class="btn-hero btn-hero-cake" href="{{ url_for('main.customized_cake') }}">🎂 Celebrate Your Way</a>
     </div>
     <div class="stats">
       <div class="stat-item">
@@ -116,6 +116,20 @@
     <h2 class="about-title">Cooking with <em>heart</em><br>since 2008</h2>
     <p class="about-text">What started as a small family kitchen in Vizianagaram has grown into a beloved dining destination. We believe food is more than sustenance — it's a celebration of culture, family, and love.</p>
     <a class="btn-hero btn-hero-ghost" href="{{ url_for('main.about') }}" style="display:inline-block">Learn more →</a>
+  </div>
+</section>
+
+<!-- CELEBRATE YOUR WAY — below Our Story -->
+<section class="celebrate-strip">
+  <div class="celebrate-icon">🎂</div>
+  <div>
+    <div class="section-eyebrow">Custom celebration cakes</div>
+    <h2 class="celebrate-title">Celebrate Your Way</h2>
+    <p class="celebrate-text">Send a photo on WhatsApp, design your own cake, or pick a ready-made cake from the Cakes menu. Your cake, your way.</p>
+    <div class="celebrate-actions">
+      <a class="btn-hero btn-hero-primary" href="{{ url_for('main.customized_cake') }}">🎂 Celebrate Your Way</a>
+      <a class="btn-hero btn-hero-ghost celebrate-ghost" href="{{ url_for('main.customized_cake') }}#cakes">See ready-made cakes →</a>
+    </div>
   </div>
 </section>
 

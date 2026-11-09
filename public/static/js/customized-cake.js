@@ -214,3 +214,124 @@
     if (!hasActiveOrder) loadAddresses();
   });
 })();
+
+/* ── THREE WAYS TO ORDER: tabs + Design Your Own + Cakes Menu ──
+   Frontend only. No backend change. Design Your Own fills the existing
+   WhatsApp Order form, which sends it through the existing flow. */
+(() => {
+  const notes = {
+    whatsapp: 'Send a photo of the cake you want. We accept it on WhatsApp and deliver it.',
+    diy: 'Build it yourself — colour, shape, size, toppings, occasion and the name on top.',
+    cakes: 'Ready-made cakes, 1 kg each. Tap + Add and they go straight into your cart.',
+  };
+  const tabs = Array.from(document.querySelectorAll('[data-cake-tab]'));
+  const note = document.getElementById('cake-tab-note');
+  function showTab(name, pushHash) {
+    tabs.forEach(t => {
+      const on = t.dataset.cakeTab === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    ['whatsapp', 'diy', 'cakes'].forEach(n => {
+      const panel = document.getElementById('cake-panel-' + n);
+      if (!panel) return;
+      panel.hidden = n !== name;
+      panel.classList.toggle('active', n === name);
+    });
+    if (note) note.textContent = notes[name] || '';
+    if (pushHash) history.replaceState(null, '', '#' + name);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.cakeTab, true)));
+  const start = (location.hash || '').replace('#', '');
+  if (['whatsapp', 'diy', 'cakes'].includes(start)) showTab(start, false);
+
+  /* Design Your Own: live preview + summary, then fill WhatsApp form */
+  const diyForm = document.getElementById('cake-diy-form');
+  if (diyForm) {
+    const previewCake = document.getElementById('cake-preview-cake');
+    const previewName = document.getElementById('cake-preview-name');
+    const previewLine = document.getElementById('cake-preview-line');
+    const summary = document.getElementById('cake-diy-summary');
+    const customColour = document.getElementById('cake-diy-custom-colour');
+    const pick = name => {
+      const el = diyForm.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : '';
+    };
+    const pickHex = () => {
+      const el = diyForm.querySelector('input[name="diy_colour"]:checked');
+      return el ? (el.dataset.hex || '#F7A8B8') : '#F7A8B8';
+    };
+    function update() {
+      const colour = pick('diy_colour');
+      const shape = pick('diy_shape');
+      const size = pick('diy_size');
+      const occasion = pick('diy_occasion');
+      const name = (document.getElementById('cake-diy-name').value || '').trim();
+      const toppings = Array.from(diyForm.querySelectorAll('input[name="diy_topping"]:checked')).map(i => i.value);
+      if (previewCake) {
+        previewCake.style.background = customColour && document.activeElement === customColour ? customColour.value : pickHex();
+        previewCake.className = 'cake-preview-cake cake-shape-' + shape.toLowerCase();
+      }
+      if (previewName) previewName.textContent = name ? name : 'Your cake';
+      if (previewLine) previewLine.textContent = [colour, shape, size, occasion].filter(Boolean).join(' · ') || 'Pick a colour, shape and size to see it here.';
+      if (summary) {
+        summary.textContent = 'Your design: ' + [colour + ' cake', shape, size, toppings.length ? 'Toppings: ' + toppings.join(', ') : 'No toppings yet', occasion, name ? 'Name on cake: "' + name + '"' : ''].filter(Boolean).join(' — ') + '.';
+      }
+    }
+    diyForm.addEventListener('input', update);
+    diyForm.addEventListener('change', update);
+    if (customColour) customColour.addEventListener('input', () => {
+      if (previewCake) previewCake.style.background = customColour.value;
+    });
+    update();
+    diyForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const colour = customColour && document.activeElement === customColour ? 'Custom colour ' + customColour.value : pick('diy_colour');
+      const toppings = Array.from(diyForm.querySelectorAll('input[name="diy_topping"]:checked')).map(i => i.value);
+      const flavour = document.getElementById('cake-diy-flavour').value;
+      const name = (document.getElementById('cake-diy-name').value || '').trim();
+      const special = (document.getElementById('cake-diy-special').value || '').trim();
+      const lines = [
+        'Design Your Own cake',
+        'Colour: ' + colour,
+        'Shape: ' + pick('diy_shape'),
+        'Size: ' + pick('diy_size'),
+        'Toppings: ' + (toppings.length ? toppings.join(', ') : 'None'),
+        'Occasion: ' + pick('diy_occasion'),
+        flavour ? 'Flavour: ' + flavour : null,
+        name ? 'Name on cake: "' + name + '"' : null,
+        special ? 'Special: ' + special : null,
+      ].filter(Boolean);
+      const desc = document.getElementById('cake-description');
+      if (desc) desc.value = lines.join('\n');
+      showTab('whatsapp', true);
+      const status = document.getElementById('cake-form-status');
+      if (status) status.textContent = 'Your design is filled in above — pick a date, address and payment, then send it.';
+      document.getElementById('cake-request').scrollIntoView({ behavior: 'smooth' });
+      const dateInput = document.getElementById('cake-date');
+      if (dateInput) dateInput.focus({ preventScroll: true });
+    });
+  }
+
+  /* Cakes Menu: same localStorage cart as the Menu page, no backend */
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-action="add-cake"]');
+    if (!el) return;
+    const id = parseInt(el.dataset.id, 10);
+    const name = el.dataset.name;
+    const price = parseFloat(el.dataset.price);
+    const emoji = el.dataset.emoji || '🍰';
+    let cart = [];
+    try { cart = JSON.parse(localStorage.getItem('surenPastriesCart')) || []; } catch (err) { cart = []; }
+    const existing = cart.find(i => i.id === id);
+    if (existing) existing.qty++;
+    else cart.push({ id, name, price, qty: 1, emoji });
+    localStorage.setItem('surenPastriesCart', JSON.stringify(cart));
+    localStorage.setItem('cartCount', cart.reduce((s, i) => s + i.qty, 0));
+    const old = el.textContent;
+    el.textContent = '✓ Added';
+    el.style.background = '#4CAF50';
+    setTimeout(() => { el.textContent = old; el.style.background = ''; }, 2000);
+    if (typeof updateFC === 'function') updateFC();
+  });
+})();

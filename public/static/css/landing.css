@@ -366,6 +366,65 @@
       border-color: rgba(255, 255, 255, 0.4)
     }
 
+    .btn-hero-cake {
+      background: var(--gold);
+      color: var(--dark)
+    }
+
+    .btn-hero-cake:hover {
+      background: #e0b95e;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(212, 168, 83, 0.35)
+    }
+
+    /* ── CELEBRATE YOUR WAY strip, below Our Story ── */
+    .celebrate-strip {
+      background: var(--cream);
+      color: var(--dark);
+      padding: 64px 48px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+    .celebrate-icon {
+      width: 96px;
+      height: 96px;
+      background: #FFF8F0;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+    }
+    .celebrate-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      margin: 8px 0 12px;
+    }
+    .celebrate-text {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 560px;
+      margin-bottom: 24px;
+    }
+    .celebrate-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .celebrate-ghost {
+      color: var(--dark);
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+    .celebrate-ghost:hover {
+      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.4);
+    }
+
     /* Stats row */
     .stats {
       display: flex;
@@ -893,6 +952,29 @@
       .about-img {
         height: 240px;
         font-size: 60px;
+      }
+      .celebrate-strip {
+        grid-template-columns: 1fr;
+        padding: 48px 24px;
+        gap: 20px;
+        text-align: center;
+      }
+      .celebrate-icon {
+        margin: 0 auto;
+      }
+      .celebrate-title {
+        font-size: 30px;
+      }
+      .celebrate-text {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .celebrate-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .celebrate-actions .btn-hero {
+        text-align: center;
       }
       
       /* Footer */

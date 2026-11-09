@@ -11,7 +11,7 @@
   <div class="nav-links">
     <a class="nl" href="{{ url_for('main.home') }}">Home</a>
     <a class="nl" href="{{ url_for('main.menu') }}">Menu</a>
-    <a class="nl active" href="{{ url_for('main.customized_cake') }}" aria-current="page">Custom Cakes</a>
+    <a class="nl active" href="{{ url_for('main.customized_cake') }}" aria-current="page">🎂 Celebrate Your Way</a>
     <a class="nl" href="{{ url_for('main.about') }}">About</a>
   </div>
 </nav>
@@ -34,8 +34,19 @@
   <section class="cake-section" id="cake-request">
     <div class="cake-section-heading">
       <h2>Tell us about your cake</h2>
+      <p class="cake-section-sub">Three ways to get your cake. Pick one below.</p>
     </div>
 
+    <!-- Three options: 1 WhatsApp order (existing, unchanged) / 2 Design Your Own / 3 Cakes menu -->
+    <div class="cake-tabs" role="tablist" aria-label="Ways to order a cake">
+      <button class="cake-tab active" type="button" role="tab" aria-selected="true" data-cake-tab="whatsapp">📱 WhatsApp Order</button>
+      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="diy">🎨 Design Your Own</button>
+      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="cakes">🍰 Cakes Menu</button>
+    </div>
+    <p class="cake-tab-note" id="cake-tab-note">Send a photo of the cake you want. We accept it on WhatsApp and deliver it.</p>
+
+    <!-- 1. WhatsApp Order — existing form, unchanged -->
+    <div class="cake-panel active" id="cake-panel-whatsapp" role="tabpanel">
     <div class="cake-active-order" id="cake-active-order" role="status" aria-live="polite" hidden></div>
     <form id="cake-request-form" class="cake-form">
       <div class="cake-options">
@@ -78,6 +89,152 @@
       </div>
       <p class="cake-form-status" id="cake-form-status" role="status" aria-live="polite"></p>
     </form>
+    </div>
+
+    <!-- 2. Design Your Own — frontend only. On submit it fills the WhatsApp Order form above, which sends it through the existing flow. No backend change. -->
+    <div class="cake-panel" id="cake-panel-diy" role="tabpanel" hidden>
+    <form id="cake-diy-form" class="cake-form cake-diy-form">
+      <div class="cake-diy-preview" aria-live="polite">
+        <div class="cake-preview-cake cake-shape-round" id="cake-preview-cake"><span id="cake-preview-emoji">🎂</span></div>
+        <div class="cake-preview-text">
+          <div class="cake-preview-name" id="cake-preview-name">Your cake</div>
+          <div class="cake-preview-line" id="cake-preview-line">Pick a colour, shape and size to see it here.</div>
+        </div>
+      </div>
+
+      <div class="cake-diy-grid">
+        <fieldset class="cake-field cake-field-wide">
+          <legend>Cake colour</legend>
+          <div class="cake-colours">
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Pink" data-hex="#F7A8B8" checked><span style="background:#F7A8B8" title="Pink"></span>Pink</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Chocolate" data-hex="#6B4226"><span style="background:#6B4226" title="Chocolate"></span>Chocolate</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Vanilla Cream" data-hex="#F5E6C8"><span style="background:#F5E6C8" title="Vanilla Cream"></span>Vanilla</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Red Velvet" data-hex="#A4133C"><span style="background:#A4133C" title="Red Velvet"></span>Red Velvet</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Pistachio Green" data-hex="#A8C686"><span style="background:#A8C686" title="Pistachio Green"></span>Pistachio</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Sky Blue" data-hex="#7FB3D5"><span style="background:#7FB3D5" title="Sky Blue"></span>Blue</label>
+            <label class="cake-colour"><input type="radio" name="diy_colour" value="Lemon Yellow" data-hex="#F9D976"><span style="background:#F9D976" title="Lemon Yellow"></span>Lemon</label>
+            <label class="cake-colour cake-colour-custom"><input type="color" id="cake-diy-custom-colour" value="#C8502A" aria-label="Pick your own colour"><span>Your colour</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="cake-field">
+          <legend>Shape</legend>
+          <div class="cake-chips">
+            <label class="cake-chip"><input type="radio" name="diy_shape" value="Round" checked>Round</label>
+            <label class="cake-chip"><input type="radio" name="diy_shape" value="Square">Square</label>
+            <label class="cake-chip"><input type="radio" name="diy_shape" value="Heart">Heart</label>
+            <label class="cake-chip"><input type="radio" name="diy_shape" value="Rectangle">Rectangle</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="cake-field">
+          <legend>Size</legend>
+          <div class="cake-chips">
+            <label class="cake-chip"><input type="radio" name="diy_size" value="0.5 kg (serves 4-6)" checked>0.5 kg</label>
+            <label class="cake-chip"><input type="radio" name="diy_size" value="1 kg (serves 8-10)">1 kg</label>
+            <label class="cake-chip"><input type="radio" name="diy_size" value="1.5 kg (serves 12-15)">1.5 kg</label>
+            <label class="cake-chip"><input type="radio" name="diy_size" value="2 kg (serves 16-20)">2 kg</label>
+            <label class="cake-chip"><input type="radio" name="diy_size" value="3 kg (serves 24+)">3 kg</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="cake-field cake-field-wide">
+          <legend>Toppings</legend>
+          <div class="cake-chips cake-chips-check">
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Choco Chips">Choco Chips</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Fruits">Fresh Fruits</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Mixed Nuts">Mixed Nuts</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Sprinkles">Sprinkles</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Chocolate Ganache">Chocolate Ganache</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Flowers">Fresh Flowers</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Oreo Crumbs">Oreo Crumbs</label>
+            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Caramel Drizzle">Caramel Drizzle</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="cake-field cake-field-wide">
+          <legend>Which occasion?</legend>
+          <div class="cake-chips">
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Birthday" checked>🎂 Birthday</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Anniversary">💍 Anniversary</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Wedding">💒 Wedding</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Baby Shower">👶 Baby Shower</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Graduation">🎓 Graduation</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Farewell">👋 Farewell</label>
+            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Just Because">✨ Just Because</label>
+          </div>
+        </fieldset>
+
+        <div class="cake-field">
+          <label for="cake-diy-name">Name to write on the cake</label>
+          <input id="cake-diy-name" name="diy_name" type="text" maxlength="30" placeholder="e.g. Happy Birthday Ananya">
+        </div>
+        <div class="cake-field">
+          <label for="cake-diy-flavour">Flavour <span>(optional)</span></label>
+          <select id="cake-diy-flavour" name="diy_flavour">
+            <option value="">No preference</option>
+            <option>Chocolate</option>
+            <option>Vanilla</option>
+            <option>Butterscotch</option>
+            <option>Red Velvet</option>
+            <option>Strawberry</option>
+            <option>Pineapple</option>
+            <option>Mango</option>
+          </select>
+        </div>
+
+        <div class="cake-field cake-field-wide">
+          <label for="cake-diy-special">Anything special? <span>(optional)</span></label>
+          <textarea id="cake-diy-special" name="diy_special" rows="3" maxlength="500" placeholder="Allergies, a message, a design idea, eggless, less sugar…"></textarea>
+        </div>
+      </div>
+
+      <p class="cake-diy-summary" id="cake-diy-summary" role="status" aria-live="polite"></p>
+      <div class="cake-submit-row">
+        <button class="cake-button" type="submit" id="cake-diy-submit">Use this design <span aria-hidden="true">→</span></button>
+      </div>
+      <p class="cake-form-status">This fills in the WhatsApp Order form with your design. Then pick a date, address and payment there and send it.</p>
+    </form>
+    </div>
+
+    <!-- 3. Cakes Menu — ready-made cakes, frontend only, Add uses the same localStorage cart as the Menu page -->
+    <div class="cake-panel" id="cake-panel-cakes" role="tabpanel" hidden>
+      <div class="cakes-grid" id="cakes-grid">
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍫</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Chocolate Truffle</div><div class="cake-menu-desc">Rich chocolate layers, ganache finish. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹549</div><button class="add-btn" type="button" data-action="add-cake" data-id="9001" data-name="Chocolate Truffle Cake" data-price="549" data-emoji="🍫">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍒</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Black Forest</div><div class="cake-menu-desc">Chocolate, cherries and fresh cream. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹499</div><button class="add-btn" type="button" data-action="add-cake" data-id="9002" data-name="Black Forest Cake" data-price="499" data-emoji="🍒">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">❤️</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Red Velvet</div><div class="cake-menu-desc">Soft red velvet, cream cheese frosting. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹649</div><button class="add-btn" type="button" data-action="add-cake" data-id="9003" data-name="Red Velvet Cake" data-price="649" data-emoji="❤️">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍮</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Butterscotch</div><div class="cake-menu-desc">Butterscotch crunch and caramel. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹499</div><button class="add-btn" type="button" data-action="add-cake" data-id="9004" data-name="Butterscotch Cake" data-price="499" data-emoji="🍮">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍍</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Pineapple Fresh Cream</div><div class="cake-menu-desc">Light sponge, pineapple and cream. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹449</div><button class="add-btn" type="button" data-action="add-cake" data-id="9005" data-name="Pineapple Fresh Cream Cake" data-price="449" data-emoji="🍍">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍓</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Strawberry Fresh Cream</div><div class="cake-menu-desc">Strawberries and fresh cream. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹549</div><button class="add-btn" type="button" data-action="add-cake" data-id="9006" data-name="Strawberry Fresh Cream Cake" data-price="549" data-emoji="🍓">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🥭</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Mango Delight</div><div class="cake-menu-desc">Mango cream and fresh mango. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹599</div><button class="add-btn" type="button" data-action="add-cake" data-id="9007" data-name="Mango Delight Cake" data-price="599" data-emoji="🥭">+ Add</button></div></div>
+        </article>
+        <article class="cake-menu-item">
+          <div class="cake-menu-emoji">🍰</div>
+          <div class="cake-menu-body"><div class="cake-menu-name">Vanilla Buttercream</div><div class="cake-menu-desc">Classic vanilla, buttercream finish. 1 kg, serves 8-10.</div><div class="cake-menu-foot"><div class="price">₹449</div><button class="add-btn" type="button" data-action="add-cake" data-id="9008" data-name="Vanilla Buttercream Cake" data-price="449" data-emoji="🍰">+ Add</button></div></div>
+        </article>
+      </div>
+      <p class="cake-form-status">Prices are for 1 kg. Need a different size? Use Design Your Own above.</p>
+    </div>
   </section>
 
   <section class="cake-contact-section" aria-labelledby="cake-contact-title">

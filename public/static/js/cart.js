@@ -38,7 +38,7 @@ async function render() {
             <button class="qb" aria-label="Increase quantity of ${i.name}" data-action="change-qty" data-id="${i.id}" data-delta="1">+</button>
           </div>
         </div>
-        <button class="del-btn" aria-label="Remove ${i.name} from cart" data-action="remove-item" data-id="${i.id}">Remove</button>
+        <button class="del-btn" aria-label="Remove ${i.name} from cart" title="Remove" data-action="remove-item" data-id="${i.id}">✕</button>
       </div>
     `).join('')}
   `;
