@@ -39,9 +39,9 @@
 
     <!-- Three options: 1 WhatsApp order (existing, unchanged) / 2 Design Your Own / 3 Cakes menu -->
     <div class="cake-tabs" role="tablist" aria-label="Ways to order a cake">
-      <button class="cake-tab active" type="button" role="tab" aria-selected="true" data-cake-tab="whatsapp">📱 WhatsApp Order</button>
-      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="diy">🎨 Design Your Own</button>
-      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="cakes">🍰 Cakes Menu</button>
+      <button class="cake-tab active" type="button" role="tab" aria-selected="true" data-cake-tab="whatsapp"><span class="cake-tab-num">01</span> WhatsApp Order</button>
+      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="diy"><span class="cake-tab-num">02</span> Design Your Cake</button>
+      <button class="cake-tab" type="button" role="tab" aria-selected="false" data-cake-tab="cakes"><span class="cake-tab-num">03</span> Cakes Menu</button>
     </div>
     <p class="cake-tab-note" id="cake-tab-note">Send a photo of the cake you want. We accept it on WhatsApp and deliver it.</p>
 
@@ -91,88 +91,52 @@
     </form>
     </div>
 
-    <!-- 2. Design Your Own — frontend only. On submit it fills the WhatsApp Order form above, which sends it through the existing flow. No backend change. -->
+    <!-- 2. Design Your Cake — rebuilt as numbered steps, Occasion first. Frontend only. -->
     <div class="cake-panel" id="cake-panel-diy" role="tabpanel" hidden>
     <form id="cake-diy-form" class="cake-form cake-diy-form">
       <div class="cake-diy-preview" aria-live="polite">
-        <div class="cake-preview-cake cake-shape-round" id="cake-preview-cake"><span id="cake-preview-emoji">🎂</span></div>
+        <div class="cake-preview-cake cake-shape-round" id="cake-preview-cake"><span class="cake-preview-plate"></span></div>
         <div class="cake-preview-text">
           <div class="cake-preview-name" id="cake-preview-name">Your cake</div>
-          <div class="cake-preview-line" id="cake-preview-line">Pick a colour, shape and size to see it here.</div>
+          <div class="cake-preview-line" id="cake-preview-line">Start with the occasion below.</div>
         </div>
       </div>
 
-      <div class="cake-diy-grid">
-        <fieldset class="cake-field cake-field-wide">
-          <legend>Cake colour</legend>
-          <div class="cake-colours">
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Pink" data-hex="#F7A8B8" checked><span style="background:#F7A8B8" title="Pink"></span>Pink</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Chocolate" data-hex="#6B4226"><span style="background:#6B4226" title="Chocolate"></span>Chocolate</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Vanilla Cream" data-hex="#F5E6C8"><span style="background:#F5E6C8" title="Vanilla Cream"></span>Vanilla</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Red Velvet" data-hex="#A4133C"><span style="background:#A4133C" title="Red Velvet"></span>Red Velvet</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Pistachio Green" data-hex="#A8C686"><span style="background:#A8C686" title="Pistachio Green"></span>Pistachio</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Sky Blue" data-hex="#7FB3D5"><span style="background:#7FB3D5" title="Sky Blue"></span>Blue</label>
-            <label class="cake-colour"><input type="radio" name="diy_colour" value="Lemon Yellow" data-hex="#F9D976"><span style="background:#F9D976" title="Lemon Yellow"></span>Lemon</label>
-            <label class="cake-colour cake-colour-custom"><input type="color" id="cake-diy-custom-colour" value="#C8502A" aria-label="Pick your own colour"><span>Your colour</span></label>
-          </div>
-        </fieldset>
-
-        <fieldset class="cake-field">
-          <legend>Shape</legend>
-          <div class="cake-chips">
-            <label class="cake-chip"><input type="radio" name="diy_shape" value="Round" checked>Round</label>
-            <label class="cake-chip"><input type="radio" name="diy_shape" value="Square">Square</label>
-            <label class="cake-chip"><input type="radio" name="diy_shape" value="Heart">Heart</label>
-            <label class="cake-chip"><input type="radio" name="diy_shape" value="Rectangle">Rectangle</label>
-          </div>
-        </fieldset>
-
-        <fieldset class="cake-field">
-          <legend>Size</legend>
-          <div class="cake-chips">
-            <label class="cake-chip"><input type="radio" name="diy_size" value="0.5 kg (serves 4-6)" checked>0.5 kg</label>
-            <label class="cake-chip"><input type="radio" name="diy_size" value="1 kg (serves 8-10)">1 kg</label>
-            <label class="cake-chip"><input type="radio" name="diy_size" value="1.5 kg (serves 12-15)">1.5 kg</label>
-            <label class="cake-chip"><input type="radio" name="diy_size" value="2 kg (serves 16-20)">2 kg</label>
-            <label class="cake-chip"><input type="radio" name="diy_size" value="3 kg (serves 24+)">3 kg</label>
-          </div>
-        </fieldset>
-
-        <fieldset class="cake-field cake-field-wide">
-          <legend>Toppings</legend>
-          <div class="cake-chips cake-chips-check">
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Choco Chips">Choco Chips</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Fruits">Fresh Fruits</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Mixed Nuts">Mixed Nuts</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Sprinkles">Sprinkles</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Chocolate Ganache">Chocolate Ganache</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Flowers">Fresh Flowers</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Oreo Crumbs">Oreo Crumbs</label>
-            <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Caramel Drizzle">Caramel Drizzle</label>
-          </div>
-        </fieldset>
-
-        <fieldset class="cake-field cake-field-wide">
-          <legend>Which occasion?</legend>
-          <div class="cake-chips">
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Birthday" checked>🎂 Birthday</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Anniversary">💍 Anniversary</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Wedding">💒 Wedding</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Baby Shower">👶 Baby Shower</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Graduation">🎓 Graduation</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Farewell">👋 Farewell</label>
-            <label class="cake-chip"><input type="radio" name="diy_occasion" value="Just Because">✨ Just Because</label>
-          </div>
-        </fieldset>
-
-        <div class="cake-field">
-          <label for="cake-diy-name">Name to write on the cake</label>
-          <input id="cake-diy-name" name="diy_name" type="text" maxlength="30" placeholder="e.g. Happy Birthday Ananya">
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">1</span> For which occasion?</legend>
+        <div class="cake-chips">
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Birthday" checked>Birthday</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Anniversary">Anniversary</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Wedding">Wedding</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Baby Shower">Baby Shower</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Graduation">Graduation</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Farewell">Farewell</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Just Because">Just Because</label>
+          <label class="cake-chip"><input type="radio" name="diy_occasion" value="Other">Other</label>
         </div>
-        <div class="cake-field">
-          <label for="cake-diy-flavour">Flavour <span>(optional)</span></label>
-          <select id="cake-diy-flavour" name="diy_flavour">
-            <option value="">No preference</option>
+        <div class="cake-field cake-field-narrow">
+          <label for="cake-diy-occasion-other">Occasion, if other <span>(optional)</span></label>
+          <input id="cake-diy-occasion-other" name="diy_occasion_other" type="text" maxlength="40" placeholder="e.g. Housewarming">
+        </div>
+      </fieldset>
+
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">2</span> How big should it be?</legend>
+        <div class="cake-chips">
+          <label class="cake-chip"><input type="radio" name="diy_size" value="0.5 kg (serves 4-6)" checked>0.5 kg <span class="cake-chip-sub">4-6 people</span></label>
+          <label class="cake-chip"><input type="radio" name="diy_size" value="1 kg (serves 8-10)">1 kg <span class="cake-chip-sub">8-10 people</span></label>
+          <label class="cake-chip"><input type="radio" name="diy_size" value="1.5 kg (serves 12-15)">1.5 kg <span class="cake-chip-sub">12-15 people</span></label>
+          <label class="cake-chip"><input type="radio" name="diy_size" value="2 kg (serves 16-20)">2 kg <span class="cake-chip-sub">16-20 people</span></label>
+          <label class="cake-chip"><input type="radio" name="diy_size" value="3 kg (serves 24+)">3 kg <span class="cake-chip-sub">24+ people</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">3</span> Which flavour?</legend>
+        <div class="cake-field cake-field-narrow">
+          <label for="cake-diy-flavour">Flavour</label>
+          <select id="cake-diy-flavour" name="diy_flavour" required>
+            <option value="">Choose a flavour</option>
             <option>Chocolate</option>
             <option>Vanilla</option>
             <option>Butterscotch</option>
@@ -180,14 +144,87 @@
             <option>Strawberry</option>
             <option>Pineapple</option>
             <option>Mango</option>
+            <option>Black Forest</option>
           </select>
         </div>
+      </fieldset>
 
-        <div class="cake-field cake-field-wide">
-          <label for="cake-diy-special">Anything special? <span>(optional)</span></label>
-          <textarea id="cake-diy-special" name="diy_special" rows="3" maxlength="500" placeholder="Allergies, a message, a design idea, eggless, less sugar…"></textarea>
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">4</span> Colour and shape</legend>
+        <div class="cake-colours">
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Pink" data-hex="#F7A8B8" checked><span style="background:#F7A8B8" title="Pink"></span>Pink</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Chocolate" data-hex="#6B4226"><span style="background:#6B4226" title="Chocolate"></span>Chocolate</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Vanilla Cream" data-hex="#F5E6C8"><span style="background:#F5E6C8" title="Vanilla Cream"></span>Vanilla</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Red Velvet" data-hex="#A4133C"><span style="background:#A4133C" title="Red Velvet"></span>Red Velvet</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Pistachio Green" data-hex="#A8C686"><span style="background:#A8C686" title="Pistachio Green"></span>Pistachio</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Sky Blue" data-hex="#7FB3D5"><span style="background:#7FB3D5" title="Sky Blue"></span>Blue</label>
+          <label class="cake-colour"><input type="radio" name="diy_colour" value="Lemon Yellow" data-hex="#F9D976"><span style="background:#F9D976" title="Lemon Yellow"></span>Lemon</label>
+          <label class="cake-colour cake-colour-custom"><input type="color" id="cake-diy-custom-colour" value="#C8502A" aria-label="Pick your own colour"><span>Your colour</span></label>
         </div>
-      </div>
+        <div class="cake-chips cake-chips-shapes">
+          <label class="cake-chip"><input type="radio" name="diy_shape" value="Round" checked>Round</label>
+          <label class="cake-chip"><input type="radio" name="diy_shape" value="Square">Square</label>
+          <label class="cake-chip"><input type="radio" name="diy_shape" value="Heart">Heart</label>
+          <label class="cake-chip"><input type="radio" name="diy_shape" value="Rectangle">Rectangle</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">5</span> Toppings</legend>
+        <div class="cake-chips cake-chips-check">
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Choco Chips">Choco Chips</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Fruits">Fresh Fruits</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Mixed Nuts">Mixed Nuts</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Sprinkles">Sprinkles</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Chocolate Ganache">Chocolate Ganache</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Fresh Flowers">Fresh Flowers</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Oreo Crumbs">Oreo Crumbs</label>
+          <label class="cake-chip"><input type="checkbox" name="diy_topping" value="Caramel Drizzle">Caramel Drizzle</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">6</span> Name and message on the cake</legend>
+        <div class="cake-field">
+          <label for="cake-diy-name">Name to write on the cake</label>
+          <input id="cake-diy-name" name="diy_name" type="text" maxlength="30" placeholder="e.g. Happy Birthday Ananya">
+        </div>
+        <div class="cake-field">
+          <label for="cake-diy-message">Message on the cake <span>(optional)</span></label>
+          <input id="cake-diy-message" name="diy_message" type="text" maxlength="60" placeholder="e.g. Happy 21st!">
+        </div>
+      </fieldset>
+
+      <fieldset class="cake-step">
+        <legend><span class="cake-step-num">7</span> Anything else we should know?</legend>
+        <div class="cake-chips">
+          <label class="cake-chip"><input type="radio" name="diy_eggless" value="Eggless">Eggless</label>
+          <label class="cake-chip"><input type="radio" name="diy_eggless" value="With egg">With egg</label>
+          <label class="cake-chip"><input type="radio" name="diy_eggless" value="No preference" checked>No preference</label>
+        </div>
+        <div class="cake-field">
+          <label for="cake-diy-allergies">Allergies <span>(optional)</span></label>
+          <input id="cake-diy-allergies" name="diy_allergies" type="text" maxlength="120" placeholder="e.g. No nuts, no dairy">
+        </div>
+        <div class="cake-field">
+          <label for="cake-diy-budget">Budget <span>(optional)</span></label>
+          <select id="cake-diy-budget" name="diy_budget">
+            <option value="">No fixed budget</option>
+            <option>Under ₹500</option>
+            <option>₹500 - ₹1,000</option>
+            <option>₹1,000 - ₹2,000</option>
+            <option>Above ₹2,000</option>
+          </select>
+        </div>
+        <div class="cake-chips">
+          <label class="cake-chip"><input type="radio" name="diy_delivery" value="Delivery" checked>Delivery</label>
+          <label class="cake-chip"><input type="radio" name="diy_delivery" value="Pickup from bakery">Pickup from bakery</label>
+        </div>
+        <div class="cake-field">
+          <label for="cake-diy-special">Anything special? <span>(optional)</span></label>
+          <textarea id="cake-diy-special" name="diy_special" rows="3" maxlength="500" placeholder="A design idea, less sugar, a photo reference you will send on WhatsApp…"></textarea>
+        </div>
+      </fieldset>
 
       <p class="cake-diy-summary" id="cake-diy-summary" role="status" aria-live="polite"></p>
       <div class="cake-submit-row">

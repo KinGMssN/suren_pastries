@@ -215,13 +215,13 @@
   });
 })();
 
-/* ── THREE WAYS TO ORDER: tabs + Design Your Own + Cakes Menu ──
-   Frontend only. No backend change. Design Your Own fills the existing
+/* ── THREE WAYS TO ORDER: tabs + Design Your Cake + Cakes Menu ──
+   Frontend only. No backend change. Design Your Cake fills the existing
    WhatsApp Order form, which sends it through the existing flow. */
 (() => {
   const notes = {
     whatsapp: 'Send a photo of the cake you want. We accept it on WhatsApp and deliver it.',
-    diy: 'Build it yourself — colour, shape, size, toppings, occasion and the name on top.',
+    diy: 'Build it yourself, step by step — occasion first, then size, flavour, colour, toppings and the name on top.',
     cakes: 'Ready-made cakes, 1 kg each. Tap + Add and they go straight into your cart.',
   };
   const tabs = Array.from(document.querySelectorAll('[data-cake-tab]'));
@@ -245,7 +245,7 @@
   const start = (location.hash || '').replace('#', '');
   if (['whatsapp', 'diy', 'cakes'].includes(start)) showTab(start, false);
 
-  /* Design Your Own: live preview + summary, then fill WhatsApp form */
+  /* Design Your Cake: live preview + summary, then fill WhatsApp form */
   const diyForm = document.getElementById('cake-diy-form');
   if (diyForm) {
     const previewCake = document.getElementById('cake-preview-cake');
@@ -261,11 +261,19 @@
       const el = diyForm.querySelector('input[name="diy_colour"]:checked');
       return el ? (el.dataset.hex || '#F7A8B8') : '#F7A8B8';
     };
+    const occasion = () => {
+      const o = pick('diy_occasion');
+      if (o === 'Other') {
+        const other = (document.getElementById('cake-diy-occasion-other').value || '').trim();
+        return other || 'Other occasion';
+      }
+      return o;
+    };
     function update() {
       const colour = pick('diy_colour');
       const shape = pick('diy_shape');
       const size = pick('diy_size');
-      const occasion = pick('diy_occasion');
+      const occ = occasion();
       const name = (document.getElementById('cake-diy-name').value || '').trim();
       const toppings = Array.from(diyForm.querySelectorAll('input[name="diy_topping"]:checked')).map(i => i.value);
       if (previewCake) {
@@ -273,9 +281,9 @@
         previewCake.className = 'cake-preview-cake cake-shape-' + shape.toLowerCase();
       }
       if (previewName) previewName.textContent = name ? name : 'Your cake';
-      if (previewLine) previewLine.textContent = [colour, shape, size, occasion].filter(Boolean).join(' · ') || 'Pick a colour, shape and size to see it here.';
+      if (previewLine) previewLine.textContent = [occ, colour, shape, size].filter(Boolean).join(' · ') || 'Start with the occasion below.';
       if (summary) {
-        summary.textContent = 'Your design: ' + [colour + ' cake', shape, size, toppings.length ? 'Toppings: ' + toppings.join(', ') : 'No toppings yet', occasion, name ? 'Name on cake: "' + name + '"' : ''].filter(Boolean).join(' — ') + '.';
+        summary.textContent = 'Your design: ' + [occ + ' cake', colour, shape, size, toppings.length ? 'Toppings: ' + toppings.join(', ') : 'No toppings yet', name ? 'Name on cake: "' + name + '"' : ''].filter(Boolean).join(' — ') + '.';
       }
     }
     diyForm.addEventListener('input', update);
@@ -286,20 +294,29 @@
     update();
     diyForm.addEventListener('submit', e => {
       e.preventDefault();
+      if (!diyForm.reportValidity()) return;
       const colour = customColour && document.activeElement === customColour ? 'Custom colour ' + customColour.value : pick('diy_colour');
       const toppings = Array.from(diyForm.querySelectorAll('input[name="diy_topping"]:checked')).map(i => i.value);
       const flavour = document.getElementById('cake-diy-flavour').value;
       const name = (document.getElementById('cake-diy-name').value || '').trim();
+      const message = (document.getElementById('cake-diy-message').value || '').trim();
+      const allergies = (document.getElementById('cake-diy-allergies').value || '').trim();
+      const budget = document.getElementById('cake-diy-budget').value;
       const special = (document.getElementById('cake-diy-special').value || '').trim();
       const lines = [
-        'Design Your Own cake',
+        'Design Your Cake',
+        'Occasion: ' + occasion(),
+        'Size: ' + pick('diy_size'),
+        'Flavour: ' + (flavour || 'No preference'),
         'Colour: ' + colour,
         'Shape: ' + pick('diy_shape'),
-        'Size: ' + pick('diy_size'),
         'Toppings: ' + (toppings.length ? toppings.join(', ') : 'None'),
-        'Occasion: ' + pick('diy_occasion'),
-        flavour ? 'Flavour: ' + flavour : null,
         name ? 'Name on cake: "' + name + '"' : null,
+        message ? 'Message on cake: "' + message + '"' : null,
+        'Eggless: ' + pick('diy_eggless'),
+        allergies ? 'Allergies: ' + allergies : null,
+        budget ? 'Budget: ' + budget : null,
+        'Delivery: ' + pick('diy_delivery'),
         special ? 'Special: ' + special : null,
       ].filter(Boolean);
       const desc = document.getElementById('cake-description');
