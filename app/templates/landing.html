@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Suren Pastries — Welcome{% endblock %}
-{% block meta_description %}Discover freshly prepared pastries and South Indian favourites at Suren Pastries. Browse today's menu and order for delivery.{% endblock %}
+{% block meta_description %}Bakery and cake shop in Kurmannapalem, Visakhapatnam. Customised cakes, pastries and freshly baked products — browse the menu and order for delivery.{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 {% endblock %}
@@ -25,9 +25,9 @@
 
 
   <div class="hero-content">
-    <div class="hero-eyebrow">{{ content('hero_eyebrow', 'Est. 0000 · Visakhapatnam') }}</div>
+    <div class="hero-eyebrow">{{ content('hero_eyebrow', 'Est. 2008 · Visakhapatnam') }}</div>
     <h1 class="hero-title">{{ content('hero_title_line1', 'Where every') }}<br>{{ content('hero_title_line2', 'meal is an') }}<br><em>{{ content('hero_title_em', 'experience') }}</em></h1>
-    <p class="hero-sub">{{ content('hero_sub', 'Handcrafted dishes rooted in South Indian tradition, served with modern elegance. Fresh ingredients, soulful recipes.') }}</p>
+    <p class="hero-sub">{{ content('hero_sub', 'Customised cakes, pastries, snack boxes and freshly baked products, plus Chinese, Continental and Italian food. Fresh ingredients, baked daily.') }}</p>
     <div class="hero-actions">
       <a class="btn-hero btn-hero-primary" href="{{ url_for('main.menu') }}">Explore the Menu</a>
       <a class="btn-hero btn-hero-ghost" href="{{ url_for('main.about') }}">Our Story</a>
@@ -115,7 +115,7 @@
   <div>
     <div class="about-eyebrow">Our story</div>
     <h2 class="about-title">Cooking with <em>heart</em><br>since 2008</h2>
-    <p class="about-text">What started as a small family kitchen in Vizianagaram has grown into a beloved dining destination. We believe food is more than sustenance — it's a celebration of culture, family, and love.</p>
+    <p class="about-text">What started as a small family kitchen in Visakhapatnam has grown into a beloved bakery and cake shop. We provide customised cakes and pastries, snack boxes and freshly baked products, and serve Chinese, Continental and Italian food as well. Rated 3.9 on Google from 1.9K reviews, ₹200–400 per person.</p>
     <a class="btn-hero btn-hero-ghost" href="{{ url_for('main.about') }}" style="display:inline-block">Learn more →</a>
   </div>
 </section>
