@@ -58,6 +58,7 @@ document.addEventListener('click', (e) => {
     case 'set-tab': setTab(el.dataset.tab, el); break;
     case 'goto-tab': setTab(el.dataset.tab, document.querySelector(`[data-tab="${el.dataset.tab}"]`)); break;
     case 'show-modal': showModal(); break;
+    case 'import-menu': importMenu(); break;
     case 'hide-modal': hideModal(); break;
     case 'submit-menu-item': submitMenuItem(); break;
     case 'edit-menu-item': openEditModal(decodeObj(el.dataset.item)); break;
@@ -403,6 +404,17 @@ document.getElementById('mi-image-file').addEventListener('change', async (e) =>
   preview.src = pendingImageData;
   preview.style.display = 'block';
 });
+
+async function importMenu() {
+  if (!confirm('Load the CSV menu choices into the live menu? This adds the missing size and add-on rows (Extra Cheese, Schezwan) for the dishes already on the menu, so the customise sheet can add them to the cart. Nothing is deleted.')) return;
+  try {
+    const data = await api('/menu/import', { method: 'POST', body: '{}' });
+    toast(`Menu loaded: ${data.created} added, ${data.updated} updated.` + (data.not_on_menu && data.not_on_menu.length ? ` ${data.not_on_menu.length} dish(es) are not on the menu.` : ''));
+    loadMenuEditor();
+  } catch (err) {
+    toast(err.message || 'Could not load the menu');
+  }
+}
 
 async function loadMenuEditor(loadNextPage = false) {
   const grid = document.getElementById('menu-editor-grid');

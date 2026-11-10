@@ -324,8 +324,14 @@ def create_app(config_class=Config):
         )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Reporting-Endpoints"] = 'csp-endpoint="/api/csp-report"'
-        script_sources = f"'self' 'nonce-{g.csp_nonce}'"
-        style_sources = f"'self' 'nonce-{g.csp_nonce}'"
+        # g.csp_nonce is set by set_csp_nonce in before_request, but a
+        # request rejected earlier (CSRF token missing, rate limit hit)
+        # never runs it. Fall back to no nonce so the error page returns
+        # its real status instead of a 500 here.
+        _nonce = getattr(g, "csp_nonce", "")
+        _nonce_src = f" 'nonce-{_nonce}'" if _nonce else ""
+        script_sources = f"'self'{_nonce_src}"
+        style_sources = f"'self'{_nonce_src}"
         image_sources = "'self' data:"
         connect_sources = "'self'"
         frame_sources = "'none'"

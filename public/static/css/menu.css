@@ -89,13 +89,6 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 .empty-icon{font-size:48px;margin-bottom:12px}
 .empty p{font-size:15px}
 
-/* Veg / non-veg mark: small square with a dot (veg) or triangle (non-veg), like Swiggy */
-.veg-mark{width:14px;height:14px;flex-shrink:0;border:2px solid #1E8E3E;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-2px}
-.veg-mark span{width:6px;height:6px;border-radius:50%;background:#1E8E3E}
-.veg-mark.nonveg{border-color:#8B4513}
-.veg-mark.nonveg span{width:0;height:0;border-radius:0;background:none;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #8B4513}
-.item-name .veg-mark{margin-right:6px}
-
 /* ── Customise sheet (Swiggy style bottom sheet) ── */
 .sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);opacity:0;pointer-events:none;transition:opacity 0.25s;z-index:1000}
 .sheet-overlay.show{opacity:1;pointer-events:auto}
@@ -107,6 +100,7 @@ nav{background:var(--dark);height:60px;padding:0 32px;display:flex;align-items:c
 .sheet-name{font-weight:700;font-size:17px;line-height:1.3}
 .sheet-sub{font-size:12px;color:var(--muted);margin-top:2px}
 .sheet-body{overflow-y:auto;padding:6px 20px 16px}
+.sheet-note{font-size:13px;color:var(--muted);line-height:1.5;background:#fff;border:1px dashed var(--border);border-radius:12px;padding:14px 16px;margin-top:18px}
 .sheet-sec-title{font-weight:700;font-size:16px;margin:18px 0 2px}
 .sheet-sec-sub{font-size:12px;color:var(--muted);margin-bottom:10px}
 .sheet-options{display:flex;flex-direction:column;gap:8px}

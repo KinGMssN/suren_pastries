@@ -1,52 +1,52 @@
 // Generated from Main_menu.csv by scripts/build_menu_data.py.
-// One entry per dish shown on the menu. `row` is the exact
-// MenuItem name in the DB for that choice; the sheet picks it.
+// One entry per dish, keyed by dish name. `sizes: true` means
+// the dish has size rows; the labels come from the rows.
 window.SUREN_MENU_META = {
-  "Quick Bites | Paneer String": {
+  "Paneer String": {
     "veg": true,
     "emoji": "🍟"
   },
-  "Quick Bites | French Fries": {
+  "French Fries": {
     "veg": true,
     "emoji": "🍟"
   },
-  "Quick Bites | Peri Peri French Fries": {
+  "Peri Peri French Fries": {
     "veg": true,
     "emoji": "🍟"
   },
-  "Quick Bites | Veg Hot Dog": {
+  "Veg Hot Dog": {
     "veg": true,
     "emoji": "🍟"
   },
-  "Quick Bites | Cheese Garlic Bread": {
+  "Cheese Garlic Bread": {
     "veg": true,
     "emoji": "🍟"
   },
-  "Quick Bites | Chicken String": {
+  "Chicken String": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Quick Bites | Chicken Hot Dog": {
+  "Chicken Hot Dog": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Quick Bites | Chicken Popcorn": {
+  "Chicken Popcorn": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Quick Bites | Crispy Chicken wings": {
+  "Crispy Chicken wings": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Quick Bites | Crispy Chicken strips Boneless": {
+  "Crispy Chicken strips Boneless": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Quick Bites | Crispy Chicken Lollipop": {
+  "Crispy Chicken Lollipop": {
     "veg": false,
     "emoji": "🍟"
   },
-  "Burgers | Veg Burger": {
+  "Veg Burger": {
     "veg": true,
     "emoji": "🍔",
     "addons": [
@@ -57,7 +57,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Veg Cheese Burger": {
+  "Veg Cheese Burger": {
     "veg": true,
     "emoji": "🍔",
     "addons": [
@@ -68,7 +68,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Paneer Burger": {
+  "Paneer Burger": {
     "veg": true,
     "emoji": "🍔",
     "addons": [
@@ -79,7 +79,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Paneer Cheese Burger": {
+  "Paneer Cheese Burger": {
     "veg": true,
     "emoji": "🍔",
     "addons": [
@@ -90,7 +90,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Paneer Tikka Burger": {
+  "Paneer Tikka Burger": {
     "veg": true,
     "emoji": "🍔",
     "addons": [
@@ -101,7 +101,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Egg Burger": {
+  "Egg Burger": {
     "veg": false,
     "emoji": "🍔",
     "addons": [
@@ -112,7 +112,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Chicken Burger": {
+  "Chicken Burger": {
     "veg": false,
     "emoji": "🍔",
     "addons": [
@@ -123,7 +123,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Chicken Cheese Burger": {
+  "Chicken Cheese Burger": {
     "veg": false,
     "emoji": "🍔",
     "addons": [
@@ -134,7 +134,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Crunchy Chicken Burger": {
+  "Crunchy Chicken Burger": {
     "veg": false,
     "emoji": "🍔",
     "addons": [
@@ -145,7 +145,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Burgers | Tandoori Chicken Burger": {
+  "Tandoori Chicken Burger": {
     "veg": false,
     "emoji": "🍔",
     "addons": [
@@ -156,7 +156,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Veg Grilled Sandwich": {
+  "Veg Grilled Sandwich": {
     "veg": true,
     "emoji": "🥪",
     "addons": [
@@ -167,7 +167,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | American Sweet Corn Grilled Sandwich": {
+  "American Sweet Corn Grilled Sandwich": {
     "veg": true,
     "emoji": "🥪",
     "addons": [
@@ -178,7 +178,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Paneer Grilled Sandwich": {
+  "Paneer Grilled Sandwich": {
     "veg": true,
     "emoji": "🥪",
     "addons": [
@@ -189,7 +189,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Kaju Tomato Sandwich": {
+  "Kaju Tomato Sandwich": {
     "veg": true,
     "emoji": "🥪",
     "addons": [
@@ -200,7 +200,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Jr Club Veg Sandwich": {
+  "Jr Club Veg Sandwich": {
     "veg": true,
     "emoji": "🥪",
     "addons": [
@@ -211,7 +211,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Egg Grilled Sandwich": {
+  "Egg Grilled Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -222,7 +222,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Chicken Grilled Sandwich": {
+  "Chicken Grilled Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -233,7 +233,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Chicken cheese Grilled Sandwich": {
+  "Chicken cheese Grilled Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -244,7 +244,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Crunchy Chicken Sandwich": {
+  "Crunchy Chicken Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -255,7 +255,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Chilli Chicken Sandwich": {
+  "Chilli Chicken Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -266,7 +266,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Sandwiches | Jr Club Chicken Sandwich": {
+  "Jr Club Chicken Sandwich": {
     "veg": false,
     "emoji": "🥪",
     "addons": [
@@ -277,243 +277,243 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Soups | Veg Clear Soup": {
+  "Veg Clear Soup": {
     "veg": true,
     "emoji": "🥣"
   },
-  "Soups | Hot & Sour Veg Soup": {
+  "Hot & Sour Veg Soup": {
     "veg": true,
     "emoji": "🥣"
   },
-  "Soups | Veg Manchow Soup": {
+  "Veg Manchow Soup": {
     "veg": true,
     "emoji": "🥣"
   },
-  "Soups | Sweet Corn Veg Soup": {
+  "Sweet Corn Veg Soup": {
     "veg": true,
     "emoji": "🥣"
   },
-  "Soups | Chicken Clear Soup": {
+  "Chicken Clear Soup": {
     "veg": false,
     "emoji": "🥣"
   },
-  "Soups | Hot & Sour Chicken soup": {
+  "Hot & Sour Chicken soup": {
     "veg": false,
     "emoji": "🥣"
   },
-  "Soups | Sweet Corn Chicken Soup": {
+  "Sweet Corn Chicken Soup": {
     "veg": false,
     "emoji": "🥣"
   },
-  "Soups | Chicken Manchow Soup": {
+  "Chicken Manchow Soup": {
     "veg": false,
     "emoji": "🥣"
   },
-  "Soups | Mutton soup": {
+  "Mutton soup": {
     "veg": false,
     "emoji": "🥣"
   },
-  "Starters | Veg Manchurian Dry": {
+  "Veg Manchurian Dry": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Baby Corn Manchurian": {
+  "Baby Corn Manchurian": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Paneer Manchurian Dry": {
+  "Paneer Manchurian Dry": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Chilli Paneer Dry": {
+  "Chilli Paneer Dry": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Mushroom Manchurian": {
+  "Mushroom Manchurian": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Dragon paneer": {
+  "Dragon paneer": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Paneer Popcorn": {
+  "Paneer Popcorn": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Crispy Corn Salt and Pepper": {
+  "Crispy Corn Salt and Pepper": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Paneer Majestic": {
+  "Paneer Majestic": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Thread Paneer": {
+  "Thread Paneer": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Crispy Baby Corn": {
+  "Crispy Baby Corn": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Schezwan paneer": {
+  "Schezwan paneer": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Chilli Mushroom Dry": {
+  "Chilli Mushroom Dry": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Veg Manchurian Wet": {
+  "Veg Manchurian Wet": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Mushroom 65": {
+  "Mushroom 65": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Paneer 65": {
+  "Paneer 65": {
     "veg": true,
     "emoji": "🍗"
   },
-  "Starters | Chicken Manchurian": {
+  "Chicken Manchurian": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chilli Chicken": {
+  "Chilli Chicken": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chicken 65": {
+  "Chicken 65": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Kaju Chicken": {
+  "Kaju Chicken": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Pepper Chicken": {
+  "Pepper Chicken": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Schezwan Chicken": {
+  "Schezwan Chicken": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Garlic Chicken": {
+  "Garlic Chicken": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chicken 555": {
+  "Chicken 555": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Apollo Fish": {
+  "Apollo Fish": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chilli chicken wet": {
+  "Chilli chicken wet": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Hot & Sauce Chicken lollipop": {
+  "Hot & Sauce Chicken lollipop": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chicken Majestic": {
+  "Chicken Majestic": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Crispy loose prawns": {
+  "Crispy loose prawns": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Prawns 65": {
+  "Prawns 65": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Starters | Chilly prawns": {
+  "Chilly prawns": {
     "veg": false,
     "emoji": "🍗"
   },
-  "Biryani | Veg biryani": {
-    "veg": true,
-    "emoji": "🍛"
-  },
-  "Biryani | Paneer Biryani": {
+  "Veg biryani": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Biryani | Egg biryani": {
-    "veg": false,
-    "emoji": "🍛"
-  },
-  "Biryani | Chicken Dum Biryani": {
-    "veg": false,
-    "emoji": "🍛"
-  },
-  "Biryani | Chicken Fry Piece Biryani": {
-    "veg": false,
-    "emoji": "🍛"
-  },
-  "Biryani | Chicken Boneless Biryani": {
-    "veg": false,
-    "emoji": "🍛"
-  },
-  "Biryani | Chicken Mugalai Biryani": {
-    "veg": false,
-    "emoji": "🍛"
-  },
-  "Curries | Paneer Butter Masala": {
+  "Paneer Biryani": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Curries | Mushroom Curry": {
+  "Egg biryani": {
+    "veg": false,
+    "emoji": "🍛"
+  },
+  "Chicken Dum Biryani": {
+    "veg": false,
+    "emoji": "🍛"
+  },
+  "Chicken Fry Piece Biryani": {
+    "veg": false,
+    "emoji": "🍛"
+  },
+  "Chicken Boneless Biryani": {
+    "veg": false,
+    "emoji": "🍛"
+  },
+  "Chicken Mugalai Biryani": {
+    "veg": false,
+    "emoji": "🍛"
+  },
+  "Paneer Butter Masala": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Curries | Kaju Paneer": {
+  "Mushroom Curry": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Curries | kaju Tomato curry": {
+  "Kaju Paneer": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Curries | kadai paneer": {
+  "kaju Tomato curry": {
     "veg": true,
     "emoji": "🍛"
   },
-  "Curries | Chicken Curry Bone": {
+  "kadai paneer": {
+    "veg": true,
+    "emoji": "🍛"
+  },
+  "Chicken Curry Bone": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Chicken Fry Bone": {
+  "Chicken Fry Bone": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Butter Chicken": {
+  "Butter Chicken": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Andhra Chicken": {
+  "Andhra Chicken": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Kaju Chicken Masala": {
+  "Kaju Chicken Masala": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Chicken Mugalai curry": {
+  "Chicken Mugalai curry": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Curries | Prawns curry": {
+  "Prawns curry": {
     "veg": false,
     "emoji": "🍛"
   },
-  "Fried Rice | Veg Fried Rice": {
+  "Veg Fried Rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -524,7 +524,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Corn Cashew Fried Rice": {
+  "Corn Cashew Fried Rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -535,7 +535,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Mixed Veg Fried Rice": {
+  "Mixed Veg Fried Rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -546,7 +546,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Zeera fried rice": {
+  "Zeera fried rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -557,7 +557,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Paneer Fried Rice": {
+  "Paneer Fried Rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -568,7 +568,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Special Veg fried Rice": {
+  "Special Veg fried Rice": {
     "veg": true,
     "emoji": "🍚",
     "addons": [
@@ -579,7 +579,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Mushroom fried rice": {
+  "Mushroom fried rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -590,7 +590,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Egg Fried Rice": {
+  "Egg Fried Rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -601,7 +601,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Chicken Fried Rice": {
+  "Chicken Fried Rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -612,7 +612,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Mixed non-Veg Fried Rice": {
+  "Mixed non-Veg Fried Rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -623,7 +623,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | Special Chicken Fried Rice": {
+  "Special Chicken Fried Rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -634,7 +634,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Fried Rice | prawns fried rice": {
+  "prawns fried rice": {
     "veg": false,
     "emoji": "🍚",
     "addons": [
@@ -645,7 +645,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Veg Soft Noodles": {
+  "Veg Soft Noodles": {
     "veg": true,
     "emoji": "🍜",
     "addons": [
@@ -656,7 +656,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Mixed Veg Noodles": {
+  "Mixed Veg Noodles": {
     "veg": true,
     "emoji": "🍜",
     "addons": [
@@ -667,7 +667,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Paneer Noodles": {
+  "Paneer Noodles": {
     "veg": true,
     "emoji": "🍜",
     "addons": [
@@ -678,7 +678,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Veg Mushroom Noodles": {
+  "Veg Mushroom Noodles": {
     "veg": true,
     "emoji": "🍜",
     "addons": [
@@ -689,7 +689,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Veg Manchoorian noodles": {
+  "Veg Manchoorian noodles": {
     "veg": true,
     "emoji": "🍜",
     "addons": [
@@ -700,7 +700,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Egg Soft Noodles": {
+  "Egg Soft Noodles": {
     "veg": false,
     "emoji": "🍜",
     "addons": [
@@ -711,7 +711,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Chicken Soft Noodles": {
+  "Chicken Soft Noodles": {
     "veg": false,
     "emoji": "🍜",
     "addons": [
@@ -722,7 +722,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Chicken Hakka noodles": {
+  "Chicken Hakka noodles": {
     "veg": false,
     "emoji": "🍜",
     "addons": [
@@ -733,7 +733,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Chicken Manchurian Noodles": {
+  "Chicken Manchurian Noodles": {
     "veg": false,
     "emoji": "🍜",
     "addons": [
@@ -744,7 +744,7 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Noodles | Mixed Non-Veg Noodles": {
+  "Mixed Non-Veg Noodles": {
     "veg": false,
     "emoji": "🍜",
     "addons": [
@@ -755,21 +755,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Simple Veg Pizza": {
+  "Simple Veg Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 180,
-        "row": "Simple Veg Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 230,
-        "row": "Simple Veg Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -778,21 +767,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Veg Supreme Pizza": {
+  "Veg Supreme Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Veg Supreme Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 270,
-        "row": "Veg Supreme Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -801,21 +779,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Traditional Paneer Pizza": {
+  "Traditional Paneer Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Traditional Paneer Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 270,
-        "row": "Traditional Paneer Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -824,21 +791,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Veg delight pizza": {
+  "Veg delight pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Veg delight pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 260,
-        "row": "Veg delight pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -847,21 +803,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Veg Mushroom Pizza": {
+  "Veg Mushroom Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Veg Mushroom Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 270,
-        "row": "Veg Mushroom Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -870,21 +815,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Chilli Paneer Pizza": {
+  "Chilli Paneer Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Chilli Paneer Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 270,
-        "row": "Chilli Paneer Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -893,21 +827,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Kaju Pizza": {
+  "Kaju Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 230,
-        "row": "Kaju Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 290,
-        "row": "Kaju Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -916,21 +839,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Americon sweet corn veg pizza": {
+  "Americon sweet corn veg pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 210,
-        "row": "Americon sweet corn veg pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 260,
-        "row": "Americon sweet corn veg pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -939,21 +851,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Baby Corn Mushroom pizza": {
+  "Baby Corn Mushroom pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 210,
-        "row": "Baby Corn Mushroom pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 260,
-        "row": "Baby Corn Mushroom pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -962,21 +863,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Veg Manchoorian Pizza": {
+  "Veg Manchoorian Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Veg Manchoorian Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 270,
-        "row": "Veg Manchoorian Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -985,21 +875,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Paneer Tikka pizza": {
+  "Paneer Tikka pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 230,
-        "row": "Paneer Tikka pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 280,
-        "row": "Paneer Tikka pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1008,21 +887,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Suren Special Veg Pizza": {
+  "Suren Special Veg Pizza": {
     "veg": true,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 240,
-        "row": "Suren Special Veg Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 290,
-        "row": "Suren Special Veg Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1031,21 +899,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Simple Chicken Pizza": {
+  "Simple Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 220,
-        "row": "Simple Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 280,
-        "row": "Simple Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1054,21 +911,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Chicken Mushroom Pizza": {
+  "Chicken Mushroom Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 230,
-        "row": "Chicken Mushroom Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 290,
-        "row": "Chicken Mushroom Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1077,21 +923,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Chilli Chicken Pizza": {
+  "Chilli Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 230,
-        "row": "Chilli Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 280,
-        "row": "Chilli Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1100,21 +935,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Butter Chicken Pizza": {
+  "Butter Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 230,
-        "row": "Butter Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 280,
-        "row": "Butter Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1123,21 +947,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Double Chicken Pizza": {
+  "Double Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 250,
-        "row": "Double Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 320,
-        "row": "Double Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1146,21 +959,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Popcorn chicken pizza": {
+  "Popcorn chicken pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 240,
-        "row": "Popcorn chicken pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 300,
-        "row": "Popcorn chicken pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1169,21 +971,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Kaju Chicken Pizza": {
+  "Kaju Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 240,
-        "row": "Kaju Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 300,
-        "row": "Kaju Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1192,21 +983,10 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Pizza | Suren Special Chicken Pizza": {
+  "Suren Special Chicken Pizza": {
     "veg": false,
     "emoji": "🍕",
-    "sizes": [
-      {
-        "label": "Small",
-        "price": 250,
-        "row": "Suren Special Chicken Pizza (Small)"
-      },
-      {
-        "label": "Large",
-        "price": 320,
-        "row": "Suren Special Chicken Pizza (Large)"
-      }
-    ],
+    "sizes": true,
     "addons": [
       {
         "label": "Extra Cheese",
@@ -1215,79 +995,75 @@ window.SUREN_MENU_META = {
       }
     ]
   },
-  "Desserts | Chocolate Brownie": {
+  "Chocolate Brownie": {
     "veg": null,
     "emoji": "🍰"
   },
-  "Desserts | Chocolate Brownie with Ice Cream": {
+  "Chocolate Brownie with Ice Cream": {
     "veg": null,
     "emoji": "🍰"
   },
-  "Desserts | Chocolate Lava": {
+  "Chocolate Lava": {
     "veg": null,
     "emoji": "🍰"
   },
-  "Desserts | Fudge Brownie": {
+  "Fudge Brownie": {
     "veg": null,
     "emoji": "🍰"
   },
-  "Desserts | Chocolate Ball with Ice Cream": {
+  "Chocolate Ball with Ice Cream": {
     "veg": null,
     "emoji": "🍰"
   },
-  "Milkshakes | Vanilla": {
+  "Vanilla": {
     "veg": null,
     "emoji": "🥤"
   },
-  "Milkshakes | Butterscotch": {
+  "Butterscotch": {
     "veg": null,
     "emoji": "🥤"
   },
-  "Milkshakes | Strawberry": {
+  "Strawberry": {
+    "veg": null,
+    "emoji": "🍹"
+  },
+  "Chocolate": {
     "veg": null,
     "emoji": "🥤"
   },
-  "Milkshakes | Chocolate": {
+  "Choco Chip": {
     "veg": null,
     "emoji": "🥤"
   },
-  "Milkshakes | Choco Chip": {
+  "Black Current": {
     "veg": null,
     "emoji": "🥤"
   },
-  "Milkshakes | Black Current": {
-    "veg": null,
-    "emoji": "🥤"
-  },
-  "Mocktails | Lime Soda": {
+  "Lime Soda": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Blue Coraccio": {
+  "Blue Coraccio": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Mint Mojito": {
+  "Mint Mojito": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Strawberry": {
+  "Green Apple": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Green Apple": {
+  "Choco Coffee": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Choco Coffee": {
+  "Cold Coffee": {
     "veg": null,
     "emoji": "🍹"
   },
-  "Mocktails | Cold Coffee": {
-    "veg": null,
-    "emoji": "🍹"
-  },
-  "Mocktails | Lassi(Sweet or Salt)": {
+  "Lassi(Sweet or Salt)": {
     "veg": null,
     "emoji": "🍹"
   }

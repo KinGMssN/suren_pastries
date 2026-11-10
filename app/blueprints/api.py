@@ -20,6 +20,7 @@ from sqlalchemy.orm import joinedload, load_only, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db,limiter
+from app.menu_data import MENU_DATA
 from app.auth import verify_totp
 from app.permissions import menu_access_required, super_admin_required
 from app.models import (
@@ -1758,6 +1759,100 @@ def admin_menu_collection():
             "stock_quantity": item.stock_quantity,
         },
     }), 201
+
+
+@api_bp.route("/admin/menu/import", methods=["POST"])
+@login_required
+@menu_access_required
+def admin_menu_import():
+    """Add the size and add-on choices for the dishes already on the live
+    menu, so the customise sheet can add them to the cart. Checkout prices
+    every cart line from its MenuItem row, so each priced choice needs its
+    own row: for every pizza size row it adds a "+ Extra Cheese" row (+30),
+    for every burger/sandwich row a "+ Extra Cheese" row (+20), and for
+    every fried-rice/noodle row a "+ Schezwan" row (+30), each in the same
+    category as the dish it belongs to. Rows are matched by the dish names
+    already in the menu, so the live menu's own size labels (Regular/Large)
+    and categories (Veg Pizza, Non-Veg Pizza, ...) are kept. Nothing is
+    deleted, and dishes that are not on the menu are left alone and listed
+    in the response instead of being created."""
+    import re as _re
+
+    def _base(name):
+        name = _re.sub(r" \+ (Extra Cheese|Schezwan)$", "", name)
+        name = _re.sub(r" \((Small|Large|Medium|Regular)\)$", "", name)
+        return name.strip()
+
+    def _addon_for(category_name):
+        c = (category_name or "").lower()
+        if "pizza" in c:
+            return ("Extra Cheese", 30, " + Extra Cheese")
+        if "burger" in c or "sandwich" in c:
+            return ("Extra Cheese", 20, " + Extra Cheese")
+        if "fried rice" in c or "noodle" in c:
+            return ("Schezwan", 30, " + Schezwan")
+        return None
+
+    def _norm(name):
+        return _re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+    rows = MenuItem.query.options(joinedload(MenuItem.category)).all()
+    by_name = {}
+    for row in rows:
+        by_name.setdefault((row.category_id, row.name), row)
+    created = 0
+    updated = 0
+    for row in list(rows):
+        # Variant rows themselves never get a variant of their own.
+        if row.name.endswith(" + Extra Cheese") or row.name.endswith(" + Schezwan"):
+            continue
+        addon = _addon_for(row.category.name if row.category else "")
+        if not addon:
+            continue
+        _label, extra, suffix = addon
+        variant_name = row.name + suffix
+        variant = by_name.get((row.category_id, variant_name))
+        want_price = row.price + extra
+        if variant is None:
+            variant = MenuItem(
+                name=variant_name,
+                description=row.description or "",
+                price=want_price,
+                emoji=row.emoji or "🍽️",
+                tag=row.tag or "",
+                category_id=row.category_id,
+                is_available=True,
+                in_stock=True,
+                stock_quantity=None,
+            )
+            db.session.add(variant)
+            by_name[(row.category_id, variant_name)] = variant
+            created += 1
+        elif variant.price != want_price or not variant.is_available:
+            variant.price = want_price
+            variant.is_available = True
+            updated += 1
+    db.session.commit()
+
+    # Dishes in the CSV that are not on the live menu at all are reported,
+    # not created, so the import can never duplicate a dish the live menu
+    # already has under a different spelling.
+    live_bases = {_norm(_base(r.name)) for r in rows}
+    # Base dish names only (not every size/add-on row), so one renamed
+    # dish is reported once.
+    not_on_menu = sorted({
+        _base(item["name"])
+        for items in MENU_DATA.values()
+        for item in items
+        if _norm(_base(item["name"])) not in live_bases
+    })
+    return jsonify({
+        "ok": True,
+        "created": created,
+        "updated": updated,
+        "total": created + updated,
+        "not_on_menu": not_on_menu,
+    })
 
 
 @api_bp.route("/admin/menu/<int:item_id>", methods=["PUT", "DELETE"])

@@ -2,9 +2,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from menu_data import MENU_DATA, TEAM_DATA  # generated from Main_menu.csv
+from app.menu_data import MENU_DATA, TEAM_DATA  # generated from Main_menu.csv
 
 from app import create_app
 from app.extensions import db

@@ -1,7 +1,9 @@
 """Build the Suren Pastries menu from Main_menu.csv (single source of truth).
 
 Outputs (regenerate with: python scripts/build_menu_data.py):
-  - scripts/menu_data.py  -> MENU_DATA used by scripts/seed.py to fill the DB.
+  - app/menu_data.py  -> MENU_DATA used by scripts/seed.py to fill the DB
+    and by the admin "Load CSV menu" import. It lives in the app package
+    (not scripts/) because Vercel excludes scripts/** from the bundle.
   - public/static/js/menu-variants.js -> window.SUREN_MENU_META, used by the
     menu page to group variant rows into one card and open the Swiggy-style
     customise sheet.
@@ -109,8 +111,8 @@ def main():
                 "emoji": item["emoji"], "tag": "",
             })
 
-    # scripts/menu_data.py
-    with open(os.path.join(BASE, "scripts", "menu_data.py"), "w", encoding="utf-8") as f:
+    # app/menu_data.py
+    with open(os.path.join(BASE, "app", "menu_data.py"), "w", encoding="utf-8") as f:
         f.write('"""Menu rows generated from Main_menu.csv by scripts/build_menu_data.py.\n'
                 'Do not edit by hand — change the CSV and re-run the builder.\n'
                 'Variant rows (size / Extra Cheese / Schezwan) are real priced rows:\n'
@@ -120,19 +122,34 @@ def main():
         f.write(repr(menu_data))
         f.write("\n\nTEAM_DATA = []\n")
     total_rows = sum(len(v) for v in menu_data.values())
-    print(f"menu_data.py: {total_rows} rows, {len(meta)} dishes, "
+    print(f"app/menu_data.py: {total_rows} rows, {len(meta)} dishes, "
           f"{len(menu_data)} categories")
 
-    # public/static/js/menu-variants.js
+    # public/static/js/menu-variants.js: one entry per dish, keyed by dish
+    # name. The sheet matches dishes by normalised name and falls back to
+    # the dish's category when a name was renamed in the live menu
+    # (e.g. CSV "Americon" vs live "American"). Size labels are NOT in
+    # here: they come from the "(...)" suffixes on the actual menu rows,
+    # because the live menu says Regular/Large and the CSV says Small/Large
+    # for the same prices.
+    simple_meta = {}
+    for key, m in meta.items():
+        _cat, name = key.split(" | ", 1)
+        entry = {"veg": m["veg"], "emoji": m["emoji"]}
+        if "sizes" in m:
+            entry["sizes"] = True
+        if "addons" in m:
+            entry["addons"] = m["addons"]
+        simple_meta[name] = entry
     with open(os.path.join(BASE, "public", "static", "js", "menu-variants.js"),
               "w", encoding="utf-8") as f:
         f.write("// Generated from Main_menu.csv by scripts/build_menu_data.py.\n"
-                "// One entry per dish shown on the menu. `row` is the exact\n"
-                "// MenuItem name in the DB for that choice; the sheet picks it.\n"
+                "// One entry per dish, keyed by dish name. `sizes: true` means\n"
+                "// the dish has size rows; the labels come from the rows.\n"
                 "window.SUREN_MENU_META = ")
-        f.write(json.dumps(meta, ensure_ascii=False, indent=2))
+        f.write(json.dumps(simple_meta, ensure_ascii=False, indent=2))
         f.write(";\n")
-    print(f"menu-variants.js: {len(meta)} dishes")
+    print(f"menu-variants.js: {len(simple_meta)} dishes")
 
 
 if __name__ == "__main__":

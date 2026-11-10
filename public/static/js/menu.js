@@ -9,12 +9,64 @@ function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
 }
 
-// One entry per dish in window.SUREN_MENU_META, keyed "Category | Dish",
-// generated from Main_menu.csv. It carries the veg mark and the choices
-// the bottom sheet offers. Every priced choice is its own MenuItem row in
-// the DB (checkout prices lines from MenuItem.price), so the sheet only
-// picks which row goes into the cart. Nothing here invents a price.
+// Menu data, generated from Main_menu.csv (public/static/js/menu-variants.js).
+// One entry per dish, keyed by dish name. Size labels are NOT in here:
+// they come from the "(...)" suffixes on the actual menu rows, because the
+// live menu says Regular/Large and the CSV says Small/Large for the same
+// prices. Every priced choice is its own MenuItem row in the DB (checkout
+// prices lines from MenuItem.price), so the sheet only picks which row
+// goes into the cart. Nothing here invents a price.
 const META = window.SUREN_MENU_META || {};
+const META_INDEX = {};
+Object.keys(META).forEach(k => { META_INDEX[normName(k)] = META[k]; });
+
+function normName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// "Simple Veg Pizza (Large) + Extra Cheese" -> "Simple Veg Pizza"
+function baseName(rowName) {
+  return rowName
+    .replace(/ \+ (Extra Cheese|Schezwan)$/, '')
+    .replace(/ \((Small|Large|Medium|Regular)\)$/, '');
+}
+function sizeSuffix(rowName) {
+  const m = rowName.match(/ \((Small|Large|Medium|Regular)\)(?: \+ (?:Extra Cheese|Schezwan))?$/);
+  return m ? m[1] : null;
+}
+
+const CATEGORY_EMOJI = [
+  ['pizza', '🍕'], ['burger', '🍔'], ['sandwich', '🥪'], ['soup', '🥣'],
+  ['starter', '🍗'], ['biryani', '🍛'], ['curr', '🍛'], ['fried rice', '🍚'],
+  ['noodle', '🍜'], ['quick bite', '🍟'], ['dessert', '🍰'],
+  ['milk', '🥤'], ['mocktail', '🍹'],
+];
+function categoryEmoji(cat) {
+  const c = (cat || '').toLowerCase();
+  const hit = CATEGORY_EMOJI.find(([kw]) => c.includes(kw));
+  return hit ? hit[1] : null;
+}
+// Add-on for a dish, from the CSV data when the name matches, otherwise
+// from the dish's category (covers dishes renamed in the live menu).
+function addonFor(cat, name) {
+  const meta = META_INDEX[normName(name)];
+  if (meta && meta.addons) return meta.addons[0];
+  const c = (cat || '').toLowerCase();
+  if (c.includes('pizza')) return { label: 'Extra Cheese', price: 30, suffix: ' + Extra Cheese' };
+  if (c.includes('burger') || c.includes('sandwich')) return { label: 'Extra Cheese', price: 20, suffix: ' + Extra Cheese' };
+  if (c.includes('fried rice') || c.includes('noodle')) return { label: 'Schezwan', price: 30, suffix: ' + Schezwan' };
+  return null;
+}
+function metaFor(cat, name) {
+  const meta = META_INDEX[normName(name)] || {};
+  const c = (cat || '').toLowerCase();
+  return {
+    veg: meta.veg !== undefined ? meta.veg : null,
+    emoji: categoryEmoji(cat) || meta.emoji || '🍽️',
+    sizes: !!(meta.sizes || c.includes('pizza')),
+    addon: addonFor(cat, name),
+  };
+}
 
 let menu = {};
 let dishes = {}; // category -> [dish]
@@ -25,13 +77,6 @@ let cartCount = parseInt(localStorage.getItem('cartCount') || 0);
 const ccountEl = document.getElementById('ccount');
 if (ccountEl) ccountEl.textContent = cartCount;
 
-// "Simple Veg Pizza (Small) + Extra Cheese" -> "Simple Veg Pizza"
-function baseName(rowName) {
-  return rowName
-    .replace(/ \+ (Extra Cheese|Schezwan)$/, '')
-    .replace(/ \((Small|Large|Medium)\)$/, '');
-}
-
 function buildDishes() {
   dishes = {};
   cats = Object.keys(menu);
@@ -41,10 +86,7 @@ function buildDishes() {
     (menu[cat] || []).forEach(row => {
       const base = baseName(row.name);
       if (!byName[base]) {
-        byName[base] = {
-          cat, name: base, rows: {},
-          meta: META[cat + ' | ' + base] || null,
-        };
+        byName[base] = { cat, name: base, rows: {}, meta: metaFor(cat, base) };
         order.push(base);
       }
       byName[base].rows[row.name] = row;
@@ -53,7 +95,20 @@ function buildDishes() {
       const d = byName[name];
       const prices = Object.values(d.rows).map(r => r.price);
       d.minPrice = Math.min(...prices);
-      d.hasOptions = !!(d.meta && (d.meta.sizes || d.meta.addons));
+      // Size options come from the rows that actually exist, so the sheet
+      // shows Regular/Large where the menu says that and Small/Large
+      // where it says that.
+      // One option per size label: the plain row's price wins over the
+      // "+ Extra Cheese" row, which shares the same size label.
+      const sizeByLabel = {};
+      Object.values(d.rows).forEach(r => {
+        const label = sizeSuffix(r.name);
+        if (!label) return;
+        const rowName = `${d.name} (${label})`;
+        if (!sizeByLabel[label] || r.name === rowName) sizeByLabel[label] = { label, price: r.price, row: rowName };
+      });
+      d.sizes = Object.values(sizeByLabel).sort((a, b) => a.price - b.price);
+      d.hasOptions = d.sizes.length > 0 || !!d.meta.addon;
       d.anyInStock = Object.values(d.rows).some(r => r.in_stock !== false);
       return d;
     });
@@ -82,13 +137,6 @@ function renderTabs() {
   document.getElementById('tabs').innerHTML = tabsHTML;
 }
 function setActive(c) { active = c; renderTabs(); renderItems(); }
-
-function vegMark(dish) {
-  if (!dish.meta || dish.meta.veg === null || dish.meta.veg === undefined) return '';
-  return dish.meta.veg
-    ? '<span class="veg-mark veg" title="Veg"><span></span></span>'
-    : '<span class="veg-mark nonveg" title="Non-veg"><span></span></span>';
-}
 
 function renderItems() {
   const q = document.getElementById('search').value.toLowerCase().trim();
@@ -120,7 +168,7 @@ function renderItems() {
 }
 
 function dishHTML(d) {
-  const emoji = (d.meta && d.meta.emoji) || '🍽️';
+  const emoji = d.meta.emoji || '🍽️';
   const baseRow = Object.values(d.rows)[0];
   const image = typeof baseRow.image === 'string'
     && /^data:image\/(?:png|jpe?g);base64,[A-Za-z0-9+/]+={0,2}$/.test(baseRow.image)
@@ -129,9 +177,7 @@ function dishHTML(d) {
   const media = image
     ? `<div class="item-emoji" style="padding:0;overflow:hidden"><img src="${escapeHTML(image)}" width="300" height="300" loading="lazy" alt="${escapeHTML(d.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`
     : `<div class="item-emoji">${escapeHTML(emoji)}</div>`;
-  const priceLabel = d.hasOptions && d.meta.sizes
-    ? `from ₹${d.minPrice}`
-    : `₹${d.minPrice}`;
+  const priceLabel = d.sizes.length > 0 ? `from ₹${d.minPrice}` : `₹${d.minPrice}`;
   const foot = !d.anyInStock
     ? `<button class="add-btn" disabled style="opacity:.5;cursor:not-allowed">Unavailable</button>`
     : d.hasOptions
@@ -141,7 +187,7 @@ function dishHTML(d) {
     ${media}
     <div class="item-body">
       <div class="item-top">
-        <div class="item-name">${vegMark(d)}${escapeHTML(d.name)}</div>
+        <div class="item-name">${escapeHTML(d.name)}</div>
         ${d.hasOptions ? `<div class="item-tag">Customisable</div>` : ''}
       </div>
       <div class="item-foot">
@@ -154,16 +200,15 @@ function dishHTML(d) {
 
 // ───────────────────────── customise sheet (Swiggy style) ─────────────────────────
 let sheetDish = null;
-let sheetSize = 0;      // index into meta.sizes
+let sheetSize = 0;      // index into sheetDish.sizes
 let sheetAddon = false; // the one add-on for this dish, if any
 let sheetQty = 1;
 
 function sheetRowName() {
   if (!sheetDish) return '';
   let name = sheetDish.name;
-  const meta = sheetDish.meta;
-  if (meta.sizes) name += ` (${meta.sizes[sheetSize].label})`;
-  if (sheetAddon && meta.addons) name += meta.addons[0].suffix;
+  if (sheetDish.sizes.length) name += ` (${sheetDish.sizes[sheetSize].label})`;
+  if (sheetAddon && sheetDish.meta.addon) name += sheetDish.meta.addon.suffix;
   return name;
 }
 function sheetRow() {
@@ -192,34 +237,48 @@ function closeSheet() {
   sheetDish = null;
 }
 
+function showSheetToast(msg) {
+  const toastEl = document.getElementById('toast');
+  if (!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), 3500);
+}
+
 function renderSheet() {
   const d = sheetDish;
   const meta = d.meta;
   const emoji = meta.emoji || '🍽️';
   let sections = '';
 
-  if (meta.sizes) {
+  if (d.sizes.length) {
     sections += `<div class="sheet-sec-title">Choose your size</div>
       <div class="sheet-sec-sub">Select any 1</div>
-      <div class="sheet-options">${meta.sizes.map((s, i) => {
+      <div class="sheet-options">${d.sizes.map((s, i) => {
         const row = d.rows[s.row];
         const disabled = !row || row.in_stock === false;
         return `<button type="button" class="sheet-opt ${i === sheetSize ? 'selected' : ''}" data-action="sheet-size" data-idx="${i}" ${disabled ? 'disabled' : ''}>
-          ${vegMark(d)}
           <span class="sheet-opt-name">${escapeHTML(s.label)}</span>
           <span class="sheet-opt-price">₹${s.price}</span>
           <span class="sheet-radio"></span>
         </button>`;
       }).join('')}</div>`;
+  } else if (meta.sizes) {
+    sections += `<div class="sheet-note">Size choices are not on the menu yet. Ask the admin to tap "Load CSV menu" in Admin &gt; Menu.</div>`;
   }
 
-  if (meta.addons) {
-    const a = meta.addons[0];
+  if (meta.addon) {
+    const a = meta.addon;
+    let addonRowName = sheetDish.name;
+    if (d.sizes.length) addonRowName += ` (${d.sizes[sheetSize].label})`;
+    addonRowName += a.suffix;
+    const addonRow = sheetDish.rows[addonRowName];
+    const addonDisabled = !addonRow || addonRow.in_stock === false;
+    if (addonDisabled) sheetAddon = false;
     sections += `<div class="sheet-sec-title">Add-ons</div>
       <div class="sheet-sec-sub">${escapeHTML(a.label)} · +₹${a.price}</div>
       <div class="sheet-options">
-        <button type="button" class="sheet-opt ${sheetAddon ? 'selected' : ''}" data-action="sheet-addon">
-          ${vegMark(d)}
+        <button type="button" class="sheet-opt ${sheetAddon ? 'selected' : ''}" data-action="sheet-addon" ${addonDisabled ? 'disabled' : ''}>
           <span class="sheet-opt-name">${escapeHTML(a.label)}</span>
           <span class="sheet-opt-price">+ ₹${a.price}</span>
           <span class="sheet-check"></span>
@@ -232,7 +291,7 @@ function renderSheet() {
     <div class="sheet-head">
       <div class="sheet-thumb">${escapeHTML(emoji)}</div>
       <div>
-        <div class="sheet-name">${vegMark(d)}${escapeHTML(d.name)}</div>
+        <div class="sheet-name">${escapeHTML(d.name)}</div>
         <div class="sheet-sub">${d.hasOptions ? 'Customise it your way' : ''}</div>
       </div>
     </div>
@@ -243,7 +302,7 @@ function renderSheet() {
         <span>${sheetQty}</span>
         <button type="button" data-action="sheet-qty" data-delta="1" aria-label="Increase quantity">+</button>
       </div>
-      <button type="button" class="sheet-add" data-action="sheet-add">Add Item | ₹${sheetTotal()}</button>
+      <button type="button" class="sheet-add" data-action="sheet-add" ${sheetRow() ? '' : 'disabled style="opacity:.5;cursor:not-allowed"'}>Add Item | ₹${sheetTotal()}</button>
     </div>`;
 }
 
@@ -321,7 +380,10 @@ document.addEventListener('click', (e) => {
   }
   if (action === 'sheet-add') {
     const row = sheetRow();
-    if (!row) return;
+    if (!row) {
+      showSheetToast('That choice is not on the menu yet. Ask the admin to tap "Load CSV menu" in Admin > Menu.');
+      return;
+    }
     addCart(null, row.id, row.name, row.price, row.emoji, sheetQty);
     closeSheet();
   }
