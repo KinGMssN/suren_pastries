@@ -35,8 +35,13 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Customise sheet: filled by menu.js when an item with options is tapped -->
+<div class="sheet-overlay" id="sheet-overlay"></div>
+<div class="custom-sheet" id="custom-sheet" role="dialog" aria-modal="true" aria-label="Customise item"></div>
 {% endblock %}
 {% block page_js %}
+<script defer src="{{ url_for('static', filename='js/menu-variants.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/menu.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/customer.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/floating-widgets.js') }}"></script>
